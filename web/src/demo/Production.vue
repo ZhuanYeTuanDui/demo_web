@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
-import { Plus, Search, Calendar, Box, CircleCheck } from "@element-plus/icons-vue";
+import { computed, defineAsyncComponent, reactive, ref } from "vue";
+import { Plus, Search, Calendar, Box, CircleCheck, Upload } from "@element-plus/icons-vue";
 import { state, material, commit } from "./store";
-import { products, today, id, issuePlan, finishPlan } from "./model";
+import { products, today, id, issuePlan, finishPlan, planBom, requirements, type Plan } from "./model";
+const ProductionImport = defineAsyncComponent(() => import("./ProductionImport.vue"));
+const importing = ref(false);
 const emit = defineEmits<{ navigate: [page: string] }>();
 const keyword = ref("");
 const status = ref("");
@@ -28,7 +30,9 @@ function create() {
         form.qty > 100000
       )
         throw new Error("请选择产品并填写有效整数数量");
-      s.plans.unshift({ ...form, name: form.name.trim(), id: id("PP"), status: "待分析" });
+      const plan: Plan = { ...form, name: form.name.trim(), id: id("PP"), status: "待分析" };
+      requirements(plan);
+      s.plans.unshift(plan);
     }, "生产计划已创建，可到采购管理分析缺料")
   ) {
     dialog.value = false;
@@ -47,13 +51,16 @@ function analyze(planId: string) {
       <h1>生产计划</h1>
       <p>以计划连接物料需求、采购备料与生产领用。</p>
     </div>
-    <el-button type="primary" :icon="Plus" @click="dialog = true">新增生产计划</el-button>
+    <div>
+      <el-button :icon="Upload" @click="importing = true">导入 Excel</el-button>
+      <el-button type="primary" :icon="Plus" @click="dialog = true">新增生产计划</el-button>
+    </div>
   </div>
   <div class="metric-grid">
     <div class="metric">
       <span>生产计划</span><strong>{{ state.plans.length }}<small>个</small></strong
       ><el-icon><Calendar /></el-icon>
-      <p>演示产品采用预设 BOM</p>
+      <p>支持预设 BOM 与 Excel 物料清单</p>
     </div>
     <div class="metric">
       <span>待分析 / 备料</span
@@ -183,15 +190,19 @@ function analyze(planId: string) {
           selected.status
         }}</el-descriptions-item></el-descriptions
       >
-      <h3>单台产品 BOM（演示）</h3>
-      <el-table :data="products.find((p) => p.id === selected?.product)?.bom"
+      <p v-if="selected.importSource" class="muted">来源：{{ selected.importSource.file }} / {{ selected.importSource.sheet }}，{{ selected.importSource.rows.length }} 条原始明细</p>
+      <h3>{{ selected.importSource?.basis === 'total' ? '本次需求清单' : '单台产品 BOM' }}</h3>
+      <el-table :data="planBom(selected)"
         ><el-table-column label="物料"
           ><template #default="{ row }">{{
             material(row.material).name
           }}</template></el-table-column
-        ><el-table-column prop="qty" label="单台用量"
+        ><el-table-column label="图号 / 规格" min-width="180"><template #default="{ row }">{{ material(row.material).details?.drawingNo || material(row.material).spec || '—' }}</template></el-table-column
+        ><el-table-column label="单位" width="70"><template #default="{ row }">{{ material(row.material).unit }}</template></el-table-column
+        ><el-table-column prop="qty" :label="selected.importSource?.basis === 'total' ? '需求量' : '单台用量'" width="90"
       /></el-table>
       <h3>工序与排程</h3>
       <el-empty description="暂未配置" :image-size="65" /></template
   ></el-drawer>
+  <ProductionImport v-if="importing" @close="importing = false" @imported="planId => { importing = false; detail = planId; }" />
 </template>

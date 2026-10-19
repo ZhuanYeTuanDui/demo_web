@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { Search, DataAnalysis, Collection, ShoppingCart, Tickets } from "@element-plus/icons-vue";
 import { state, material, commit } from "./store";
 import { convertDraft, type Line } from "./model";
@@ -22,6 +22,9 @@ const filtered = computed(() =>
 );
 const paged = computed(() => filtered.value.slice((page.value - 1) * 10, page.value * 10));
 const selected = computed(() => state.value.drafts.find((d) => d.id === detail.value));
+const detailPage = ref(1);
+const detailLines = computed(() => selected.value?.lines.slice((detailPage.value - 1) * 20, detailPage.value * 20) || []);
+watch(detail, () => { detailPage.value = 1; });
 const conversion = computed(() => state.value.drafts.find((d) => d.id === converting.value));
 const order = computed(() => state.value.purchases.find((p) => p.draft === detail.value));
 function sourcePlan(planId: string) {
@@ -159,7 +162,7 @@ const cell = (value: number | null) => (value === null ? "—" : value);
   <el-drawer
     :model-value="!!selected"
     title="采购底稿详情"
-    size="1150px"
+    size="1360px"
     class="draft-drawer"
     @close="detail = ''"
     ><template v-if="selected"
@@ -195,7 +198,7 @@ const cell = (value: number | null) => (value === null ? "—" : value);
         <h2>物料明细</h2>
         <span class="muted">BOM 需求量是总用量，需购买数量是本次缺口</span>
       </div>
-      <el-table :data="selected.lines" stripe
+      <el-table :data="detailLines" stripe max-height="420"
         ><el-table-column label="品号 / 品名" min-width="190"
           ><template #default="{ row }"
             ><div>{{ material(row.material).name }}</div>
@@ -233,6 +236,7 @@ const cell = (value: number | null) => (value === null ? "—" : value);
           ></el-table-column
         ></el-table
       >
+      <div class="pagination"><span>共 {{ selected.lines.length }} 条物料明细</span><el-pagination v-model:current-page="detailPage" :total="selected.lines.length" :page-size="20" layout="total, prev, pager, next" /></div>
       <div class="inline-note">
         已保存的数量为生成时计算结果，不随库存变化回写。审批、拆分及分行结束规则暂未配置。
       </div>
@@ -250,7 +254,7 @@ const cell = (value: number | null) => (value === null ? "—" : value);
   <el-dialog
     :model-value="!!conversion"
     title="采购底稿转采购单"
-    width="700px"
+    width="min(1080px, 94vw)"
     destroy-on-close
     :close-on-click-modal="false"
     @close="converting = ''"

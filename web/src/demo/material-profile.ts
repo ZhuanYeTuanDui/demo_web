@@ -13,6 +13,10 @@ export interface Field {
   required?: boolean;
 }
 export const categories = [
+  { id: "JJ", name: "机加件" },
+  { id: "BJ", name: "钣金件" },
+  { id: "BZ", name: "标准件" },
+  { id: "DQ", name: "电气件" },
   { id: "Y", name: "原材料" },
   { id: "G", name: "工具" },
   { id: "F", name: "辅材" },
@@ -32,6 +36,7 @@ export const groups: { title: string; fields: Field[] }[] = [
     fields: [
       { key: "name", label: "品名", required: true },
       { key: "spec", label: "规格" },
+      { key: "drawingNo", label: "图号" },
       { key: "unit", label: "库存单位", required: true },
       { key: "shortcut", label: "快捷码" },
     ],
@@ -43,6 +48,8 @@ export const groups: { title: string; fields: Field[] }[] = [
       { key: "accountingCategory", label: "会计分类" },
       { key: "brand", label: "品牌" },
       { key: "texture", label: "材质" },
+      { key: "surfaceTreatment", label: "表面处理" },
+      { key: "weightKg", label: "重量（kg，原表口径）", type: "number", min: 0 },
     ],
   },
   {
@@ -95,6 +102,18 @@ export const groups: { title: string; fields: Field[] }[] = [
       { key: "batchManaged", label: "批号管理", type: "switch" },
       { key: "inventoryAccounting", label: "存货核算", type: "switch" },
       { key: "inactive", label: "失效", type: "switch" },
+    ],
+  },
+  {
+    title: "源表信息",
+    fields: [
+      { key: "sourceFile", label: "来源文件" },
+      { key: "sourceSheet", label: "来源工作表" },
+      { key: "sourceRows", label: "来源行号" },
+      { key: "sourceParts", label: "来源部件" },
+      { key: "unitStatus", label: "单位说明" },
+      { key: "priceStatus", label: "价格说明" },
+      { key: "weightBasis", label: "重量说明" },
     ],
   },
 ];

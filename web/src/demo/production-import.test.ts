@@ -1,0 +1,135 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+import { read, utils } from "xlsx";
+import { parseProductionWorkbook, parseProductionExcel, importProductionPlans } from "./production-import";
+import { analysis, convertDraft, createDraft, finishPlan, issuePlan, receive, requirements, seed, stockKey } from "./model";
+
+function workbook(rows: unknown[][], name = "物料清单") {
+  const wb = utils.book_new();
+  utils.book_append_sheet(wb, utils.aoa_to_sheet(rows), name);
+  return wb;
+}
+const simple = [["名称", "型号/规格", "单位", "数量", "品牌"], ["测试传感器", "TEST-01", "个", 2, "测试品牌"]];
+
+describe("Excel 生产计划导入", () => {
+  it("真实 XLS 的空白模板页不生成计划，电气明细识别为本次总需求", () => {
+    const state = seed();
+    const data = readFileSync(resolve("../assets/product/(C0210)电芯热压测试机电气BOM.xls"));
+    const preview = parseProductionWorkbook(read(data), "电气.xls", state.materials);
+    expect(preview.errors).toEqual([]);
+    expect(preview.sheets).toHaveLength(1);
+    expect(preview.sheets[0]?.rows).toHaveLength(21);
+    expect(preview.sheets[0]?.basis).toBe("total");
+    expect(preview.sheets[0]?.rows.every((r) => r.materialId)).toBe(true);
+    const plans = importProductionPlans(state, preview, "2026-10-19", "");
+    expect(requirements(plans[0]!).reduce((n, l) => n + l.qty, 0)).toBe(56);
+  });
+
+  it("真实 XLSX 只导入三张指定表，保留分组并聚合跨部件的重复图号", () => {
+    const state = seed();
+    const data = readFileSync(resolve("../assets/product/C0214顶侧封装机4-13.xlsx"));
+    const buffer = Uint8Array.from(data).buffer;
+    const preview = parseProductionExcel(buffer, "C0214.xlsx", state.materials);
+    expect(preview.errors).toEqual([]);
+    expect(preview.sheets.map((s) => [s.sheet, s.rows.length])).toEqual([["机加", 321], ["钣金", 97], ["标准", 217]]);
+    expect(preview.ignored).toContain("新增机加");
+    expect(preview.warnings.filter((w) => w.includes("图片"))).toHaveLength(4);
+    expect(preview.sheets[0]?.rows[0]?.unit).toBe("个");
+    preview.sheets[1]!.qty = 2;
+    const plans = importProductionPlans(state, preview, "2026-10-19", "件");
+    expect(plans).toHaveLength(3);
+    const drawing = state.materials.find((m) => m.details?.drawingNo === "A00000000-00001")!;
+    expect(requirements(plans[1]!).find((l) => l.material === drawing.id)?.qty).toBe(18);
+    expect(plans[1]?.importSource?.rows.filter((r) => r.material === drawing.id).map((r) => r.qty)).toEqual([4, 5]);
+    expect(requirements(JSON.parse(JSON.stringify(plans[1])))).toEqual(requirements(plans[1]!));
+  });
+
+  it("新物料自动建档、重复行合并，导入计划走完需求到完工闭环", () => {
+    const state = seed();
+    const wb = workbook([...simple, ["测试传感器", "TEST-01", "个", 3, "测试品牌"]]);
+    const preview = parseProductionWorkbook(wb, "新设备.xlsx", state.materials);
+    preview.sheets[0]!.basis = "perUnit";
+    preview.sheets[0]!.qty = 2;
+    const plan = importProductionPlans(state, preview, "2026-10-19", "")[0]!;
+    const rows = requirements(plan);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.qty).toBe(10);
+    expect(analysis(state, plan)[0]?.shortage).toBe(10);
+    const draft = createDraft(state, plan.id);
+    expect(() => createDraft(state, plan.id)).toThrow("无新增缺料");
+    const order = convertDraft(state, draft.id, "采购员", "测试供应商");
+    expect(() => issuePlan(state, plan.id)).toThrow("库存不足");
+    receive(state, order.id, "BZ01");
+    issuePlan(state, plan.id);
+    finishPlan(state, plan.id);
+    expect(plan.status).toBe("已完工");
+    expect(state.stocks[stockKey("CP01", plan.product)]).toBe(2);
+    expect(state.stocks[stockKey("BZ01", rows[0]!.material)]).toBe(0);
+  });
+
+  it("多表精确匹配四种名称，不支持的子表不会误生成计划", () => {
+    const state = seed();
+    const wb = workbook(simple, "电气");
+    utils.book_append_sheet(wb, utils.aoa_to_sheet(simple), "机加备份");
+    const preview = parseProductionWorkbook(wb, "多表.xlsx", state.materials);
+    expect(preview.sheets.map((s) => s.sheet)).toEqual(["电气"]);
+    expect(preview.ignored).toEqual(["机加备份"]);
+    const unsupported = workbook(simple, "其他1");
+    utils.book_append_sheet(unsupported, utils.aoa_to_sheet(simple), "其他2");
+    expect(parseProductionWorkbook(unsupported, "其他.xlsx", state.materials).errors[0]).toContain("没有可导入");
+  });
+
+  it("错误数量、缺名称、数值公式和不识别表头均明确报错，不静默丢行", () => {
+    const state = seed();
+    for (const qty of [0, -1, 1.5, "待定"]) {
+      const preview = parseProductionWorkbook(workbook([simple[0]!, ["零件", "X", "个", qty]]), "错误.xlsx", state.materials);
+      expect(preview.errors.some((e) => e.includes("第 2 行"))).toBe(true);
+    }
+    const wb = workbook(simple);
+    wb.Sheets["物料清单"]!["D2"].f = "1+1";
+    expect(parseProductionWorkbook(wb, "公式.xlsx", state.materials).errors.join()).toContain("包含公式");
+    expect(parseProductionWorkbook(workbook([["说明"], ["其他"]]), "空.xlsx", state.materials).errors.join()).toContain("未找到");
+    expect(parseProductionWorkbook(workbook([simple[0]!, ["", "型号", "个", 1]]), "缺名称.xlsx", state.materials).errors.join()).toContain("名称缺失");
+  });
+
+  it("缺失单位和数量采用缺省值，已有库存单位和合法数量不被覆盖", () => {
+    const state = seed();
+    const preview = parseProductionWorkbook(workbook([
+      ["名称", "型号/规格", "数量", "单位"],
+      ["新零件", "NEW", "", ""],
+      ["已有用量", "KEEP", 5, "米"],
+      ["PLC 控制器", "LX3V-3624MT-A", "", ""],
+    ]), "缺省.xlsx", state.materials);
+    expect(preview.errors).toEqual([]);
+    expect(preview.sheets[0]?.rows.map((r) => [r.qty, r.unit])).toEqual([[1, "个"], [5, "米"], [1, "PCS"]]);
+    const plan = importProductionPlans(state, preview, "2026-10-19")[0]!;
+    expect(plan.qty).toBe(1);
+    expect(requirements(plan).map((r) => r.qty)).toEqual([1, 5, 1]);
+    const noColumns = parseProductionWorkbook(workbook([["物料名称", "规格"], ["无单位数量列", "ONLY"]]), "简单.xlsx", state.materials);
+    expect(noColumns.errors).toEqual([]);
+    expect(noColumns.sheets[0]?.rows[0]).toMatchObject({ unit: "个", qty: 1 });
+  });
+
+  it("物料匹配歧义须手动选择；无效日期、单位冲突及数量溢出不会部分落库", () => {
+    const state = seed();
+    state.materials.push({ id: "T1", name: "测试传感器", spec: "TEST-01", unit: "个", price: 1, details: { brand: "测试品牌" } },
+      { id: "T2", name: "测试传感器", spec: "TEST-01", unit: "个", price: 2, details: { brand: "测试品牌" } });
+    const preview = parseProductionWorkbook(workbook(simple), "匹配.xlsx", state.materials);
+    const before = JSON.stringify(state);
+    expect(preview.sheets[0]!.rows[0]!.candidates).toEqual(["T1", "T2"]);
+    expect(() => importProductionPlans(state, preview, "2026-10-19", "")).toThrow("多个匹配");
+    preview.sheets[0]!.rows[0]!.materialId = "T1";
+    preview.sheets[0]!.rows[0]!.unit = "套";
+    expect(() => importProductionPlans(state, preview, "2026-10-19", "")).toThrow("单位");
+    preview.sheets[0]!.rows[0]!.unit = "个";
+    expect(() => importProductionPlans(state, preview, "2026-02-30", "")).toThrow("日期");
+    preview.sheets[0]!.basis = "perUnit";
+    preview.sheets[0]!.qty = 100000;
+    expect(() => importProductionPlans(state, preview, "2026-10-19", "")).toThrow("数量");
+    expect(JSON.stringify(state)).toBe(before);
+    preview.sheets[0]!.qty = 1;
+    preview.sheets[0]!.rows[0]!.materialId = "__new__";
+    expect(importProductionPlans(state, preview, "2026-10-19", "")[0]?.bom?.[0]?.material).not.toBe("T1");
+  });
+});

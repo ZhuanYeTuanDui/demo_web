@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, defineAsyncComponent, ref, watch } from "vue";
 import {
   Plus,
   Search,
@@ -23,6 +23,8 @@ import {
   type Purchase,
 } from "./model";
 import DocumentEditor from "./DocumentEditor.vue";
+const PurchasePrint = defineAsyncComponent(() => import("./PurchasePrint.vue"));
+const printOrder = ref<Purchase>();
 const props = defineProps<{ page: string }>();
 const emit = defineEmits<{ navigate: [page: string] }>();
 const keyword = ref("");
@@ -188,7 +190,7 @@ const steps = computed(() =>
     <section class="panel analysis-selector">
       <div>
         <h2>选择生产计划</h2>
-        <p class="muted">使用固定 BOM 展开物料，现场仓和成品仓默认不计入可用量。</p>
+        <p class="muted">按计划 BOM 和计划数量计算需求，支持 Excel 导入清单；现场仓和成品仓默认不计入可用量。</p>
       </div>
       <el-select v-model="planId" placeholder="请选择生产计划" filterable
         ><el-option
@@ -274,13 +276,13 @@ const steps = computed(() =>
             >该计划已领料，不再生成底稿。</span
           ><span v-else class="muted"
             >保存完整 BOM 展算行；需购数量扣除可分配库存及本计划待转底稿、在途采购。</span
-          ><el-button
+          ><div class="analysis-action-buttons"><el-button
             type="primary"
             :icon="Plus"
             :disabled="!shortages.length || !['待分析', '待备料'].includes(selectedPlan.status)"
             @click="generate"
             >生成采购底稿</el-button
-          ><el-button @click="emit('navigate', 'drafts')">查看底稿记录</el-button>
+          ><el-button @click="emit('navigate', 'drafts')">查看底稿记录</el-button></div>
         </div>
       </section> </template
     ><el-empty v-else description="暂无生产计划，请先创建"
@@ -377,7 +379,7 @@ const steps = computed(() =>
               row.status
             }}</el-tag></template
           ></el-table-column
-        ><el-table-column label="操作" width="140" fixed="right"
+        ><el-table-column label="操作" width="200" fixed="right"
           ><template #default="{ row }"
             ><el-button
               v-if="page === 'requests' && row.status === '待采购'"
@@ -393,6 +395,8 @@ const steps = computed(() =>
               >确认收货</el-button
             ><el-button v-else link type="primary" @click="detail = row.id"
               >查看详情</el-button
+            ><el-button v-if="page === 'orders'" link type="primary" @click="printOrder = row"
+              >打印预览</el-button
             ></template
           ></el-table-column
         ></el-table
@@ -411,7 +415,7 @@ const steps = computed(() =>
   <el-dialog
     v-model="editing"
     :title="page === 'requests' ? '新增请购单' : '新增采购单'"
-    width="700px"
+    width="min(1080px, 94vw)"
     destroy-on-close
     :close-on-click-modal="false"
     ><DocumentEditor
@@ -422,7 +426,7 @@ const steps = computed(() =>
   <el-dialog
     :model-value="!!convertingRequest"
     title="请购转采购"
-    width="700px"
+    width="min(1080px, 94vw)"
     destroy-on-close
     :close-on-click-modal="false"
     @close="converting = ''"
@@ -508,7 +512,9 @@ const steps = computed(() =>
         ></el-table
       >
       <p class="amount">参考金额：¥{{ amount(selectedDoc.lines) }}</p>
+      <el-button v-if="'supplier' in selectedDoc" type="primary" @click="printOrder = selectedDoc as Purchase">打印预览</el-button>
       <p class="muted">单价为演示参考值；税额、结算和审核规则暂未配置。</p></template
     ></el-drawer
   >
+  <PurchasePrint v-if="printOrder" :order="printOrder" @close="printOrder = undefined" />
 </template>

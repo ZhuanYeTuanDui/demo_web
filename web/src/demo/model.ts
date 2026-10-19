@@ -1,3 +1,5 @@
+import { productMaterials } from "./product-materials";
+
 export interface Warehouse {
   id: string;
   name: string;
@@ -29,6 +31,13 @@ export interface Plan {
   qty: number;
   date: string;
   status: "待分析" | "待备料" | "已领料" | "已完工";
+  bom?: Line[];
+  importSource?: {
+    file: string;
+    sheet: string;
+    basis?: "perUnit" | "total";
+    rows: { row: number; part: string; material: string; qty: number }[];
+  };
 }
 export interface Requisition {
   id: string;
@@ -132,6 +141,7 @@ export function seed(): State {
       { id: "M004", name: "漏电开关", spec: "DZ47S / C100", unit: "PCS", price: 65 },
       { id: "M005", name: "温控模块", spec: "TM4-N2SB", unit: "PCS", price: 185 },
       ...products.map((p) => ({ id: p.id, name: p.name, spec: p.spec, unit: "台", price: 0 })),
+      ...productMaterials(),
     ],
     stocks: {
       "BZ01:M001": 2,
@@ -224,10 +234,18 @@ export function validateLines(state: State, lines: Line[]) {
     seen.add(line.material);
   }
 }
-export function requirements(plan: Plan): Line[] {
+export function planBom(plan: Plan): Line[] {
   const product = products.find((p) => p.id === plan.product);
-  if (!product) throw new Error("未配置该产品的演示 BOM");
-  return product.bom.map((l) => ({ material: l.material, qty: l.qty * plan.qty }));
+  const bom = plan.bom ?? product?.bom;
+  if (!bom?.length) throw new Error("该计划未配置 BOM");
+  return bom;
+}
+export function requirements(plan: Plan): Line[] {
+  return planBom(plan).map((l) => {
+    const qty = l.qty * plan.qty;
+    positive(qty);
+    return { material: l.material, qty };
+  });
 }
 export function available(state: State, material: string) {
   return state.warehouses
