@@ -1,7 +1,5 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { read, utils } from "xlsx";
+import { utils, write } from "xlsx";
 import { parseProductionWorkbook, parseProductionExcel, importProductionPlans } from "./production-import";
 import { analysis, convertDraft, createDraft, finishPlan, issuePlan, receive, requirements, seed, stockKey } from "./model";
 
@@ -13,35 +11,82 @@ function workbook(rows: unknown[][], name = "物料清单") {
 const simple = [["名称", "型号/规格", "单位", "数量", "品牌"], ["测试传感器", "TEST-01", "个", 2, "测试品牌"]];
 
 describe("Excel 生产计划导入", () => {
-  it("真实 XLS 的空白模板页不生成计划，电气明细识别为本次总需求", () => {
+  it("XLS 二进制文件的空白模板页不生成计划，电气明细识别为本次总需求", () => {
     const state = seed();
-    const data = readFileSync(resolve("../assets/product/(C0210)电芯热压测试机电气BOM.xls"));
-    const preview = parseProductionWorkbook(read(data), "电气.xls", state.materials);
+    // 在内存中生成真正的旧版 XLS，避免 CI 依赖本地业务文件或当前工作目录。
+    const wb = workbook([
+      ["测试设备电气 BOM"], [], ["交接日期：2026.10.19"],
+      ["序号", "名称", "型号/规格", "单位", "数量", "品牌", "备注"],
+      [1, "PLC 控制器", "LX3V-3624MT-A", "PCS", 2, "", "中文备注"],
+      [2, "触摸屏", "PI3070ig-O", "PCS", 3],
+      [3], [4],
+    ], "Sheet1");
+    wb.Sheets.Sheet1!["!merges"] = [utils.decode_range("A1:G2"), utils.decode_range("A3:G3")];
+    utils.book_append_sheet(wb, utils.aoa_to_sheet([]), "Sheet2");
+    utils.book_append_sheet(wb, utils.aoa_to_sheet([]), "Sheet3");
+    const buffer: ArrayBuffer = write(wb, { type: "array", bookType: "biff8" });
+    expect([...new Uint8Array(buffer).slice(0, 4)]).toEqual([0xd0, 0xcf, 0x11, 0xe0]);
+    const preview = parseProductionExcel(buffer, "电气.xls", state.materials);
     expect(preview.errors).toEqual([]);
     expect(preview.sheets).toHaveLength(1);
-    expect(preview.sheets[0]?.rows).toHaveLength(21);
+    expect(preview.sheets[0]?.rows).toHaveLength(2);
     expect(preview.sheets[0]?.basis).toBe("total");
     expect(preview.sheets[0]?.rows.every((r) => r.materialId)).toBe(true);
+    expect(preview.sheets[0]?.rows[0]?.remark).toBe("中文备注");
+    expect(preview.ignored).toEqual(["Sheet2", "Sheet3"]);
     const plans = importProductionPlans(state, preview, "2026-10-19", "");
-    expect(requirements(plans[0]!).reduce((n, l) => n + l.qty, 0)).toBe(56);
+    expect(requirements(plans[0]!).reduce((n, l) => n + l.qty, 0)).toBe(5);
   });
 
-  it("真实 XLSX 只导入三张指定表，保留分组并聚合跨部件的重复图号", () => {
+  it("XLSX 二进制文件只导入三张指定表，保留分组并聚合跨部件的重复图号", () => {
     const state = seed();
-    const data = readFileSync(resolve("../assets/product/C0214顶侧封装机4-13.xlsx"));
-    const buffer = Uint8Array.from(data).buffer;
-    const preview = parseProductionExcel(buffer, "C0214.xlsx", state.materials);
+    const headers = ["序号", "图号", "名称", "数量/台", "材质", "表面处理", "重量（Kg）", "备注"];
+    const wb = workbook([
+      ["测试设备机加件"], [], ["项目号：TEST"], headers,
+      ["A00000001-01测试部件"],
+      [1, "TEST-JJ-001", "测试垫板", 2, "S45C", "镀铬", 0.2],
+      ["以下空白"],
+    ], "机加");
+    wb.Sheets["机加"]!["!merges"] = [utils.decode_range("A1:H2"), utils.decode_range("A5:H5")];
+    const sheetMetal = utils.aoa_to_sheet([
+      ["测试设备钣金件"], [], ["项目号：TEST"], headers,
+      ["A00000001-01第一部件"],
+      [1, "TEST-BJ-001", "测试支架", 4, "Q235", "烤漆", 0.1],
+      ["A00000001-02第二部件"],
+      [2, "TEST-BJ-001", "测试支架", 5, "Q235", "烤漆", 0.1],
+      ["以下空白"],
+    ]);
+    sheetMetal["!merges"] = [utils.decode_range("A1:H2"), utils.decode_range("A5:H5"), utils.decode_range("A7:H7")];
+    utils.book_append_sheet(wb, sheetMetal, "钣金");
+    const standard = utils.aoa_to_sheet([
+      ["测试设备标准件"], [], ["项目号：TEST"],
+      ["序号", "名称", "型号/规格", "单位", "数量/台", "品牌", "备注"],
+      ["A00000001-01测试部件"],
+      [1, "测试弹性销", "TEST-PIN", "个", 1, "测试品牌", '=DISPIMG("TEST",1)'],
+    ]);
+    standard.G6!.f = '_xlfn.DISPIMG("TEST",1)';
+    standard["!merges"] = [utils.decode_range("A1:G2"), utils.decode_range("A5:G5")];
+    utils.book_append_sheet(wb, standard, "标准");
+    for (const name of ["变更履历", "新增机加", "新增标准"])
+      utils.book_append_sheet(wb, utils.aoa_to_sheet([["不应导入的内容"]]), name);
+    utils.book_append_sheet(wb, utils.aoa_to_sheet([]), "Sheet2");
+    const buffer: ArrayBuffer = write(wb, { type: "array", bookType: "xlsx" });
+    expect([...new Uint8Array(buffer).slice(0, 2)]).toEqual([0x50, 0x4b]);
+    const preview = parseProductionExcel(buffer, "测试设备.xlsx", state.materials);
     expect(preview.errors).toEqual([]);
-    expect(preview.sheets.map((s) => [s.sheet, s.rows.length])).toEqual([["机加", 321], ["钣金", 97], ["标准", 217]]);
+    expect(preview.sheets.map((s) => [s.sheet, s.rows.length])).toEqual([["机加", 1], ["钣金", 2], ["标准", 1]]);
     expect(preview.ignored).toContain("新增机加");
-    expect(preview.warnings.filter((w) => w.includes("图片"))).toHaveLength(4);
+    expect(preview.warnings.filter((w) => w.includes("图片"))).toHaveLength(1);
     expect(preview.sheets[0]?.rows[0]?.unit).toBe("个");
     preview.sheets[1]!.qty = 2;
     const plans = importProductionPlans(state, preview, "2026-10-19", "件");
     expect(plans).toHaveLength(3);
-    const drawing = state.materials.find((m) => m.details?.drawingNo === "A00000000-00001")!;
+    const drawing = state.materials.find((m) => m.details?.drawingNo === "TEST-BJ-001")!;
     expect(requirements(plans[1]!).find((l) => l.material === drawing.id)?.qty).toBe(18);
     expect(plans[1]?.importSource?.rows.filter((r) => r.material === drawing.id).map((r) => r.qty)).toEqual([4, 5]);
+    expect(plans[1]?.importSource?.rows.map((r) => [r.row, r.part])).toEqual([
+      [6, "A00000001-01第一部件"], [8, "A00000001-02第二部件"],
+    ]);
     expect(requirements(JSON.parse(JSON.stringify(plans[1])))).toEqual(requirements(plans[1]!));
   });
 
