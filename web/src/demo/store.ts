@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import { ElMessage } from "element-plus";
-import { seed, type State } from "./model";
+import { seed, migrateDrafts, type State } from "./model";
 
 const KEY = "wsn-erp-demo-v1";
 function load(): State {
@@ -19,6 +19,7 @@ function load(): State {
   ) {
     throw new Error("演示数据格式不兼容，请重置演示数据");
   }
+  migrateDrafts(parsed);
   return parsed;
 }
 export const storageError = ref("");

@@ -3,6 +3,12 @@ export interface Warehouse {
   name: string;
   kind: string;
   available: boolean;
+  phone?: string;
+  fax?: string;
+  postcode?: string;
+  address?: string;
+  inactive?: boolean;
+  remark?: string;
 }
 export interface Material {
   id: string;
@@ -10,6 +16,7 @@ export interface Material {
   spec: string;
   unit: string;
   price: number;
+  details?: Record<string, string | number | boolean | null>;
 }
 export interface Line {
   material: string;
@@ -34,12 +41,34 @@ export interface Requisition {
 export interface Purchase {
   id: string;
   request: string;
+  draft?: string;
   plan: string;
   buyer: string;
   supplier: string;
   date: string;
   lines: Line[];
   status: "待入库" | "已入库";
+}
+export interface DraftLine extends Line {
+  bomQty: number | null;
+  stock: number | null;
+  reserved: number | null;
+  usable: number | null;
+  covered: number | null;
+  dueDate: string;
+  sourceLine: string;
+}
+export interface PurchaseDraft {
+  id: string;
+  plan: string;
+  product: string;
+  date: string;
+  createdAt: string;
+  creator: string;
+  remark: string;
+  lines: DraftLine[];
+  status: "待采购" | "已转采购";
+  legacy?: boolean;
 }
 export interface Movement {
   id: string;
@@ -58,6 +87,7 @@ export interface State {
   stocks: Record<string, number>;
   plans: Plan[];
   requests: Requisition[];
+  drafts: PurchaseDraft[];
   purchases: Purchase[];
   movements: Movement[];
 }
@@ -140,6 +170,7 @@ export function seed(): State {
         status: "已转采购",
       },
     ],
+    drafts: [],
     purchases: [
       {
         id: "PO202610001",
@@ -200,15 +231,15 @@ export function requirements(plan: Plan): Line[] {
 }
 export function available(state: State, material: string) {
   return state.warehouses
-    .filter((w) => w.available)
+    .filter((w) => w.available && !w.inactive)
     .reduce((sum, w) => sum + (state.stocks[stockKey(w.id, material)] || 0), 0);
 }
-// 已确认备料的计划优先占用库存；在途采购和请购只计入其关联计划，防止重复覆盖。
+// 已确认备料的计划优先占用库存；底稿和在途采购仅覆盖其关联计划。
 export function analysis(state: State, plan: Plan) {
-  // 请购单按新到旧保存；按首次请购时间排队，后续计划不能挤占先前计划。
+  // 底稿按新到旧保存；按首次生成先后排队，后续计划不能挤占先前计划。
   const queue = [
     ...new Set(
-      [...state.requests]
+      [...state.drafts]
         .reverse()
         .map((r) => r.plan)
         .filter(Boolean)
@@ -229,7 +260,7 @@ export function analysis(state: State, plan: Plan) {
       );
     const stock = available(state, line.material);
     const usable = Math.max(0, stock - reserved);
-    const pendingRequest = state.requests
+    const pendingDraft = state.drafts
       .filter((r) => r.plan === plan.id && r.status === "待采购")
       .flatMap((r) => r.lines)
       .filter((l) => l.material === line.material)
@@ -244,30 +275,108 @@ export function analysis(state: State, plan: Plan) {
       stock,
       reserved,
       usable,
-      pending: pendingRequest + incoming,
-      shortage: Math.max(0, line.qty - usable - pendingRequest - incoming),
+      pending: pendingDraft + incoming,
+      shortage: Math.max(0, line.qty - usable - pendingDraft - incoming),
     };
   });
 }
-export function createRequest(state: State, planId: string) {
+export function createDraft(state: State, planId: string) {
   const plan = state.plans.find((p) => p.id === planId);
   if (!plan || !["待分析", "待备料"].includes(plan.status))
-    throw new Error("该计划当前不能生成请购单");
-  const lines = analysis(state, plan)
-    .filter((l) => l.shortage > 0)
-    .map((l) => ({ material: l.material, qty: l.shortage }));
-  if (!lines.length) throw new Error("当前无新增缺料，不需要重复请购");
-  const request: Requisition = {
-    id: id("PR"),
+    throw new Error("该计划当前不能生成采购底稿");
+  const rows = analysis(state, plan);
+  if (!rows.some((l) => l.shortage > 0)) throw new Error("当前无新增缺料，不需要重复生成底稿");
+  validateLines(
+    state,
+    rows.filter((l) => l.shortage > 0).map((l) => ({ material: l.material, qty: l.shortage }))
+  );
+  const draft: PurchaseDraft = {
+    id: id("DG"),
     plan: plan.id,
-    applicant: "计划员",
+    product: plan.product,
+    creator: "演示管理员",
+    createdAt: new Date().toISOString(),
+    remark: "由物料需求计算生成",
     date: today(),
-    lines,
+    lines: rows.map((l, i) => ({
+      material: l.material,
+      qty: l.shortage,
+      bomQty: l.qty,
+      stock: l.stock,
+      reserved: l.reserved,
+      usable: l.usable,
+      covered: l.pending,
+      dueDate: plan.date,
+      sourceLine: `${plan.id}-${String(i + 1).padStart(3, "0")}`,
+    })),
     status: "待采购",
   };
-  state.requests.unshift(request);
+  state.drafts.unshift(draft);
   plan.status = "待备料";
-  return request;
+  return draft;
+}
+export function convertDraft(state: State, draftId: string, buyer: string, supplier: string) {
+  const draft = state.drafts.find((d) => d.id === draftId);
+  if (!draft || draft.status !== "待采购") throw new Error("采购底稿已转采购或不存在");
+  if (!buyer.trim() || !supplier.trim()) throw new Error("采购人、供应商不能为空");
+  const lines = draft.lines
+    .filter((l) => l.qty > 0)
+    .map((l) => ({ material: l.material, qty: l.qty }));
+  validateLines(state, lines);
+  const order: Purchase = {
+    id: id("PO"),
+    request: "",
+    draft: draft.id,
+    plan: draft.plan,
+    buyer: buyer.trim(),
+    supplier: supplier.trim(),
+    date: today(),
+    lines,
+    status: "待入库",
+  };
+  state.purchases.unshift(order);
+  draft.status = "已转采购";
+  return order;
+}
+
+// 将旧 demo 自动生成的计划请购迁为底稿；缺失历史计算快照时明确留空。
+export function migrateDrafts(state: State) {
+  if (state.drafts !== undefined && !Array.isArray(state.drafts))
+    throw new Error("采购底稿数据格式错误");
+  state.drafts ??= [];
+  const mapping = new Map<string, string>();
+  for (const r of state.requests.filter((r) => !!r.plan)) {
+    const draftId = r.id.replace(/^PR/, "DG");
+    if (!state.drafts.some((d) => d.id === draftId))
+      state.drafts.push({
+        id: draftId,
+        plan: r.plan,
+        product: state.plans.find((p) => p.id === r.plan)?.product || "",
+        date: r.date,
+        createdAt: "",
+        creator: r.applicant,
+        remark: "旧版计划请购迁移；历史库存和 BOM 计算快照缺失",
+        legacy: true,
+        status: r.status,
+        lines: r.lines.map((l, i) => ({
+          ...l,
+          bomQty: null,
+          stock: null,
+          reserved: null,
+          usable: null,
+          covered: null,
+          dueDate: "",
+          sourceLine: `${r.plan}-${String(i + 1).padStart(3, "0")}`,
+        })),
+      });
+    mapping.set(r.id, draftId);
+  }
+  for (const p of state.purchases)
+    if (mapping.has(p.request)) {
+      p.draft = mapping.get(p.request)!;
+      p.request = "";
+    }
+  state.requests = state.requests.filter((r) => !mapping.has(r.id));
 }
 export function convertRequest(state: State, requestId: string, buyer: string, supplier: string) {
   const request = state.requests.find((r) => r.id === requestId);
@@ -296,7 +405,8 @@ export function move(
   reason: string
 ) {
   validateLines(state, [line]);
-  if (!state.warehouses.some((w) => w.id === warehouse)) throw new Error("请选择有效仓库");
+  if (!state.warehouses.some((w) => w.id === warehouse && !w.inactive))
+    throw new Error("仓库不存在或已失效，请选择正常使用的仓库");
   const key = stockKey(warehouse, line.material);
   const current = state.stocks[key] || 0;
   if (type === "出库" && current < line.qty) throw new Error("该仓库库存不足，不能出库");
@@ -314,7 +424,7 @@ export function move(
 export function receive(state: State, orderId: string, warehouse: string) {
   const order = state.purchases.find((p) => p.id === orderId);
   if (!order || order.status !== "待入库") throw new Error("采购单已入库或不存在");
-  if (!state.warehouses.some((w) => w.id === warehouse && w.available))
+  if (!state.warehouses.some((w) => w.id === warehouse && w.available && !w.inactive))
     throw new Error("采购入库请选择参与可用量计算的仓库");
   order.lines.forEach((l) => move(state, warehouse, l, "入库", order.id, "采购收货"));
   order.status = "已入库";
@@ -327,7 +437,7 @@ export function issuePlan(state: State, planId: string) {
     throw new Error("可用库存不足，请先完成采购入库；其他已备料计划优先占用库存");
   for (const line of requirements(plan)) {
     let remaining = line.qty;
-    for (const w of state.warehouses.filter((w) => w.available)) {
+    for (const w of state.warehouses.filter((w) => w.available && !w.inactive)) {
       const qty = Math.min(remaining, state.stocks[stockKey(w.id, line.material)] || 0);
       if (qty) {
         move(state, w.id, { material: line.material, qty }, "出库", plan.id, "生产领料");

@@ -12,7 +12,7 @@ import {
 import { state, material, commit } from "./store";
 import {
   analysis,
-  createRequest,
+  createDraft,
   convertRequest,
   receive,
   validateLines,
@@ -83,10 +83,10 @@ function amount(lines: Line[]) {
 function generate() {
   if (
     commit((s) => {
-      createRequest(s, planId.value);
-    }, "已根据最新可用库存生成请购单")
+      createDraft(s, planId.value);
+    }, "已保存采购底稿，保留本次 BOM 与库存计算结果")
   )
-    emit("navigate", "requests");
+    emit("navigate", "drafts");
 }
 function save(data: { person: string; supplier: string; lines: Line[] }) {
   if (
@@ -137,7 +137,15 @@ function confirmReceive() {
   )
     receiving.value = "";
 }
-const steps = ["生产计划", "需求分析", "生成请购", "采购下单", "收货入库", "生产领料"];
+function viewDraft(draftId: string) {
+  sessionStorage.setItem("wsn-selected-draft", draftId);
+  emit("navigate", "drafts");
+}
+const steps = computed(() =>
+  props.page === "requests"
+    ? ["车间临时缺料", "纸质请购", "仓库录入请购", "采购下单", "收货入库"]
+    : ["生产计划 / BOM", "需求分析", "采购底稿", "采购下单", "收货入库", "生产领料"]
+);
 </script>
 
 <template>
@@ -150,9 +158,9 @@ const steps = ["生产计划", "需求分析", "生成请购", "采购下单", "
       <p>
         {{
           page === "analysis"
-            ? "从生产计划出发，根据可用库存计算缺料并生成请购。"
+            ? "根据生产计划、BOM 和可用库存生成采购底稿，与临时请购分开管理。"
             : page === "requests"
-              ? "汇集缺料需求与手工请购，核对后转为采购订单。"
+              ? "车间临时缺料后，由仓库根据纸质需求录入请购单，再交采购处理。"
               : "管理采购订单与收货进度，让每笔采购都有来源。"
         }}
       </p>
@@ -202,15 +210,15 @@ const steps = ["生产计划", "需求分析", "生成请购", "采购下单", "
         </div>
         <div class="shortage-total">
           <strong>{{ shortages.length }}</strong
-          ><span>种物料需新增请购</span>
+          ><span>种物料需纳入采购底稿</span>
         </div>
       </div>
       <section class="panel">
         <div class="panel-heading">
           <h2>
-            物料需求明细 <span class="count-badge">{{ analysisRows.length }}</span>
+            采购底稿预览 <span class="count-badge">{{ analysisRows.length }}</span>
           </h2>
-          <span class="muted">缺料 = 需求 − 可分配库存 − 本计划待购/在途</span>
+          <span class="muted">需购 = BOM 需求 − 可分配库存 − 本计划待转底稿 / 在途</span>
         </div>
         <el-table :data="analysisRows" stripe
           ><el-table-column label="物料信息" min-width="220"
@@ -222,7 +230,7 @@ const steps = ["生产计划", "需求分析", "生成请购", "采购下单", "
             ></el-table-column
           ><el-table-column
             prop="qty"
-            label="计划需求"
+            label="BOM 需求量"
             min-width="105"
             align="right"
           /><el-table-column
@@ -242,10 +250,10 @@ const steps = ["生产计划", "需求分析", "生成请购", "采购下单", "
             align="right"
           /><el-table-column
             prop="pending"
-            label="待购 / 在途"
+            label="待转底稿 / 在途"
             min-width="115"
             align="right"
-          /><el-table-column label="新增缺料" min-width="100" align="right"
+          /><el-table-column label="需购买数量" min-width="115" align="right"
             ><template #default="{ row }"
               ><strong :class="row.shortage ? 'shortage' : 'muted'">{{
                 row.shortage
@@ -254,22 +262,25 @@ const steps = ["生产计划", "需求分析", "生成请购", "采购下单", "
           ><el-table-column label="建议" min-width="105"
             ><template #default="{ row }"
               ><el-tag :type="row.shortage ? 'warning' : 'success'">{{
-                row.shortage ? "需要请购" : "已覆盖"
+                row.shortage ? "需采购" : "已覆盖"
               }}</el-tag></template
             ></el-table-column
+          ><el-table-column label="前置单据" min-width="175"
+            ><template #default>{{ selectedPlan.id }}</template></el-table-column
           ></el-table
         >
         <div class="analysis-actions">
           <span v-if="['已领料', '已完工'].includes(selectedPlan.status)" class="muted"
-            >该计划已领料，不再生成请购。</span
-          ><span v-else class="muted">只为缺料生成请购明细；已请购和在途数量不会重复生成。</span
+            >该计划已领料，不再生成底稿。</span
+          ><span v-else class="muted"
+            >保存完整 BOM 展算行；需购数量扣除可分配库存及本计划待转底稿、在途采购。</span
           ><el-button
             type="primary"
             :icon="Plus"
             :disabled="!shortages.length || !['待分析', '待备料'].includes(selectedPlan.status)"
             @click="generate"
-            >生成请购单</el-button
-          >
+            >生成采购底稿</el-button
+          ><el-button @click="emit('navigate', 'drafts')">查看底稿记录</el-button>
         </div>
       </section> </template
     ><el-empty v-else description="暂无生产计划，请先创建"
@@ -320,7 +331,10 @@ const steps = ["生产计划", "需求分析", "生成请购", "采购下单", "
               :key="s"
               :label="s"
               :value="s" /></el-select></label
-        ><el-button :icon="DataAnalysis" @click="emit('navigate', 'analysis')"
+        ><el-button
+          v-if="page === 'orders'"
+          :icon="DataAnalysis"
+          @click="emit('navigate', 'analysis')"
           >从生产计划分析</el-button
         >
       </div>
@@ -354,7 +368,7 @@ const steps = ["生产计划", "需求分析", "生成请购", "采购下单", "
         ><el-table-column label="来源" min-width="160"
           ><template #default="{ row }"
             ><span :class="row.plan ? 'code' : 'muted'">{{
-              row.plan || "手工录入"
+              row.draft ? `底稿：${row.draft}` : row.request ? `请购：${row.request}` : "手工录入"
             }}</span></template
           ></el-table-column
         ><el-table-column label="状态" width="110"
@@ -434,7 +448,7 @@ const steps = ["生产计划", "需求分析", "生成请购", "采购下单", "
       ><el-form-item label="入库仓库" required
         ><el-select v-model="receiveWarehouse"
           ><el-option
-            v-for="w in state.warehouses.filter((w) => w.available)"
+            v-for="w in state.warehouses.filter((w) => w.available && !w.inactive)"
             :key="w.id"
             :label="w.name"
             :value="w.id" /></el-select></el-form-item></el-form
@@ -457,6 +471,14 @@ const steps = ["生产计划", "需求分析", "生成请购", "采购下单", "
         ><el-descriptions-item v-if="'request' in selectedDoc" label="来源请购">{{
           (selectedDoc as Purchase).request || "—"
         }}</el-descriptions-item
+        ><el-descriptions-item v-if="'draft' in selectedDoc" label="来源采购底稿"
+          ><el-button
+            v-if="(selectedDoc as Purchase).draft"
+            link
+            type="primary"
+            @click="viewDraft((selectedDoc as Purchase).draft!)"
+            >{{ (selectedDoc as Purchase).draft }}</el-button
+          ><span v-else>—</span></el-descriptions-item
         ><el-descriptions-item label="经办人">{{
           "buyer" in selectedDoc
             ? (selectedDoc as Purchase).buyer

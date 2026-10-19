@@ -18,6 +18,8 @@ import {
 import Inventory from "./Inventory.vue";
 import Procurement from "./Procurement.vue";
 import Production from "./Production.vue";
+import Materials from "./Materials.vue";
+import Drafts from "./Drafts.vue";
 import { reset, storageError } from "./store";
 
 const menu = [
@@ -27,6 +29,7 @@ const menu = [
     items: [
       { key: "stock", label: "库存记录", icon: Collection },
       { key: "warehouses", label: "仓库管理", icon: OfficeBuilding },
+      { key: "materials", label: "物料档案", icon: Box },
       { key: "movements", label: "出入库记录", icon: List },
     ],
   },
@@ -35,6 +38,7 @@ const menu = [
     icon: ShoppingCart,
     items: [
       { key: "analysis", label: "需求分析", icon: SetUp },
+      { key: "drafts", label: "采购底稿", icon: Collection },
       { key: "requests", label: "请购单", icon: Tickets },
       { key: "orders", label: "采购单 / 采购记录", icon: ShoppingCart },
     ],
@@ -42,17 +46,34 @@ const menu = [
   { label: "生产管理", icon: SetUp, items: [{ key: "plans", label: "生产计划", icon: Calendar }] },
 ];
 const valid = menu.flatMap((m) => m.items.map((i) => i.key));
-const page = ref(valid.includes(location.hash.slice(1)) ? location.hash.slice(1) : "stock");
+function resolveRoute(hash: string) {
+  const route = hash.slice(1);
+  if (/^(warehouses|materials)\/[^/]+$/.test(route) || valid.includes(route)) return route;
+  return "stock";
+}
+const route = ref(resolveRoute(location.hash));
+const page = computed(() => route.value.split("/")[0]!);
+const warehouseId = computed(() =>
+  page.value === "warehouses" ? route.value.split("/")[1] || "" : ""
+);
+const materialId = computed(() =>
+  page.value === "materials" ? route.value.split("/")[1] || "" : ""
+);
 const collapsed = ref(false);
 const activeGroup = computed(() => menu.find((m) => m.items.some((i) => i.key === page.value))!);
-const title = computed(() => activeGroup.value.items.find((i) => i.key === page.value)!.label);
+const title = computed(() =>
+  materialId.value
+    ? "物料基本信息"
+    : warehouseId.value
+      ? "仓库详情"
+      : activeGroup.value.items.find((i) => i.key === page.value)!.label
+);
 function navigate(key: string) {
-  page.value = key;
+  route.value = resolveRoute(`#${key}`);
   location.hash = key;
 }
 function syncHash() {
-  const key = location.hash.slice(1);
-  navigate(valid.includes(key) ? key : "stock");
+  route.value = resolveRoute(location.hash);
 }
 onMounted(() => window.addEventListener("hashchange", syncHash));
 onUnmounted(() => window.removeEventListener("hashchange", syncHash));
@@ -143,7 +164,19 @@ async function resetAll() {
           show-icon
           class="storage-error"
         />
-        <Inventory v-if="['stock', 'warehouses', 'movements'].includes(page)" :page="page" />
+        <Materials
+          v-if="page === 'materials'"
+          :key="materialId"
+          :material-id="materialId"
+          @navigate="navigate"
+        />
+        <Inventory
+          v-else-if="['stock', 'warehouses', 'movements'].includes(page)"
+          :page="page"
+          :warehouse-id="warehouseId"
+          @navigate="navigate"
+        />
+        <Drafts v-else-if="page === 'drafts'" @navigate="navigate" />
         <Procurement
           v-else-if="['analysis', 'requests', 'orders'].includes(page)"
           :page="page"

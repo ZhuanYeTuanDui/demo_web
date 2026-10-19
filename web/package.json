@@ -22,7 +22,7 @@
     "icon": "esno ./scripts/icon.ts",
     "preview": "vite preview --config vite.demo.config.ts",
     "type-check": "vue-tsc --noEmit -p tsconfig.demo.json",
-    "test:demo": "vitest run src/demo/model.test.ts",
+    "test:demo": "vitest run src/demo",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "pnpm run lint:eslint && pnpm run lint:prettier && pnpm run lint:stylelint",
