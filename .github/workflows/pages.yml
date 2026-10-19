@@ -1,0 +1,67 @@
+name: 曾哥的演示demo
+
+on:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v6
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.3
+          run_install: false
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: 安装锁定的依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 验证演示业务
+        run: pnpm test:demo
+
+      - name: 检查类型并构建
+        run: pnpm build
+
+      - name: 上传静态站点
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 配置 GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: 发布站点
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,31 @@
+# 依赖和包管理器缓存
+node_modules/
+.pnpm-store/
+
+# 构建产物和测试覆盖率
+dist/
+dist-ssr/
+coverage/
+*.tsbuildinfo
+
+# 本地环境配置（保留示例文件）
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+
+# 日志和工具缓存
+*.log
+.vite/
+.eslintcache
+.stylelintcache
+
+# 编辑器和系统临时文件
+.idea/
+.history/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
