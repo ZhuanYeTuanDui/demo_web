@@ -1,12 +1,24 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, reactive, ref } from "vue";
-import { Plus, Search, Calendar, Box, CircleCheck, Upload } from "@element-plus/icons-vue";
+import FaManagementList from "./FaManagementList.vue";
+import { computed, defineAsyncComponent, reactive, ref, watch } from "vue";
+import { Plus, Search, Upload } from "@element-plus/icons-vue";
 import { state, material, commit } from "./store";
-import { products, today, id, issuePlan, finishPlan, planBom, requirements, type Plan } from "./model";
+import {
+  products,
+  today,
+  id,
+  issuePlan,
+  finishPlan,
+  planBom,
+  requirements,
+  type Plan,
+} from "./model";
 const ProductionImport = defineAsyncComponent(() => import("./ProductionImport.vue"));
 const importing = ref(false);
 const emit = defineEmits<{ navigate: [page: string] }>();
 const keyword = ref("");
+const page = ref(1);
+const pageSize = ref(10);
 const status = ref("");
 const dialog = ref(false);
 const detail = ref("");
@@ -18,6 +30,12 @@ const plans = computed(() =>
       (!status.value || p.status === status.value)
   )
 );
+const pagedPlans = computed(() =>
+  plans.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
+);
+watch([keyword, status, pageSize], () => {
+  page.value = 1;
+});
 const selected = computed(() => state.value.plans.find((p) => p.id === detail.value));
 function create() {
   if (
@@ -43,65 +61,50 @@ function analyze(planId: string) {
   sessionStorage.setItem("wsn-selected-plan", planId);
   emit("navigate", "analysis");
 }
+// 本地数据减少或状态变化后，将分页约束在有效范围内。
+watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, Math.max(1, Math.ceil(total / pageSize.value))); });
 </script>
 <template>
-  <div class="page-heading">
-    <div>
-      <div class="eyebrow">PRODUCTION</div>
-      <h1>生产计划</h1>
-      <p>以计划连接物料需求、采购备料与生产领用。</p>
-    </div>
-    <div>
-      <el-button :icon="Upload" @click="importing = true">导入 Excel</el-button>
-      <el-button type="primary" :icon="Plus" @click="dialog = true">新增生产计划</el-button>
-    </div>
-  </div>
-  <div class="metric-grid">
-    <div class="metric">
-      <span>生产计划</span><strong>{{ state.plans.length }}<small>个</small></strong
-      ><el-icon><Calendar /></el-icon>
-      <p>支持预设 BOM 与 Excel 物料清单</p>
-    </div>
-    <div class="metric">
-      <span>待分析 / 备料</span
-      ><strong
-        >{{ state.plans.filter((p) => ["待分析", "待备料"].includes(p.status)).length
-        }}<small>个</small></strong
-      ><el-icon><Box /></el-icon>
-      <p>在采购管理中分析缺料</p>
-    </div>
-    <div class="metric">
-      <span>已完工</span
-      ><strong
-        >{{ state.plans.filter((p) => p.status === "已完工").length }}<small>个</small></strong
-      ><el-icon><CircleCheck /></el-icon>
-      <p>成品入库自动留存记录</p>
-    </div>
-  </div>
-  <section class="panel">
-    <div class="filter-bar">
-      <label
-        >关键词<el-input
+
+
+  <FaManagementList
+    class="panel"
+    filterable
+    @search="page = 1"
+    @reset="
+      keyword = '';
+      status = '';
+      page = 1;
+    "
+  >
+    <template #filters>
+      <el-form-item label="关键词"
+        ><el-input
           v-model="keyword"
           :prefix-icon="Search"
           clearable
-          placeholder="计划号、名称或产品" /></label
-      ><label
-        >计划状态<el-select v-model="status" clearable placeholder="全部状态"
+          placeholder="计划号、名称或产品" /></el-form-item
+      ><el-form-item label="计划状态"
+        ><el-select v-model="status" clearable placeholder="全部状态"
           ><el-option
             v-for="s in ['待分析', '待备料', '已领料', '已完工']"
             :key="s"
             :label="s"
             :value="s" /></el-select
-      ></label>
-    </div>
-    <div class="panel-heading">
-      <h2>
-        计划列表 <span class="count-badge">{{ plans.length }}</span>
-      </h2>
-      <span class="muted">需求分析 → 采购备料 → 领料 → 完工</span>
-    </div>
-    <el-table :data="plans" stripe empty-text="暂无生产计划"
+      ></el-form-item>
+    </template>
+    <template #toolbar
+      ><div class="panel-heading">
+        <el-button :icon="Upload" @click="importing = true">导入 Excel</el-button>
+        <el-button type="primary" :icon="Plus" @click="dialog = true">新增生产计划</el-button>
+
+        <h2>
+          计划列表 <span class="count-badge">{{ plans.length }}</span>
+        </h2>
+        <span class="muted">需求分析 → 采购备料 → 领料 → 完工</span>
+      </div></template
+    >
+    <el-table :data="pagedPlans" stripe empty-text="暂无生产计划"
       ><el-table-column label="生产计划" min-width="255"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="detail = row.id">{{ row.name }}</el-button>
@@ -147,10 +150,20 @@ function analyze(planId: string) {
         ></el-table-column
       ></el-table
     >
+    <div class="pagination">
+      <span>共 {{ plans.length }} 条记录</span
+      ><el-pagination
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        :page-sizes="[10, 20, 50, 100]"
+        :total="plans.length"
+        layout="sizes, prev, pager, next"
+      />
+    </div>
     <div class="inline-note">
       演示简化：整单领料、整单完工；工序、排程、委外和审批规则暂未配置。
     </div>
-  </section>
+  </FaManagementList>
   <el-dialog v-model="dialog" title="新增生产计划" width="520px"
     ><el-form label-position="top" @submit.prevent="create"
       ><el-form-item label="计划名称" required

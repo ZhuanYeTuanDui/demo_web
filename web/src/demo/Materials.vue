@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import FaManagementList from "./FaManagementList.vue";
+import { computed, reactive, ref, watch } from "vue";
 import type { FormInstance, FormRules } from "element-plus";
 import { ArrowLeft, Edit, Check, Search, Box } from "@element-plus/icons-vue";
 import { state, commit, warehouseName } from "./store";
@@ -26,6 +27,7 @@ const keyword = ref("");
 const categorySearch = ref("");
 const category = ref("");
 const page = ref(1);
+const pageSize = ref(10);
 const categoryList = computed(() =>
   categories.filter((c) =>
     `${c.id}${c.name}`.toLowerCase().includes(categorySearch.value.toLowerCase())
@@ -38,7 +40,9 @@ const filtered = computed(() =>
       `${m.id}${m.name}${m.spec}`.toLowerCase().includes(keyword.value.toLowerCase())
   )
 );
-const paged = computed(() => filtered.value.slice((page.value - 1) * 10, page.value * 10));
+const paged = computed(() =>
+  filtered.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
+);
 const rules: FormRules = Object.fromEntries(
   groups
     .flatMap((g) => g.fields)
@@ -92,18 +96,16 @@ function display(field: Field) {
   if (field.type === "switch") return value ? "是" : "否";
   return String(value);
 }
+watch(pageSize, () => {
+  page.value = 1;
+});
+// 本地数据减少或状态变化后，将分页约束在有效范围内。
+watch(() => filtered.value.length, (total) => { page.value = Math.min(page.value, Math.max(1, Math.ceil(total / pageSize.value))); });
 </script>
 
 <template>
   <template v-if="!materialId">
-    <div class="page-heading">
-      <div>
-        <div class="eyebrow">MATERIAL MASTER</div>
-        <h1>物料档案</h1>
-        <p>统一查看物料基础信息，维护仓储、采购与生产属性。</p>
-      </div>
-      <el-tag effect="plain">{{ state.materials.length }} 种物料</el-tag>
-    </div>
+
     <div class="materials-layout">
       <aside class="panel material-categories" aria-label="商品分类">
         <div class="panel-heading"><h2>商品分类</h2></div>
@@ -143,24 +145,35 @@ function display(field: Field) {
         </button>
         <p v-if="!categoryList.length" class="muted category-search">暂无匹配分类</p>
       </aside>
-      <section class="panel material-list">
-        <div class="filter-bar">
-          <label
-            >关键词<el-input
+      <FaManagementList
+        class="panel material-list"
+        filterable
+        @search="page = 1"
+        @reset="
+          keyword = '';
+          category = '';
+          page = 1;
+        "
+      >
+        <template #filters>
+          <el-form-item label="关键词"
+            ><el-input
               v-model="keyword"
               placeholder="品号、品名或规格"
               :prefix-icon="Search"
               clearable
               @input="page = 1"
-          /></label>
-        </div>
-        <div class="panel-heading">
-          <h2>
-            {{ category ? categoryName(category) : "全部物料" }}
-            <span class="count-badge">{{ filtered.length }}</span>
-          </h2>
-          <span class="muted">点击品号或名称查看基本信息</span>
-        </div>
+          /></el-form-item>
+        </template>
+        <template #toolbar
+          ><div class="panel-heading">
+            <h2>
+              {{ category ? categoryName(category) : "全部物料" }}
+              <span class="count-badge">{{ filtered.length }}</span>
+            </h2>
+            <span class="muted">点击品号或名称查看基本信息</span>
+          </div></template
+        >
         <el-table :data="paged" stripe empty-text="该分类暂无物料"
           ><el-table-column label="物料信息" min-width="235"
             ><template #default="{ row }"
@@ -195,11 +208,12 @@ function display(field: Field) {
           ><el-pagination
             v-model:current-page="page"
             :total="filtered.length"
-            :page-size="10"
-            layout="prev, pager, next"
+            v-model:page-size="pageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="sizes, prev, pager, next"
           />
         </div>
-      </section>
+      </FaManagementList>
     </div>
   </template>
   <div v-else class="material-detail">
@@ -207,12 +221,8 @@ function display(field: Field) {
       >返回物料档案</el-button
     >
     <template v-if="selected"
-      ><div class="page-heading">
-        <div>
-          <div class="eyebrow">MATERIAL DETAILS</div>
-          <h1>物料基本信息</h1>
-          <p>维护一份物料档案，关联库存、采购与生产单据。</p>
-        </div>
+      ><div class="detail-toolbar">
+
         <div class="material-actions">
           <template v-if="editing"
             ><el-button @click="cancel">取消编辑</el-button
@@ -449,8 +459,8 @@ function display(field: Field) {
 }
 .material-field-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 28px 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 24px;
   padding: 24px;
 }
 .material-field-grid.editing {

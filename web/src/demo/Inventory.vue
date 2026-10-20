@@ -1,14 +1,7 @@
 <script setup lang="ts">
+import FaManagementList from "./FaManagementList.vue";
 import { computed, reactive, ref, watch } from "vue";
-import {
-  Search,
-  Plus,
-  Download,
-  Refresh,
-  Box,
-  OfficeBuilding,
-  Sort,
-} from "@element-plus/icons-vue";
+import { Search, Plus, Download, } from "@element-plus/icons-vue";
 import { state, material, warehouseName, commit } from "./store";
 import { stockKey, move, type Movement } from "./model";
 import WarehouseDetails from "./WarehouseDetails.vue";
@@ -19,6 +12,7 @@ const keyword = ref("");
 const warehouse = ref("");
 const direction = ref("");
 const currentPage = ref(1);
+const pageSize = ref(10);
 const dialog = ref(false);
 const warehouseDialog = ref(false);
 const form = reactive({
@@ -58,20 +52,14 @@ const records = computed(() =>
 );
 const list = computed(() => (props.page === "movements" ? records.value : rows.value));
 const pagedRows = computed(() =>
-  rows.value.slice((currentPage.value - 1) * 10, currentPage.value * 10)
+  rows.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value)
 );
 const pagedRecords = computed(() =>
-  records.value.slice((currentPage.value - 1) * 10, currentPage.value * 10)
+  records.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value)
 );
 watch([keyword, warehouse, direction, () => props.page], () => {
   currentPage.value = 1;
 });
-const totals = computed(() => ({
-  quantity: Object.values(state.value.stocks).reduce((a, b) => a + b, 0),
-  types: state.value.materials.filter((m) =>
-    state.value.warehouses.some((w) => (state.value.stocks[stockKey(w.id, m.id)] || 0) > 0)
-  ).length,
-}));
 function clear() {
   keyword.value = "";
   warehouse.value = "";
@@ -141,6 +129,11 @@ function exportCsv() {
   link.click();
   URL.revokeObjectURL(url);
 }
+watch(pageSize, () => {
+  currentPage.value = 1;
+});
+// 本地数据减少或状态变化后，将分页约束在有效范围内。
+watch(() => list.value.length, (total) => { currentPage.value = Math.min(currentPage.value, Math.max(1, Math.ceil(total / pageSize.value))); });
 </script>
 
 <template>
@@ -151,54 +144,18 @@ function exportCsv() {
     @back="emit('navigate', 'warehouses')"
   />
   <template v-else>
-    <div class="page-heading">
-      <div>
-        <div class="eyebrow">INVENTORY</div>
-        <h1>
-          {{
-            page === "warehouses" ? "仓库管理" : page === "movements" ? "出入库记录" : "库存记录"
-          }}
-        </h1>
-        <p>
-          {{
-            page === "warehouses"
-              ? "管理仓库档案与可用量参与规则。"
-              : page === "movements"
-                ? "每一次库存变动都有记录，关联采购与生产来源。"
-                : "查看商品分仓库存，掌握当前可用物料。"
-          }}
-        </p>
-      </div>
-      <el-button
-        v-if="page === 'warehouses'"
-        type="primary"
-        :icon="Plus"
-        @click="warehouseDialog = true"
-        >新增仓库</el-button
-      ><el-button v-else type="primary" :icon="Plus" @click="dialog = true">登记出入库</el-button>
-    </div>
-    <div class="metric-grid">
-      <div class="metric">
-        <span>库存商品种类</span><strong>{{ totals.types }}<small>种</small></strong
-        ><el-icon><Box /></el-icon>
-        <p>当前有库存的商品</p>
-      </div>
-      <div class="metric">
-        <span>管理仓库</span><strong>{{ state.warehouses.length }}<small>个</small></strong
-        ><el-icon><OfficeBuilding /></el-icon>
-        <p>{{ state.warehouses.filter((w) => w.available).length }} 个参与可用量计算</p>
-      </div>
-      <div class="metric">
-        <span>库存变动记录</span><strong>{{ state.movements.length }}<small>笔</small></strong
-        ><el-icon><Sort /></el-icon>
-        <p>采购收货与生产领料自动记录</p>
-      </div>
-    </div>
-    <section class="panel" v-if="page === 'warehouses'">
-      <div class="panel-heading">
-        <h2>仓库档案</h2>
-        <span class="muted">{{ state.warehouses.length }} 个仓库</span>
-      </div>
+
+
+    <FaManagementList class="panel" v-if="page === 'warehouses'">
+      <template #toolbar
+        ><div class="panel-heading">
+          <el-button type="primary" :icon="Plus" @click="warehouseDialog = true"
+            >新增仓库</el-button
+          >
+          <h2>仓库档案</h2>
+          <span class="muted">{{ state.warehouses.length }} 个仓库</span>
+        </div></template
+      >
       <el-table :data="state.warehouses" stripe
         ><el-table-column label="仓库编号" min-width="130"
           ><template #default="{ row }"
@@ -239,38 +196,41 @@ function exportCsv() {
       <div class="inline-note">
         点击仓库编号或名称查看完整档案。需求分析只使用正常且参与可用量计算的仓库。
       </div>
-    </section>
-    <section class="panel" v-else>
-      <div class="filter-bar">
-        <label
-          >关键词<el-input
+    </FaManagementList>
+    <FaManagementList class="panel" v-else filterable @search="currentPage = 1" @reset="clear()">
+      <template #filters>
+        <el-form-item label="关键词"
+          ><el-input
             v-model="keyword"
             :prefix-icon="Search"
             clearable
             :placeholder="
               page === 'movements' ? '商品、记录号或来源单号' : '品号、品名或规格'
-            " /></label
-        ><label
-          >仓库<el-select v-model="warehouse" placeholder="全部仓库" clearable
+            " /></el-form-item
+        ><el-form-item label="仓库"
+          ><el-select v-model="warehouse" placeholder="全部仓库" clearable
             ><el-option
               v-for="w in state.warehouses"
               :key="w.id"
               :label="w.name"
-              :value="w.id" /></el-select></label
-        ><label v-if="page === 'movements'"
-          >方向<el-select v-model="direction" clearable placeholder="全部方向"
+              :value="w.id" /></el-select></el-form-item
+        ><el-form-item v-if="page === 'movements'" label="方向"
+          ><el-select v-model="direction" clearable placeholder="全部方向"
             ><el-option label="入库" value="入库" /><el-option
               label="出库"
-              value="出库" /></el-select></label
-        ><el-button :icon="Refresh" @click="clear">重置筛选</el-button>
-      </div>
-      <div class="panel-heading">
-        <h2>
-          {{ page === "movements" ? "出入库流水" : "分仓库存明细" }}
-          <span class="count-badge">{{ list.length }}</span>
-        </h2>
-        <el-button :icon="Download" @click="exportCsv">导出记录</el-button>
-      </div>
+              value="出库" /></el-select
+        ></el-form-item>
+      </template>
+      <template #toolbar
+        ><div class="panel-heading">
+          <el-button type="primary" :icon="Plus" @click="dialog = true">登记出入库</el-button>
+          <h2>
+            {{ page === "movements" ? "出入库流水" : "分仓库存明细" }}
+            <span class="count-badge">{{ list.length }}</span>
+          </h2>
+          <el-button :icon="Download" @click="exportCsv">导出记录</el-button>
+        </div></template
+      >
       <el-table v-if="page === 'stock'" :data="pagedRows" stripe empty-text="暂无匹配的库存记录"
         ><el-table-column label="商品信息" min-width="230"
           ><template #default="{ row }"
@@ -336,11 +296,12 @@ function exportCsv() {
         ><el-pagination
           v-model:current-page="currentPage"
           :total="list.length"
-          :page-size="10"
-          layout="prev, pager, next"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="sizes, prev, pager, next"
         />
       </div>
-    </section>
+    </FaManagementList>
     <el-dialog v-model="dialog" title="登记出入库" width="520px" :close-on-click-modal="false"
       ><el-form label-position="top" @submit.prevent="saveMovement"
         ><el-form-item label="变动方向" required

@@ -1,0 +1,6 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": ["src/demo"],
+  "locale": "zh-CN",
+  "canonicalMap": "UX-CONTRACT.md"
+}

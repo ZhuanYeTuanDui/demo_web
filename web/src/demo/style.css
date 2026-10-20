@@ -1,12 +1,21 @@
 :root {
   font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
   color: #253449;
-  background: #f5f7fa;
+  background: var(--page-background);
   font-synthesis: none;
   --brand: #3167e3;
   --muted: #69788e;
   --line: #e8ecf2;
   --surface: #fff;
+  --page-background: #f5f7fa;
+  --brand-soft: #edf3ff;
+  --surface-filter: #fafbfd;
+  --radius-panel: 6px;
+  --space-page: 18px;
+  --scrollbar-thumb: #b7c2d2;
+  --scrollbar-track: #f5f7fa;
+  --scrollbar-hover: #8798b1;
+  --scrollbar-active: #69788e;
   --el-color-primary: var(--brand);
   --el-border-radius-base: 6px;
   --el-font-size-base: 14px;
@@ -36,11 +45,11 @@ button:focus-visible {
 }
 .erp-shell {
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-columns: 212px minmax(0, 1fr);
   min-height: 100vh;
 }
 .erp-shell.collapsed {
-  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
 }
 .sidebar {
   background: var(--surface);
@@ -55,8 +64,8 @@ button:focus-visible {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 85px;
-  padding: 18px 24px;
+  min-height: 72px;
+  padding: 16px 20px;
 }
 .brand-mark {
   display: grid;
@@ -84,7 +93,7 @@ button:focus-visible {
   letter-spacing: 1px;
 }
 .workspace {
-  margin: 3px 15px 22px;
+  margin: 0 12px 14px;
   padding: 12px 8px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -105,7 +114,7 @@ button:focus-visible {
   overflow-y: auto;
 }
 .nav-group {
-  margin-bottom: 22px;
+  margin-bottom: 16px;
 }
 .nav-heading {
   display: flex;
@@ -135,7 +144,7 @@ button:focus-visible {
   background: #f4f7fc;
 }
 .nav-item.active {
-  background: #edf3ff;
+  background: var(--brand-soft);
   color: var(--brand);
   font-weight: 600;
 }
@@ -161,7 +170,7 @@ button:focus-visible {
   font-size: 11px;
 }
 .collapsed .brand {
-  padding: 20px;
+  padding: 14px;
 }
 .collapsed .nav-heading {
   justify-content: center;
@@ -178,7 +187,7 @@ button:focus-visible {
 }
 .topbar {
   background: var(--surface);
-  height: 64px;
+  height: 54px;
   border-bottom: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
@@ -221,36 +230,8 @@ button:focus-visible {
   border-radius: 50%;
   margin-left: 12px;
 }
-.tabbar {
-  background: var(--surface);
-  height: 43px;
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-}
-.current-tab {
-  color: var(--brand);
-  height: 43px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  border-bottom: 2px solid var(--brand);
-  font-size: 12px;
-}
-.tab-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--brand);
-}
-.tabbar .el-button {
-  font-size: 12px;
-  color: var(--muted);
-}
 .page-body {
-  padding: 28px 28px 0;
+  padding: var(--space-page) var(--space-page) 0;
   max-width: 1800px;
   margin: 0 auto;
 }
@@ -258,7 +239,7 @@ button:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 26px;
+  margin-bottom: 18px;
   gap: 16px;
 }
 .eyebrow {
@@ -269,7 +250,7 @@ button:focus-visible {
   margin-bottom: 6px;
 }
 h1 {
-  font-size: 25px;
+  font-size: 22px;
   font-weight: 600;
   letter-spacing: 0.3px;
   margin: 0;
@@ -296,14 +277,14 @@ h3 {
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-  margin-bottom: 22px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 .metric {
   position: relative;
-  padding: 20px 22px;
+  padding: 16px 18px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-panel);
   background: var(--surface);
 }
 .metric > span {
@@ -312,10 +293,10 @@ h3 {
 }
 .metric strong {
   display: block;
-  font-size: 30px;
+  font-size: 26px;
   font-weight: 600;
   color: #20334d;
-  margin: 12px 0 9px;
+  margin: 6px 0;
   font-variant-numeric: tabular-nums;
 }
 .metric strong small {
@@ -326,8 +307,8 @@ h3 {
 }
 .metric > .el-icon {
   position: absolute;
-  right: 20px;
-  top: 20px;
+  right: 18px;
+  top: 16px;
   color: #668ad5;
   background: #f0f5ff;
   border-radius: 9px;
@@ -344,12 +325,12 @@ h3 {
 .panel {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  margin-bottom: 22px;
+  border-radius: var(--radius-panel);
+  margin-bottom: 16px;
   overflow: hidden;
 }
 .panel-heading {
-  padding: 20px 22px;
+  padding: 16px 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -374,7 +355,7 @@ h3 {
   flex-wrap: wrap;
   align-items: end;
   gap: 16px;
-  padding: 20px 22px;
+  padding: 16px 18px;
   border-bottom: 1px solid var(--line);
 }
 .filter-bar label {
@@ -401,15 +382,15 @@ h3 {
   font-size: 13px;
 }
 .el-table .el-table__cell {
-  padding: 14px 0;
+  padding: 10px 0;
 }
 .el-table th.el-table__cell {
   font-weight: 500;
-  padding: 12px 0;
+  padding: 10px 0;
   font-size: 12px;
 }
 .el-table .cell {
-  padding: 0 20px;
+  padding: 0 16px;
 }
 .el-table .el-button.is-link {
   font-size: 13px;
@@ -461,7 +442,7 @@ h3 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 17px 22px;
+  padding: 14px 18px;
   color: var(--muted);
   font-size: 12px;
 }
@@ -473,7 +454,7 @@ h3 {
   border-top: 1px solid var(--line);
 }
 .page-footer {
-  padding: 12px 0 24px;
+  padding: 10px 0 24px;
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -488,8 +469,8 @@ h3 {
   padding: 20px 24px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  margin-bottom: 22px;
+  border-radius: var(--radius-panel);
+  margin-bottom: 16px;
 }
 .workflow > span {
   display: flex;
@@ -537,14 +518,14 @@ h3 {
 }
 .analysis-banner {
   padding: 25px 26px;
-  margin-bottom: 22px;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
   background: #eaf1ff;
   border: 1px solid #dce7ff;
-  border-radius: 8px;
+  border-radius: var(--radius-panel);
 }
 .analysis-banner h2 {
   font-size: 19px;
@@ -597,7 +578,7 @@ h3 {
   display: flex;
   align-items: center;
   gap: 28px;
-  padding: 20px 22px;
+  padding: 16px 18px;
 }
 .pending-rules h2 {
   color: #687990;
@@ -646,7 +627,7 @@ h3 {
 }
 @media (min-width: 1600px) {
   .page-body {
-    padding: 36px 44px 0;
+    padding: 22px 24px 0;
   }
 }
 @media (max-width: 1100px) {
@@ -715,9 +696,6 @@ h3 {
     min-height: 44px;
     min-width: 44px;
   }
-  .tabbar {
-    padding: 0 12px;
-  }
   .page-body {
     padding: 18px 12px 0;
   }
@@ -739,7 +717,7 @@ h3 {
     padding: 16px;
   }
   .metric strong {
-    font-size: 25px;
+    font-size: 22px;
     margin: 7px 0;
   }
   .filter-bar,
@@ -799,4 +777,368 @@ h3 {
     animation: none !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* 所有演示页面共享的列表和滚动样式，运行时颜色仍由根变量维护。 */
+html {
+  scrollbar-gutter: stable;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-hover);
+}
+::-webkit-scrollbar-thumb:active {
+  background: var(--scrollbar-active);
+}
+.el-textarea__inner {
+  resize: none;
+}
+.skip-link {
+  position: fixed;
+  left: 12px;
+  top: -60px;
+  z-index: 3000;
+  background: var(--surface);
+  padding: 12px;
+  color: var(--brand);
+}
+.skip-link:focus {
+  top: 8px;
+}
+.sidebar nav {
+  min-height: 0;
+}
+.sidebar-bottom {
+  flex-shrink: 0;
+}
+.management-list {
+  min-width: 0;
+}
+.management-filters {
+  padding: 16px 18px 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-filter);
+}
+.management-filters .el-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0 16px;
+}
+.management-filters .el-form-item {
+  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.management-filters .el-form-item__label {
+  justify-content: flex-start;
+  height: auto;
+  line-height: 20px;
+  margin-bottom: 6px;
+  padding: 0;
+  color: var(--muted);
+}
+.management-filters .el-input {
+  width: 250px;
+  max-width: 100%;
+}
+.management-filters .el-select {
+  width: 170px;
+}
+.management-filters .filter-actions {
+  margin-left: auto;
+}
+.management-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 18px;
+}
+.management-business {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.management-business .panel-heading {
+  padding: 0;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.management-business h2 {
+  font-size: 14px;
+}
+.management-business .muted {
+  display: none;
+}
+.management-display {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.management-display .el-button + .el-button {
+  margin-left: 0;
+}
+.management-display .el-button {
+  color: var(--muted);
+}
+.management-content {
+  min-width: 0;
+}
+.management-list .el-table {
+  --el-table-row-height: 44px;
+}
+.management-list.density-compact .el-table__cell {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.management-list.density-relaxed .el-table__cell {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+.management-list.list-bordered .el-table__cell {
+  border-right: 1px solid var(--line);
+}
+.management-list.list-plain .el-table__row--striped td.el-table__cell {
+  background: var(--surface);
+}
+.list-settings {
+  display: grid;
+  gap: 12px;
+  padding: 4px;
+}
+.management-list.list-expanded {
+  position: relative;
+  z-index: 10;
+}
+.erp-shell:has(.list-expanded) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.erp-shell:has(.list-expanded) > .sidebar,
+.main-shell:has(.list-expanded) > .topbar,
+.page-body:has(.list-expanded) > .page-heading,
+.page-body:has(.list-expanded) > .metric-grid,
+.page-body:has(.list-expanded) > .workflow,
+.page-body:has(.list-expanded) > .page-footer {
+  display: none;
+}
+.materials-layout:has(.list-expanded) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.materials-layout:has(.list-expanded) > .material-categories {
+  display: none;
+}
+.el-dialog {
+  max-width: calc(100vw - 24px);
+}
+@media (max-width: 760px) {
+  .management-toolbar,
+  .management-filters {
+    padding: 14px;
+  }
+  .management-filters {
+    padding-bottom: 0;
+  }
+  .management-filters .el-form-item,
+  .management-filters .el-input,
+  .management-filters .el-select {
+    width: 100%;
+  }
+  .management-filters .filter-actions {
+    margin-left: 0;
+  }
+  .management-business,
+  .management-display {
+    width: 100%;
+  }
+  .management-display {
+    gap: 6px;
+  }
+  .management-display .el-button {
+    padding: 8px;
+    font-size: 12px;
+  }
+  .metric-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .metric {
+    padding: 12px;
+  }
+  .metric > .el-icon,
+  .metric p {
+    display: none;
+  }
+  .metric strong {
+    font-size: 22px;
+  }
+  .metric strong small {
+    margin-left: 4px;
+  }
+  .metric > span {
+    min-height: 36px;
+    font-size: 12px;
+    line-height: 1.5;
+    display: block;
+  }
+  .pagination .el-pagination {
+    flex-wrap: wrap;
+    gap: 6px;
+    max-width: 100%;
+  }
+}
+@media (forced-colors: active) {
+  * {
+    scrollbar-color: auto;
+  }
+}
+
+/* 中等宽度优先保留当前页面名称，防止顶栏面包屑逐字换行。 */
+.topbar-left {
+  min-width: 0;
+}
+.breadcrumb {
+  white-space: nowrap;
+}
+@media (max-width: 1100px) {
+  .topbar-right > span:last-child {
+    display: none;
+  }
+}
+@media (max-width: 960px) {
+  .breadcrumb {
+    display: none;
+  }
+}
+
+/* 导航分组独立收起，侧栏整体收起仍保留业务图标入口。 */
+button.nav-heading {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-panel);
+}
+button.nav-heading:hover {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.nav-chevron {
+  margin-left: auto;
+  transition: transform 0.15s;
+}
+.nav-chevron.is-closed {
+  transform: rotate(-90deg);
+}
+.collapsed .nav-chevron {
+  display: none;
+}
+.dashboard-section {
+  margin-bottom: 22px;
+}
+.dashboard-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.dashboard-section-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dashboard-section-heading p {
+  margin: 7px 0 0;
+}
+.dashboard-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  color: var(--brand);
+  font-size: 13px;
+}
+.dashboard-entry:hover {
+  text-decoration: underline;
+}
+.dashboard-metric {
+  display: block;
+  transition: border-color 0.15s;
+}
+.dashboard-metric:hover {
+  border-color: var(--brand);
+}
+.dashboard-flow .workflow {
+  margin: 0;
+  border: 0;
+  padding-top: 0;
+}
+.dashboard-flow .workflow a {
+  color: var(--brand);
+}
+.dashboard-flow .workflow a:hover {
+  text-decoration: underline;
+}
+.detail-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+@media (max-width: 760px) {
+  .nav-chevron {
+    display: none;
+  }
+  .erp-shell.collapsed {
+    grid-template-columns: 0 minmax(0, 1fr);
+  }
+  .collapsed .sidebar {
+    visibility: hidden;
+    overflow: hidden;
+  }
+  .dashboard .metric-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboard .metric p {
+    display: block;
+  }
+  .dashboard .metric > span {
+    min-height: 0;
+  }
+  .dashboard-section-heading {
+    align-items: flex-start;
+  }
+}
+
+/* 路由切换提示不占文档空间，也不打断已有焦点和连续导航。 */
+.route-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--brand);
+  background: rgb(255 255 255 / 65%);
+  pointer-events: none;
 }

@@ -1,12 +1,9 @@
 <script setup lang="ts">
+import FaManagementList from "./FaManagementList.vue";
 import { computed, defineAsyncComponent, ref, watch } from "vue";
 import {
   Plus,
   Search,
-  Tickets,
-  ShoppingCart,
-  Van,
-  ArrowRight,
   DataAnalysis,
 } from "@element-plus/icons-vue";
 import { state, material, commit } from "./store";
@@ -30,6 +27,7 @@ const emit = defineEmits<{ navigate: [page: string] }>();
 const keyword = ref("");
 const status = ref("");
 const currentPage = ref(1);
+const pageSize = ref(10);
 const initialPlan = sessionStorage.getItem("wsn-selected-plan");
 const planId = ref(
   state.value.plans.some((p) => p.id === initialPlan)
@@ -62,7 +60,7 @@ const filtered = computed(() =>
   )
 );
 const paged = computed(() =>
-  filtered.value.slice((currentPage.value - 1) * 10, currentPage.value * 10)
+  filtered.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value)
 );
 const selectedDoc = computed(() => allRows.value.find((r) => r.id === detail.value));
 watch(
@@ -143,54 +141,28 @@ function viewDraft(draftId: string) {
   sessionStorage.setItem("wsn-selected-draft", draftId);
   emit("navigate", "drafts");
 }
-const steps = computed(() =>
-  props.page === "requests"
-    ? ["车间临时缺料", "纸质请购", "仓库录入请购", "采购下单", "收货入库"]
-    : ["生产计划 / BOM", "需求分析", "采购底稿", "采购下单", "收货入库", "生产领料"]
+watch(pageSize, () => {
+  currentPage.value = 1;
+});
+// 本地数据减少或状态变化后，将分页约束在有效范围内。
+watch(
+  () => filtered.value.length,
+  (total) => {
+    currentPage.value = Math.min(currentPage.value, Math.max(1, Math.ceil(total / pageSize.value)));
+  }
 );
 </script>
 
 <template>
-  <div class="page-heading">
-    <div>
-      <div class="eyebrow">PROCUREMENT</div>
-      <h1>
-        {{ page === "analysis" ? "需求分析" : page === "requests" ? "请购单" : "采购单与采购记录" }}
-      </h1>
-      <p>
-        {{
-          page === "analysis"
-            ? "根据生产计划、BOM 和可用库存生成采购底稿，与临时请购分开管理。"
-            : page === "requests"
-              ? "车间临时缺料后，由仓库根据纸质需求录入请购单，再交采购处理。"
-              : "管理采购订单与收货进度，让每笔采购都有来源。"
-        }}
-      </p>
-    </div>
-    <el-button v-if="page !== 'analysis'" type="primary" :icon="Plus" @click="editing = true">{{
-      page === "requests" ? "新增请购单" : "新增采购单"
-    }}</el-button
-    ><el-tag v-else effect="plain">按最新库存实时分析</el-tag>
-  </div>
-  <div class="workflow">
-    <template v-for="(step, i) in steps" :key="step"
-      ><span
-        :class="{
-          highlighted:
-            (page === 'analysis' && i === 1) ||
-            (page === 'requests' && i === 2) ||
-            (page === 'orders' && [3, 4].includes(i)),
-        }"
-        ><b>{{ i + 1 }}</b
-        >{{ step }}</span
-      ><el-icon v-if="i < steps.length - 1"><ArrowRight /></el-icon
-    ></template>
-  </div>
+
+
   <template v-if="page === 'analysis'">
     <section class="panel analysis-selector">
       <div>
         <h2>选择生产计划</h2>
-        <p class="muted">按计划 BOM 和计划数量计算需求，支持 Excel 导入清单；现场仓和成品仓默认不计入可用量。</p>
+        <p class="muted">
+          按计划 BOM 和计划数量计算需求，支持 Excel 导入清单；现场仓和成品仓默认不计入可用量。
+        </p>
       </div>
       <el-select v-model="planId" placeholder="请选择生产计划" filterable
         ><el-option
@@ -201,20 +173,7 @@ const steps = computed(() =>
       /></el-select>
     </section>
     <template v-if="selectedPlan"
-      ><div class="analysis-banner">
-        <div>
-          <span class="eyebrow">MATERIAL REQUIREMENT</span>
-          <h2>{{ selectedPlan.name }}</h2>
-          <p>
-            {{ material(selectedPlan.product).name }} <span class="divider">/</span> 计划
-            {{ selectedPlan.qty }} 台 <span class="divider">/</span> {{ selectedPlan.date }}
-          </p>
-        </div>
-        <div class="shortage-total">
-          <strong>{{ shortages.length }}</strong
-          ><span>种物料需纳入采购底稿</span>
-        </div>
-      </div>
+      >
       <section class="panel">
         <div class="panel-heading">
           <h2>
@@ -276,13 +235,16 @@ const steps = computed(() =>
             >该计划已领料，不再生成底稿。</span
           ><span v-else class="muted"
             >保存完整 BOM 展算行；需购数量扣除可分配库存及本计划待转底稿、在途采购。</span
-          ><div class="analysis-action-buttons"><el-button
-            type="primary"
-            :icon="Plus"
-            :disabled="!shortages.length || !['待分析', '待备料'].includes(selectedPlan.status)"
-            @click="generate"
-            >生成采购底稿</el-button
-          ><el-button @click="emit('navigate', 'drafts')">查看底稿记录</el-button></div>
+          >
+          <div class="analysis-action-buttons">
+            <el-button
+              type="primary"
+              :icon="Plus"
+              :disabled="!shortages.length || !['待分析', '待备料'].includes(selectedPlan.status)"
+              @click="generate"
+              >生成采购底稿</el-button
+            ><el-button @click="emit('navigate', 'drafts')">查看底稿记录</el-button>
+          </div>
         </div>
       </section> </template
     ><el-empty v-else description="暂无生产计划，请先创建"
@@ -290,63 +252,53 @@ const steps = computed(() =>
         >前往生产计划</el-button
       ></el-empty
     >
-    <section class="panel pending-rules">
-      <h2>其他需求规则</h2>
-      <span class="muted">安全库存、损耗、替代料与审批规则暂未配置。</span>
-    </section>
+
   </template>
   <template v-else>
-    <div class="metric-grid">
-      <div class="metric">
-        <span>待采购请购单</span
-        ><strong
-          >{{ state.requests.filter((r) => r.status === "待采购").length }}<small>笔</small></strong
-        ><el-icon><Tickets /></el-icon>
-        <p>待核对并生成采购单</p>
-      </div>
-      <div class="metric">
-        <span>待收货采购单</span
-        ><strong
-          >{{ state.purchases.filter((p) => p.status === "待入库").length
-          }}<small>笔</small></strong
-        ><el-icon><Van /></el-icon>
-        <p>确认收货后更新库存</p>
-      </div>
-      <div class="metric">
-        <span>采购记录</span><strong>{{ state.purchases.length }}<small>笔</small></strong
-        ><el-icon><ShoppingCart /></el-icon>
-        <p>含待入库和已入库订单</p>
-      </div>
-    </div>
-    <section class="panel">
-      <div class="filter-bar">
-        <label
-          >关键词<el-input
+
+    <FaManagementList
+      class="panel"
+      filterable
+      @search="currentPage = 1"
+      @reset="
+        keyword = '';
+        status = '';
+        currentPage = 1;
+      "
+    >
+      <template #filters>
+        <el-form-item label="关键词"
+          ><el-input
             v-model="keyword"
             :prefix-icon="Search"
             placeholder="单号、商品、计划或经办信息"
-            clearable /></label
-        ><label
-          >单据状态<el-select v-model="status" placeholder="全部状态" clearable
+            clearable /></el-form-item
+        ><el-form-item label="单据状态"
+          ><el-select v-model="status" placeholder="全部状态" clearable
             ><el-option
               v-for="s in page === 'requests' ? ['待采购', '已转采购'] : ['待入库', '已入库']"
               :key="s"
               :label="s"
-              :value="s" /></el-select></label
-        ><el-button
-          v-if="page === 'orders'"
-          :icon="DataAnalysis"
-          @click="emit('navigate', 'analysis')"
-          >从生产计划分析</el-button
-        >
-      </div>
-      <div class="panel-heading">
-        <h2>
-          {{ page === "requests" ? "请购记录" : "采购记录" }}
-          <span class="count-badge">{{ filtered.length }}</span>
-        </h2>
-        <span class="muted">点击单号查看商品明细与来源</span>
-      </div>
+              :value="s" /></el-select
+        ></el-form-item>
+      </template>
+      <template #toolbar
+        ><div class="panel-heading">
+          <el-button
+            v-if="page === 'orders'"
+            :icon="DataAnalysis"
+            @click="emit('navigate', 'analysis')"
+            >从生产计划分析</el-button
+          ><el-button type="primary" :icon="Plus" @click="editing = true">{{
+            page === "requests" ? "新增请购单" : "新增采购单"
+          }}</el-button>
+          <h2>
+            {{ page === "requests" ? "请购记录" : "采购记录" }}
+            <span class="count-badge">{{ filtered.length }}</span>
+          </h2>
+          <span class="muted">点击单号查看商品明细与来源</span>
+        </div></template
+      >
       <el-table :data="paged" stripe empty-text="暂无匹配的单据"
         ><el-table-column label="单据信息" min-width="245"
           ><template #default="{ row }"
@@ -393,8 +345,7 @@ const steps = computed(() =>
               type="primary"
               @click="receiving = row.id"
               >确认收货</el-button
-            ><el-button v-else link type="primary" @click="detail = row.id"
-              >查看详情</el-button
+            ><el-button v-else link type="primary" @click="detail = row.id">查看详情</el-button
             ><el-button v-if="page === 'orders'" link type="primary" @click="printOrder = row"
               >打印预览</el-button
             ></template
@@ -406,11 +357,12 @@ const steps = computed(() =>
         ><el-pagination
           v-model:current-page="currentPage"
           :total="filtered.length"
-          :page-size="10"
-          layout="prev, pager, next"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="sizes, prev, pager, next"
         />
       </div>
-    </section>
+    </FaManagementList>
   </template>
   <el-dialog
     v-model="editing"

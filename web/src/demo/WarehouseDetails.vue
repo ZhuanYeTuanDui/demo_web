@@ -80,12 +80,8 @@ async function save() {
       >返回仓库列表</el-button
     >
     <template v-if="warehouse">
-      <div class="page-heading">
-        <div>
-          <div class="eyebrow">WAREHOUSE DETAILS</div>
-          <h1>仓库详情</h1>
-          <p>查看仓库档案，维护联系资料与库存参与规则。</p>
-        </div>
+      <div class="detail-toolbar">
+
         <div class="warehouse-actions">
           <template v-if="editing"
             ><el-button @click="cancel">取消编辑</el-button

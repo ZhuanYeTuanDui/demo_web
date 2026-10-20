@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import FaManagementList from "./FaManagementList.vue";
 import { computed, ref, watch } from "vue";
-import { Search, DataAnalysis, Collection, ShoppingCart, Tickets } from "@element-plus/icons-vue";
+import { Search, DataAnalysis, } from "@element-plus/icons-vue";
 import { state, material, commit } from "./store";
 import { convertDraft, type Line } from "./model";
 import DocumentEditor from "./DocumentEditor.vue";
@@ -8,6 +9,7 @@ const emit = defineEmits<{ navigate: [page: string] }>();
 const keyword = ref("");
 const status = ref("");
 const page = ref(1);
+const pageSize = ref(10);
 const detail = ref(sessionStorage.getItem("wsn-selected-draft") || "");
 sessionStorage.removeItem("wsn-selected-draft");
 const converting = ref("");
@@ -20,11 +22,17 @@ const filtered = computed(() =>
       (!status.value || d.status === status.value)
   )
 );
-const paged = computed(() => filtered.value.slice((page.value - 1) * 10, page.value * 10));
+const paged = computed(() =>
+  filtered.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
+);
 const selected = computed(() => state.value.drafts.find((d) => d.id === detail.value));
 const detailPage = ref(1);
-const detailLines = computed(() => selected.value?.lines.slice((detailPage.value - 1) * 20, detailPage.value * 20) || []);
-watch(detail, () => { detailPage.value = 1; });
+const detailLines = computed(
+  () => selected.value?.lines.slice((detailPage.value - 1) * 20, detailPage.value * 20) || []
+);
+watch(detail, () => {
+  detailPage.value = 1;
+});
 const conversion = computed(() => state.value.drafts.find((d) => d.id === converting.value));
 const order = computed(() => state.value.purchases.find((p) => p.draft === detail.value));
 function sourcePlan(planId: string) {
@@ -43,67 +51,58 @@ function save(data: { person: string; supplier: string; lines: Line[] }) {
   }
 }
 const cell = (value: number | null) => (value === null ? "—" : value);
+watch(pageSize, () => {
+  page.value = 1;
+});
+// 本地数据减少或状态变化后，将分页约束在有效范围内。
+watch(
+  () => filtered.value.length,
+  (total) => {
+    page.value = Math.min(page.value, Math.max(1, Math.ceil(total / pageSize.value)));
+  }
+);
 </script>
 
 <template>
-  <div class="page-heading">
-    <div>
-      <div class="eyebrow">PURCHASE DRAFTS</div>
-      <h1>采购底稿</h1>
-      <p>由 BOM 与库存分析自动生成，保留需购数量及来源计划，供采购核对下单。</p>
-    </div>
-    <el-button type="primary" :icon="DataAnalysis" @click="emit('navigate', 'analysis')"
-      >需求分析生成底稿</el-button
-    >
-  </div>
-  <div class="workflow">
-    <span>生产计划 / BOM</span><span>→</span><span>库存分析</span><span>→</span
-    ><span class="highlighted">采购底稿</span><span>→</span><span>采购单</span><span>→</span
-    ><span>收货入库</span>
-  </div>
-  <div class="metric-grid">
-    <div class="metric">
-      <span>底稿记录</span><strong>{{ state.drafts.length }}<small>份</small></strong
-      ><el-icon><Collection /></el-icon>
-      <p>保存生成时的 BOM 和库存结果</p>
-    </div>
-    <div class="metric">
-      <span>待采购核对</span
-      ><strong
-        >{{ state.drafts.filter((d) => d.status === "待采购").length }}<small>份</small></strong
-      ><el-icon><Tickets /></el-icon>
-      <p>核对需购数量后整单转采购</p>
-    </div>
-    <div class="metric">
-      <span>已转采购</span
-      ><strong
-        >{{ state.drafts.filter((d) => d.status === "已转采购").length }}<small>份</small></strong
-      ><el-icon><ShoppingCart /></el-icon>
-      <p>可追溯对应采购订单</p>
-    </div>
-  </div>
-  <section class="panel">
-    <div class="filter-bar">
-      <label
-        >关键词<el-input
+
+
+
+  <FaManagementList
+    class="panel"
+    filterable
+    @search="page = 1"
+    @reset="
+      keyword = '';
+      status = '';
+      page = 1;
+    "
+  >
+    <template #filters>
+      <el-form-item label="关键词"
+        ><el-input
           v-model="keyword"
           :prefix-icon="Search"
           placeholder="底稿号、来源计划、机种或物料"
           clearable
-          @input="page = 1" /></label
-      ><label
-        >底稿状态<el-select v-model="status" clearable placeholder="全部状态" @change="page = 1"
+          @input="page = 1" /></el-form-item
+      ><el-form-item label="底稿状态"
+        ><el-select v-model="status" clearable placeholder="全部状态" @change="page = 1"
           ><el-option label="待采购" value="待采购" /><el-option
             label="已转采购"
             value="已转采购" /></el-select
-      ></label>
-    </div>
-    <div class="panel-heading">
-      <h2>
-        底稿记录 <span class="count-badge">{{ filtered.length }}</span>
-      </h2>
-      <span class="muted">与仓库手工录入的请购单独立管理</span>
-    </div>
+      ></el-form-item>
+    </template>
+    <template #toolbar
+      ><div class="panel-heading">
+        <el-button type="primary" :icon="DataAnalysis" @click="emit('navigate', 'analysis')"
+          >需求分析生成底稿</el-button
+        >
+        <h2>
+          底稿记录 <span class="count-badge">{{ filtered.length }}</span>
+        </h2>
+        <span class="muted">与仓库手工录入的请购单独立管理</span>
+      </div></template
+    >
     <el-table :data="paged" stripe empty-text="暂无采购底稿，请先从需求分析生成"
       ><el-table-column label="底稿单号 / 日期" min-width="245"
         ><template #default="{ row }"
@@ -154,11 +153,12 @@ const cell = (value: number | null) => (value === null ? "—" : value);
       ><el-pagination
         v-model:current-page="page"
         :total="filtered.length"
-        :page-size="10"
-        layout="prev, pager, next"
+        v-model:page-size="pageSize"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="sizes, prev, pager, next"
       />
     </div>
-  </section>
+  </FaManagementList>
   <el-drawer
     :model-value="!!selected"
     title="采购底稿详情"
