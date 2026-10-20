@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   seed,
+  createPurchase,
+  auditPurchase,
   analysis,
   createDraft,
   convertDraft,
@@ -21,15 +23,17 @@ describe("采购与生产演示闭环", () => {
     const count = s.requests.length;
     const draft = createDraft(s, s.plans[1]!.id);
     expect(s.requests).toHaveLength(count);
-    expect(draft.lines).toHaveLength(4);
-    expect(draft.lines.find((l) => l.material === "M002")!.qty).toBe(0);
+    expect(draft.lines).toHaveLength(1);
+    expect(s.drafts).toHaveLength(2);
+    expect(s.drafts.some((d) => d.lines[0]!.material === "M002")).toBe(false);
     expect(draft.lines[0]!.bomQty).toBe(3);
     expect(draft.lines[0]!.qty).toBe(1);
     const snapshot = JSON.stringify(draft.lines);
     const order = convertDraft(s, draft.id, "采购员", "供应商");
     expect(order.request).toBe("");
     expect(order.draft).toBe(draft.id);
-    expect(order.lines.map((l) => l.material)).toEqual(["M001", "M003"]);
+    expect(order.lines.map((l) => l.material)).toEqual(["M001"]);
+    auditPurchase(s, order.id);
     receive(s, order.id, "BZ01");
     expect(JSON.stringify(draft.lines)).toBe(snapshot);
   });
@@ -79,16 +83,23 @@ describe("采购与生产演示闭环", () => {
     expect(rows[0]!.stock).toBe(2);
     const request = createDraft(s, plan.id);
     expect(() => createDraft(s, plan.id)).toThrow("无新增缺料");
-    const order = convertDraft(s, request.id, "陈采购", "供应商 A");
+    const order = createPurchase(s, {
+      draftIds: s.drafts.map((d) => d.id),
+      buyer: "陈采购",
+      supplier: "供应商 A",
+    });
+    auditPurchase(s, order.id);
     expect(() => convertDraft(s, request.id, "陈采购", "供应商 A")).toThrow();
     expect(analysis(s, plan).every((r) => r.shortage === 0)).toBe(true);
     expect(() => issuePlan(s, plan.id)).toThrow("库存不足");
     receive(s, order.id, "BZ01");
-    expect(s.movements.filter((m) => m.source === order.id)).toHaveLength(4);
+    expect(s.movements.filter((m) => m.reason.includes(order.id))).toHaveLength(4);
     expect(() => receive(s, order.id, "BZ01")).toThrow();
     issuePlan(s, plan.id);
     expect(s.stocks[stockKey("BZ01", "M001")]).toBe(0);
-    expect(s.movements.filter((m) => m.source === plan.id && m.type === "出库")).toHaveLength(4);
+    expect(s.movements.filter((m) => m.reason.includes(plan.id) && m.type === "出库")).toHaveLength(
+      4
+    );
     expect(() => issuePlan(s, plan.id)).toThrow();
     finishPlan(s, plan.id);
     expect(s.stocks[stockKey("CP01", "FG001")]).toBe(7);
@@ -114,6 +125,6 @@ describe("采购与生产演示闭环", () => {
     expect(() => move(s, "BZ01", { material: "M001", qty: -1 }, "入库", "测试", "测试")).toThrow();
     const o = convertDraft(s, r.id, "采购员", "供应商");
     expect(() => receive(s, o.id, "XC01")).toThrow("可用量");
-    expect(o.status).toBe("待入库");
+    expect(o.status).toBe("未审核");
   });
 });

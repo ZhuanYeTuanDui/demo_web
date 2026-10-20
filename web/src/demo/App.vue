@@ -17,6 +17,7 @@ import {
   ArrowDown,
   House,
   Loading,
+  Van,
 } from "@element-plus/icons-vue";
 import Inventory from "./Inventory.vue";
 import Procurement from "./Procurement.vue";
@@ -24,6 +25,11 @@ import Production from "./Production.vue";
 import Materials from "./Materials.vue";
 import Drafts from "./Drafts.vue";
 import Dashboard from "./Dashboard.vue";
+import Receipts from "./Receipts.vue";
+import WorkOrders from "./WorkOrders.vue";
+import Issues from "./Issues.vue";
+import Shipments from "./Shipments.vue";
+import FinishedStock from "./FinishedStock.vue";
 import { reset, storageError } from "./store";
 
 const menu = [
@@ -36,6 +42,8 @@ const menu = [
       { key: "warehouses", label: "仓库管理", icon: OfficeBuilding },
       { key: "materials", label: "物料档案", icon: Box },
       { key: "movements", label: "出入库记录", icon: List },
+      { key: "issues", label: "领料单", icon: Tickets },
+      { key: "finished-stock", label: "成品库存", icon: Box },
     ],
   },
   {
@@ -51,8 +59,17 @@ const menu = [
     label: "生产管理",
     icon: SetUp,
     items: [
+      { key: "work-orders", label: "工单管理", icon: Tickets },
       { key: "plans", label: "生产计划", icon: Calendar },
       { key: "analysis", label: "需求分析", icon: SetUp },
+    ],
+  },
+  {
+    label: "收发货",
+    icon: Van,
+    items: [
+      { key: "receipts", label: "收货单", icon: Tickets },
+      { key: "shipments", label: "成品发货", icon: Van },
     ],
   },
 ];
@@ -252,6 +269,11 @@ async function resetAll() {
           :page="page"
           @navigate="navigate"
         />
+        <Receipts v-else-if="page === 'receipts'" @navigate="navigate" />
+        <WorkOrders v-else-if="page === 'work-orders'" @navigate="navigate" />
+        <Issues v-else-if="page === 'issues'" @navigate="navigate" />
+        <Shipments v-else-if="page === 'shipments'" @navigate="navigate" />
+        <FinishedStock v-else-if="page === 'finished-stock'" @navigate="navigate" />
         <Production v-else @navigate="navigate" />
         <footer class="page-footer">
           <span>WSN ERP · 业务流程演示</span><span>静态前端 / Mock 数据 / 无需后端</span>

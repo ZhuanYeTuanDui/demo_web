@@ -1,10 +1,18 @@
-import type { Material, Purchase } from "./model";
+import { purchaseAmount, type Material, type Purchase } from "./model";
 
 // 所有业务文字先转义，避免供应商名、物料规格被当作 HTML 执行。
 function escape(value: string | number) {
-  return String(value).replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  })[char]!);
+  return String(value).replace(
+    /[&<>"']/g,
+    (char) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[char]!
+  );
 }
 
 const terms = [
@@ -22,15 +30,16 @@ const terms = [
 ];
 
 export function purchasePrintHtml(order: Purchase, materials: Material[]) {
-  // 金额以分累计，保持行金额与合计一致。
-  let total = 0;
-  const rows = order.lines.map((line, index) => {
-    const item = materials.find((m) => m.id === line.material);
-    if (!item) throw new Error(`采购单物料不存在：${line.material}`);
-    const cents = Math.round(line.qty * item.price * 100);
-    total += cents;
-    return `<tr><td>${String(index + 1).padStart(3, "0")}</td><td>${escape(item.id)}</td><td>${escape(item.name)}</td><td>${escape(item.spec)}</td><td>${escape(order.plan)}</td><td></td><td>${escape(line.qty)}</td><td>${escape(item.unit)}</td><td>${item.price.toFixed(4)}</td><td>${(cents / 100).toFixed(2)}</td><td></td><td></td></tr>`;
-  }).join("");
+  // 行金额来自采购录入；合计统一派生，任一行未填则不展示伪合计。
+  const total = purchaseAmount(order.lines);
+  const rows = order.lines
+    .map((line, index) => {
+      const item = materials.find((m) => m.id === line.material);
+      if (!item) throw new Error(`采购单物料不存在：${line.material}`);
+
+      return `<tr><td>${String(index + 1).padStart(3, "0")}</td><td>${escape(item.id)}</td><td>${escape(item.name)}</td><td>${escape(item.spec)}</td><td>${escape(line.draft || line.request || "")}</td><td></td><td>${escape(line.qty)}</td><td>${escape(item.unit)}</td><td></td><td>${line.amount == null ? "未填写" : line.amount.toFixed(2)}</td><td></td><td></td></tr>`;
+    })
+    .join("");
   return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>采购合同-${escape(order.id)}</title>
 <style>
 @page { size: A4 portrait; margin: 10mm; }
@@ -61,11 +70,12 @@ tr { break-inside: avoid; }
 </style></head><body><main class="paper">
 <header><div class="brand"><b>VAISANA</b><span>维 萨 娜</span></div><div><h1>维萨娜智能装备（广东）有限公司</h1><div class="slogan">让制造，更省钱、更简单！</div></div></header>
 <h2>采购合同</h2>
-<section class="info"><div><div><span class="label">甲方：</span>维萨娜智能装备（广东）有限公司</div><div><span class="label">地址：</span>东莞市寮步镇凫山祥新街横巷1号</div><div><span class="label">联系人：</span>${escape(order.buyer)}</div><div><span class="label">乙方：</span>${escape(order.supplier)}</div><div><span class="label">地址：</span></div><div><span class="label">联系人：</span></div></div><div><div><span class="label">合同编号：</span>${escape(order.id)}</div><div><span class="label">订单日期：</span>${escape(order.date)}</div><div><span class="label">电话：</span></div><div><span class="label">项目号：</span>${escape(order.plan)}</div><div><span class="label">电话：</span></div></div></section>
+<section class="info"><div><div><span class="label">甲方：</span>维萨娜智能装备（广东）有限公司</div><div><span class="label">地址：</span>东莞市寮步镇凫山祥新街横巷1号</div><div><span class="label">联系人：</span>${escape(order.buyer)}</div><div><span class="label">乙方：</span>${escape(order.supplier)}</div><div><span class="label">地址：</span></div><div><span class="label">联系人：</span></div></div><div><div><span class="label">合同编号：</span>${escape(order.id)}</div><div><span class="label">订单日期：</span>${escape(order.date)}</div><div><span class="label">电话：</span></div><div><span class="label">项目号：</span></div><div><span class="label">电话：</span></div></div></section>
 <p class="intro">甲乙双方本着平等协商、遵照国家相关法律法规的原则下签订本合同。</p>
-<table><colgroup>${[4, 8, 10, 12, 9, 7, 7, 6, 9, 9, 10, 9].map((w) => `<col style="width:${w}%">`).join("")}</colgroup><thead><tr>${["序号", "品号", "品名", "规格/图号", "项目号", "品牌<br>材质", "数量", "单位", "含税单价 ¥", "价税合计 ¥", "交期", "备注"].map((s) => `<th>${s}</th>`).join("")}</tr></thead><tbody>${rows}<tr><td colspan="8" style="text-align:left">合计金额（人民币）</td><td colspan="3">¥ ${(total / 100).toFixed(2)}</td><td></td></tr></tbody></table>
+<table><colgroup>${[4, 8, 10, 12, 9, 7, 7, 6, 9, 9, 10, 9].map((w) => `<col style="width:${w}%">`).join("")}</colgroup><thead><tr>${["序号", "品号", "品名", "规格/图号", "来源单号", "品牌<br>材质", "数量", "单位", "含税单价 ¥", "价税合计 ¥", "交期", "备注"].map((s) => `<th>${s}</th>`).join("")}</tr></thead><tbody>${rows}<tr><td colspan="8" style="text-align:left">合计金额（人民币）</td><td colspan="3">${total === null ? "未填完整" : `¥ ${total.toFixed(2)}`}</td><td></td></tr></tbody></table>
+${order.legacyAmount == null ? "" : `<p class="note">旧版单头历史金额：¥ ${order.legacyAmount.toFixed(2)}；未分摊到物料，不计入当前明细合计。</p>`}
 <section class="terms">${terms.map((term) => `<p>${escape(term)}</p>`).join("")}</section>
 <section class="sign"><div>甲方签字（盖章）：</div><div>乙方签字（盖章）：</div><div>制单：${escape(order.buyer)}　审核：</div><div>签字：</div><div>签字日期：</div><div>签字日期：</div></section>
-<p class="note">当前为演示采购合同，单价采用物料参考价；交期、联系方式及品牌材质未配置。合同条款请在签署前核对。</p>
+<p class="note">当前为演示采购合同，行金额采用采购明细录入金额，合计由明细计算；单价、交期、联系方式及品牌材质未配置。合同条款请在签署前核对。</p>
 </main></body></html>`;
 }

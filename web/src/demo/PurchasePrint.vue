@@ -38,7 +38,7 @@ function print() {
     @close="emit('close')"
   >
     <el-alert
-      title="A4 纵向。当前单价为演示参考值；请核对金额与合同条款。联系方式、交期等缺失信息保留空白。"
+      title="A4 纵向。行金额为采购明细录入，合计由明细计算；请核对金额与合同条款。联系方式、交期等缺失信息保留空白。"
       type="warning"
       :closable="false"
       show-icon

@@ -1,0 +1,164 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mount, flushPromises, type VueWrapper } from "@vue/test-utils";
+import { nextTick } from "vue";
+import ElementPlus, { ElSelect } from "element-plus";
+import WorkOrders from "./WorkOrders.vue";
+import Production from "./Production.vue";
+import Issues from "./Issues.vue";
+import Shipments from "./Shipments.vue";
+import { state, storageError } from "./store";
+import { requirements, seed, stockKey } from "./model";
+
+let wrapper: VueWrapper | undefined;
+beforeEach(() => {
+  state.value = seed();
+  storageError.value = "";
+  localStorage.clear();
+  sessionStorage.clear();
+});
+afterEach(() => {
+  wrapper?.unmount();
+  wrapper = undefined;
+  vi.restoreAllMocks();
+  sessionStorage.clear();
+});
+const click = async (label: string) => {
+  const button = wrapper!.findAll("button").find((item) => item.text() === label);
+  expect(button, `应存在${label}按钮`).toBeTruthy();
+  await button!.trigger("click");
+};
+
+describe("生产单据页面闭环", () => {
+  it("计划领料跳转单独领料页面，不直接扣库存", async () => {
+    wrapper = mount(Production, { global: { plugins: [ElementPlus] } });
+    await flushPromises();
+    const stocks = { ...state.value.stocks };
+    await click("生产领料");
+    expect(wrapper.emitted("navigate")?.[0]).toEqual(["issues"]);
+    expect(sessionStorage.getItem("wsn-selected-issue-plan")).toBe(state.value.plans[0]!.id);
+    expect(state.value.stocks).toEqual(stocks);
+    expect(state.value.issues).toHaveLength(0);
+  });
+
+  it("预选生产计划创建领料单，库存和关联出库同时更新", async () => {
+    const plan = state.value.plans[0]!;
+    requirements(plan).forEach((line) => {
+      state.value.stocks[stockKey("BZ01", line.material)] = line.qty;
+    });
+    sessionStorage.setItem("wsn-selected-issue-plan", plan.id);
+
+    wrapper = mount(Issues, { global: { plugins: [ElementPlus] } });
+    await flushPromises();
+    await click("确认领料并出库");
+    await flushPromises();
+    Array.from(
+      document.querySelectorAll<HTMLButtonElement>(".el-message-box__btns .el-button--primary")
+    )
+      .at(-1)!
+      .click();
+    await flushPromises();
+    expect(state.value.issues).toHaveLength(1);
+    const issue = state.value.issues[0]!;
+    expect(issue.plan).toBe(plan.id);
+    expect(state.value.movements.filter((row) => row.source === issue.id)).toHaveLength(
+      requirements(plan).length
+    );
+    requirements(plan).forEach((line) =>
+      expect(state.value.stocks[stockKey("BZ01", line.material)]).toBe(0)
+    );
+    expect(state.value.plans[0]!.status).toBe("已领料");
+  });
+
+  it("创建计划缺少工单时保留表单并阻止保存", async () => {
+    wrapper = mount(Production, { global: { plugins: [ElementPlus] } });
+    const original = state.value.plans.length;
+    await click("新增生产计划");
+    await flushPromises();
+    await click("创建计划");
+    expect(state.value.plans).toHaveLength(original);
+    expect(wrapper.text()).toContain("请选择工单并填写计划名称和计划日期");
+  });
+
+  it("待出货工单确认物流后生成发货单并扣成品库存", async () => {
+    const plan = state.value.plans[0]!;
+    const workOrder = state.value.workOrders.find((row) => row.id === plan.workOrder)!;
+    workOrder.status = "待出货";
+    plan.status = "已完工";
+    state.value.stocks[stockKey("CP01", plan.product)] = plan.qty;
+
+    wrapper = mount(Shipments, { global: { plugins: [ElementPlus] } });
+    await click("新增发货单");
+    await flushPromises();
+    wrapper
+      .findAllComponents(ElSelect)
+      .find((select) => select.props("placeholder") === "请选择待出货工单")!
+      .vm.$emit("update:modelValue", workOrder.id);
+    await nextTick();
+    await wrapper.get('input[maxlength="60"]').setValue("顺丰速运");
+    await wrapper.get('input[maxlength="100"]').setValue("SF123456789");
+    await click("确认发货并出库");
+    await flushPromises();
+    Array.from(
+      document.querySelectorAll<HTMLButtonElement>(".el-message-box__btns .el-button--primary")
+    )
+      .at(-1)!
+      .click();
+    await flushPromises();
+    expect(state.value.shipments).toHaveLength(1);
+    expect(state.value.shipments[0]!.tracking).toBe("SF123456789");
+    expect(state.value.workOrders.find((row) => row.id === workOrder.id)!.status).toBe("已发货");
+    expect(state.value.stocks[stockKey("CP01", plan.product)]).toBe(0);
+    expect(
+      state.value.movements.some(
+        (row) => row.source === state.value.shipments[0]!.id && row.type === "出库"
+      )
+    ).toBe(true);
+  });
+
+  it("工单可直接选择 Excel 导入并自动带入工单，完成后返回工单详情", async () => {
+    wrapper = mount(WorkOrders, {
+      global: {
+        plugins: [ElementPlus],
+        stubs: {
+          ProductionImport: {
+            name: "ProductionImport",
+            props: ["workOrder"],
+            emits: ["close", "imported"],
+            template: '<div data-test="work-order-import">{{workOrder}}</div>',
+          },
+        },
+      },
+    });
+    await flushPromises();
+    await click("安排计划");
+    await flushPromises();
+    await click("Excel 导入");
+    await flushPromises();
+    const importer = wrapper.findComponent({ name: "ProductionImport" });
+    expect(importer.props("workOrder")).toBe(state.value.workOrders[0]!.id);
+    expect(wrapper.emitted("navigate")).toBeUndefined();
+    importer.vm.$emit("imported", "PP-IMPORTED");
+    await flushPromises();
+    expect(wrapper.find('[data-test="work-order-import"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain("工单详情");
+  });
+
+  it("工单安排计划跳转到生产计划路由并带入工单", async () => {
+    wrapper = mount(WorkOrders, { global: { plugins: [ElementPlus] } });
+    await flushPromises();
+    await flushPromises();
+    await click("安排计划");
+    await flushPromises();
+    await click("手工创建");
+    expect(wrapper.emitted("navigate")?.[0]).toEqual(["plans"]);
+    expect(sessionStorage.getItem("wsn-selected-work-order")).toBe(state.value.workOrders[0]!.id);
+    wrapper.unmount();
+    wrapper = mount(Production, { global: { plugins: [ElementPlus] } });
+    await flushPromises();
+    expect(wrapper.text()).toContain("新增生产计划");
+    const selectedOrder = wrapper
+      .findAllComponents(ElSelect)
+      .find((select) => select.props("modelValue") === state.value.workOrders[0]!.id);
+    expect(selectedOrder).toBeTruthy();
+  });
+});

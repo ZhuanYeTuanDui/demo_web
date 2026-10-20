@@ -45,7 +45,7 @@ const records = computed(() =>
     (r) =>
       (!warehouse.value || r.warehouse === warehouse.value) &&
       (!direction.value || r.type === direction.value) &&
-      `${r.source}${r.id}${material(r.material)?.name}`
+      `${r.source}${r.reason}${r.id}${material(r.material)?.name}`
         .toLowerCase()
         .includes(keyword.value.toLowerCase())
   )

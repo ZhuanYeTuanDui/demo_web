@@ -41,6 +41,9 @@ describe("后台列表布局", () => {
     state.value.plans = Array.from({ length: 25 }, (_, index) => ({ ...plan, id: `PP-${index}` }));
     wrapper = mount(Production, { global: { plugins: [ElementPlus] } });
     const pagination = wrapper.getComponent(ElPagination);
+    expect(pagination.props("pageSize")).toBe(50);
+    pagination.vm.$emit("update:page-size", 10);
+    await nextTick();
     pagination.vm.$emit("update:current-page", 3);
     await nextTick();
     expect(wrapper.getComponent({ name: "ElTable" }).props("data")).toHaveLength(5);

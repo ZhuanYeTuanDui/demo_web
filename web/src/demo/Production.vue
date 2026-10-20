@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import FaManagementList from "./FaManagementList.vue";
+import FaTableActions from "./FaTableActions.vue";
 import { computed, defineAsyncComponent, reactive, ref, watch } from "vue";
 import { Plus, Search, Upload } from "@element-plus/icons-vue";
+import { ElMessageBox } from "element-plus";
 import { state, material, commit } from "./store";
 import {
   products,
   today,
   id,
-  issuePlan,
   finishPlan,
   planBom,
   requirements,
@@ -18,11 +19,22 @@ const importing = ref(false);
 const emit = defineEmits<{ navigate: [page: string] }>();
 const keyword = ref("");
 const page = ref(1);
-const pageSize = ref(10);
+const pageSize = ref(50);
 const status = ref("");
 const dialog = ref(false);
 const detail = ref("");
-const form = reactive({ name: "", product: "FG001", qty: 5, date: today() });
+const initialDetail = sessionStorage.getItem("wsn-production-plan-detail");
+if (initialDetail) { detail.value = initialDetail; sessionStorage.removeItem("wsn-production-plan-detail"); }
+const form = reactive({ name: "", product: "FG001", qty: 5, date: today(), workOrder: "" });
+const workOrders = computed(() => state.value.workOrders.filter(order => order.status !== "已发货"));
+const formError = ref("");
+const saving = ref(false);
+const initialWorkOrder = sessionStorage.getItem("wsn-selected-work-order");
+if (initialWorkOrder) {
+  form.workOrder = initialWorkOrder;
+  dialog.value = true;
+  sessionStorage.removeItem("wsn-selected-work-order");
+}
 const plans = computed(() =>
   state.value.plans.filter(
     (p) =>
@@ -38,8 +50,13 @@ watch([keyword, status, pageSize], () => {
 });
 const selected = computed(() => state.value.plans.find((p) => p.id === detail.value));
 function create() {
+  if (saving.value) return;
+  formError.value = "";
+  if (!form.workOrder || !form.name.trim() || !form.date) { formError.value = "请选择工单并填写计划名称和计划日期"; return; }
+  saving.value = true;
   if (
     commit((s) => {
+      if (!s.workOrders.some(order => order.id === form.workOrder && order.status !== "已发货")) throw new Error("请选择未发货工单");
       if (!form.name.trim() || !form.date) throw new Error("请填写计划名称和计划日期");
       if (
         !products.some((p) => p.id === form.product) ||
@@ -56,6 +73,23 @@ function create() {
     dialog.value = false;
     form.name = "";
   }
+  saving.value = false;
+}
+function issue(planId: string) {
+  sessionStorage.setItem("wsn-selected-issue-plan", planId);
+  emit("navigate", "issues");
+}
+function viewWorkOrder(orderId: string) {
+  sessionStorage.setItem("wsn-work-order-detail", orderId);
+  emit("navigate", "work-orders");
+}
+const finishing = ref(false);
+async function finish(planId: string) {
+  if (finishing.value) return;
+  finishing.value = true;
+  try { await ElMessageBox.confirm("确认完工后将增加成品库存，是否继续？", "确认完工入库", { type: "warning", confirmButtonText: "确认入库", cancelButtonText: "取消" }); } catch { finishing.value = false; return; }
+  commit(s => finishPlan(s, planId), "完工入库完成");
+  finishing.value = false;
 }
 function analyze(planId: string) {
   sessionStorage.setItem("wsn-selected-plan", planId);
@@ -115,7 +149,7 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
           ><div class="cell-title">{{ material(row.product).name }}</div>
           <span class="cell-sub">{{ material(row.product).spec }}</span></template
         ></el-table-column
-      ><el-table-column prop="qty" label="数量（台）" width="110" align="right" /><el-table-column
+      ><el-table-column label="关联工单" min-width="180"><template #default="{ row }"><el-button v-if="row.workOrder" link type="primary" @click="viewWorkOrder(row.workOrder)">{{ state.workOrders.find(w => w.id === row.workOrder)?.name || row.workOrder }}</el-button><span v-else class="muted">—</span></template></el-table-column><el-table-column prop="qty" label="数量（台）" width="110" align="right" /><el-table-column
         prop="date"
         label="计划日期"
         width="125"
@@ -130,23 +164,7 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
         ></el-table-column
       ><el-table-column label="操作" width="190" fixed="right"
         ><template #default="{ row }"
-          ><template v-if="['待分析', '待备料'].includes(row.status)"
-            ><el-button link type="primary" @click="analyze(row.id)">分析缺料</el-button
-            ><el-button
-              link
-              type="primary"
-              @click="commit((s) => issuePlan(s, row.id), '领料完成，已生成出库记录')"
-              >生产领料</el-button
-            ></template
-          ><el-button
-            v-else-if="row.status === '已领料'"
-            link
-            type="primary"
-            @click="commit((s) => finishPlan(s, row.id), '完工入库完成')"
-            >完工入库</el-button
-          ><el-button v-else link type="primary" @click="detail = row.id"
-            >查看详情</el-button
-          ></template
+          ><FaTableActions :actions="['待分析', '待备料'].includes(row.status) ? [{ label: '分析缺料', action: () => analyze(row.id) }, { label: '生产领料', action: () => issue(row.id) }, { label: '查看详情', action: () => { detail = row.id; } }] : row.status === '已领料' ? [{ label: '完工入库', action: () => { finish(row.id); }, disabled: finishing }, { label: '查看详情', action: () => { detail = row.id; } }] : [{ label: '查看详情', action: () => { detail = row.id; } }]" /></template
         ></el-table-column
       ></el-table
     >
@@ -161,12 +179,12 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
       />
     </div>
     <div class="inline-note">
-      演示简化：整单领料、整单完工；工序、排程、委外和审批规则暂未配置。
+      生产领料通过领料单办理；完工后成品入库，再由工单办理发货。
     </div>
   </FaManagementList>
   <el-dialog v-model="dialog" title="新增生产计划" width="520px"
     ><el-form label-position="top" @submit.prevent="create"
-      ><el-form-item label="计划名称" required
+      ><el-form-item label="关联工单" required :error="!form.workOrder ? formError : ''"><el-select v-model="form.workOrder" filterable placeholder="请先选择工单"><el-option v-for="order in workOrders" :key="order.id" :label="`${order.name}（${order.id}）`" :value="order.id" /></el-select></el-form-item><el-form-item label="计划名称" required :error="!form.name.trim() ? formError : ''"
         ><el-input
           v-model="form.name"
           placeholder="例如：十月包装机交付计划"
@@ -184,10 +202,10 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
             :precision="0" /></el-form-item
         ><el-form-item label="计划日期" required
           ><el-date-picker v-model="form.date" type="date" value-format="YYYY-MM-DD"
-        /></el-form-item></div></el-form
+        /></el-form-item></div><el-alert v-if="formError" :title="formError" type="error" :closable="false" /></el-form
     ><template #footer
       ><el-button @click="dialog = false">取消</el-button
-      ><el-button type="primary" @click="create">创建计划</el-button></template
+      ><el-button type="primary" :loading="saving" @click="create">创建计划</el-button></template
     ></el-dialog
   >
   <el-drawer :model-value="!!selected" title="生产计划详情" size="620px" @close="detail = ''"
@@ -195,6 +213,7 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
       ><el-descriptions :column="1" border
         ><el-descriptions-item label="计划号">{{ selected.id }}</el-descriptions-item
         ><el-descriptions-item label="名称">{{ selected.name }}</el-descriptions-item
+        ><el-descriptions-item label="关联工单"><el-button v-if="selected.workOrder" link type="primary" @click="viewWorkOrder(selected.workOrder)">{{ state.workOrders.find(w => w.id === selected!.workOrder)?.name || selected.workOrder }}</el-button><span v-else>—</span></el-descriptions-item
         ><el-descriptions-item label="产品">{{
           material(selected.product).name
         }}</el-descriptions-item
@@ -207,9 +226,7 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
       <h3>{{ selected.importSource?.basis === 'total' ? '本次需求清单' : '单台产品 BOM' }}</h3>
       <el-table :data="planBom(selected)"
         ><el-table-column label="物料"
-          ><template #default="{ row }">{{
-            material(row.material).name
-          }}</template></el-table-column
+          ><template #default="{ row }"><el-button link type="primary" @click="emit('navigate', `materials/${row.material}`)">{{ material(row.material).name }}</el-button><el-tag v-if="selected.importSource" size="small" :type="selected.importSource.rows.some(r => r.material === row.material && r.created) ? 'success' : 'info'">{{ selected.importSource.rows.some(r => r.material === row.material && r.created) ? '本次新建' : '匹配已有' }}</el-tag></template></el-table-column
         ><el-table-column label="图号 / 规格" min-width="180"><template #default="{ row }">{{ material(row.material).details?.drawingNo || material(row.material).spec || '—' }}</template></el-table-column
         ><el-table-column label="单位" width="70"><template #default="{ row }">{{ material(row.material).unit }}</template></el-table-column
         ><el-table-column prop="qty" :label="selected.importSource?.basis === 'total' ? '需求量' : '单台用量'" width="90"
@@ -217,5 +234,5 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
       <h3>工序与排程</h3>
       <el-empty description="暂未配置" :image-size="65" /></template
   ></el-drawer>
-  <ProductionImport v-if="importing" @close="importing = false" @imported="planId => { importing = false; detail = planId; }" />
+  <ProductionImport v-if="importing" :work-order="form.workOrder" @close="importing = false" @imported="planId => { importing = false; detail = planId; }" />
 </template>
