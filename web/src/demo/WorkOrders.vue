@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import ElDialog from "./CachedDialog.vue";
+import ElDrawer from "./CachedDrawer.vue";
 import { computed, defineAsyncComponent, reactive, ref, watch } from "vue";
 import { Plus } from "@element-plus/icons-vue";
 import FaManagementList from "./FaManagementList.vue";
 import FaTableActions from "./FaTableActions.vue";
 import { state, material, commit } from "./store";
+import { usePageActivation } from "./page-cache";
 import { createWorkOrder, setWorkOrderStatus, products, today, type WorkOrder } from "./model";
 const ProductionImport = defineAsyncComponent(() => import("./ProductionImport.vue"));
 const scheduling = ref<WorkOrder>();
@@ -16,11 +19,13 @@ const page = ref(1);
 const pageSize = ref(50);
 const dialog = ref(false);
 const detail = ref("");
-const initialDetail = sessionStorage.getItem("wsn-work-order-detail");
-if (initialDetail) {
-  detail.value = initialDetail;
-  sessionStorage.removeItem("wsn-work-order-detail");
-}
+usePageActivation(() => {
+  const workOrderId = sessionStorage.getItem("wsn-work-order-detail");
+  if (workOrderId) {
+    detail.value = workOrderId;
+    sessionStorage.removeItem("wsn-work-order-detail");
+  }
+});
 const error = ref("");
 const saving = ref(false);
 const statuses = ["立项中", "采购中", "装配中", "待出货"] as const;

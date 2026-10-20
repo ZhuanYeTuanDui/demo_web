@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import ElDialog from "./CachedDialog.vue";
+import ElDrawer from "./CachedDrawer.vue";
 import { computed, ref, watch } from "vue";
+import { usePageActivation } from "./page-cache";
 import { ElMessageBox } from "element-plus";
 import { state, material, warehouseName, commit } from "./store";
 import { receive, type Purchase } from "./model";
@@ -47,9 +50,13 @@ function open(p?: Purchase) {
   creating.value = true;
   quantities.value = Object.fromEntries(rows.value.map((l) => [l.id, l.qty - l.received]));
 }
-const initial = sessionStorage.getItem("wsn-selected-purchase");
-sessionStorage.removeItem("wsn-selected-purchase");
-if (initial) open(orders.value.find((p) => p.id === initial));
+usePageActivation(() => {
+  const purchaseId = sessionStorage.getItem("wsn-selected-purchase");
+  if (!purchaseId) return;
+  sessionStorage.removeItem("wsn-selected-purchase");
+  const purchase = orders.value.find((p) => p.id === purchaseId);
+  if (purchase) open(purchase);
+});
 async function save() {
   if (saving.value) return;
   const receiptLines = rows.value

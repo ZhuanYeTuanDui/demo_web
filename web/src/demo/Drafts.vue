@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import ElDialog from "./CachedDialog.vue";
+import ElDrawer from "./CachedDrawer.vue";
 import { computed, ref, watch } from "vue";
+import { usePageActivation } from "./page-cache";
 import { state, material } from "./store";
 import type { PurchaseDraft } from "./model";
 import FaManagementList from "./FaManagementList.vue";
@@ -12,8 +15,14 @@ const keyword = ref(""),
   pageSize = ref(50);
 const selectedIds = ref<string[]>([]),
   converting = ref(false),
-  detail = ref(sessionStorage.getItem("wsn-selected-draft") || "");
-sessionStorage.removeItem("wsn-selected-draft");
+  detail = ref("");
+// 仅在本页激活时消费新的来源跳转，普通返回保留筛选及分页。
+usePageActivation(() => {
+  const draftId = sessionStorage.getItem("wsn-selected-draft");
+  if (!draftId) return;
+  sessionStorage.removeItem("wsn-selected-draft");
+  detail.value = draftId;
+});
 const filtered = computed(() =>
   state.value.drafts.filter(
     (d) =>
@@ -36,8 +45,8 @@ watch(
   (n) => (page.value = Math.min(page.value, Math.max(1, Math.ceil(n / pageSize.value))))
 );
 function sourcePlan(id: string) {
-  sessionStorage.setItem("wsn-selected-plan", id);
-  emit("navigate", "analysis");
+  sessionStorage.setItem("wsn-production-plan-detail", id);
+  emit("navigate", "plans");
 }
 function convert(ids: string[]) {
   selectedIds.value = ids;
@@ -79,7 +88,7 @@ const orders = computed(() =>
     <template #toolbar
       ><el-button type="primary" :disabled="!selectedPending.length" @click="converting = true"
         >所选底稿转采购（{{ selectedPending.length }}）</el-button
-      ><el-button @click="emit('navigate', 'analysis')">需求分析</el-button></template
+      ><el-button @click="emit('navigate', 'plans')">生产计划</el-button></template
     >
     <el-table
       :data="paged"

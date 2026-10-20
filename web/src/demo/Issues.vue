@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import ElDialog from "./CachedDialog.vue";
+import ElDrawer from "./CachedDrawer.vue";
 import { computed, reactive, ref, watch } from "vue";
 import { Plus } from "@element-plus/icons-vue";
 import { ElMessageBox } from "element-plus";
 import FaManagementList from "./FaManagementList.vue";
 import FaTableActions from "./FaTableActions.vue";
 import { state, material, warehouseName, commit } from "./store";
+import { usePageActivation } from "./page-cache";
 import { createIssue, requirements, stockKey } from "./model";
 const emit = defineEmits<{ navigate: [page: string] }>();
 const keyword = ref("");
@@ -71,12 +74,14 @@ function open() {
   error.value = "";
   dialog.value = true;
 }
-const preselected = sessionStorage.getItem("wsn-selected-issue-plan");
-if (preselected) {
-  sessionStorage.removeItem("wsn-selected-issue-plan");
-  dialog.value = true;
-  form.plan = preselected;
-}
+usePageActivation(() => {
+  const planId = sessionStorage.getItem("wsn-selected-issue-plan");
+  if (planId) {
+    sessionStorage.removeItem("wsn-selected-issue-plan");
+    dialog.value = true;
+    form.plan = planId;
+  }
+});
 async function create() {
   if (saving.value) return;
   error.value = "";

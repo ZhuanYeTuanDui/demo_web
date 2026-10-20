@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import ElDialog from "./CachedDialog.vue";
+import ElDrawer from "./CachedDrawer.vue";
 import FaManagementList from "./FaManagementList.vue";
 import FaTableActions from "./FaTableActions.vue";
+import DemandAnalysis from "./DemandAnalysis.vue";
 import { computed, defineAsyncComponent, reactive, ref, watch } from "vue";
 import { Plus, Search, Upload } from "@element-plus/icons-vue";
 import { ElMessageBox } from "element-plus";
 import { state, material, commit } from "./store";
+import { usePageActivation } from "./page-cache";
 import {
   products,
   today,
@@ -23,18 +27,29 @@ const pageSize = ref(50);
 const status = ref("");
 const dialog = ref(false);
 const detail = ref("");
-const initialDetail = sessionStorage.getItem("wsn-production-plan-detail");
-if (initialDetail) { detail.value = initialDetail; sessionStorage.removeItem("wsn-production-plan-detail"); }
+const analysisPlanId = ref("");
 const form = reactive({ name: "", product: "FG001", qty: 5, date: today(), workOrder: "" });
 const workOrders = computed(() => state.value.workOrders.filter(order => order.status !== "已发货"));
 const formError = ref("");
 const saving = ref(false);
-const initialWorkOrder = sessionStorage.getItem("wsn-selected-work-order");
-if (initialWorkOrder) {
-  form.workOrder = initialWorkOrder;
-  dialog.value = true;
-  sessionStorage.removeItem("wsn-selected-work-order");
-}
+usePageActivation(() => {
+  const analysisId = sessionStorage.getItem("wsn-production-plan-analysis");
+  if (analysisId) {
+    analysisPlanId.value = analysisId;
+    sessionStorage.removeItem("wsn-production-plan-analysis");
+  }
+  const planId = sessionStorage.getItem("wsn-production-plan-detail");
+  if (planId) {
+    detail.value = planId;
+    sessionStorage.removeItem("wsn-production-plan-detail");
+  }
+  const workOrderId = sessionStorage.getItem("wsn-selected-work-order");
+  if (workOrderId) {
+    form.workOrder = workOrderId;
+    dialog.value = true;
+    sessionStorage.removeItem("wsn-selected-work-order");
+  }
+});
 const plans = computed(() =>
   state.value.plans.filter(
     (p) =>
@@ -92,8 +107,11 @@ async function finish(planId: string) {
   finishing.value = false;
 }
 function analyze(planId: string) {
-  sessionStorage.setItem("wsn-selected-plan", planId);
-  emit("navigate", "analysis");
+  analysisPlanId.value = planId;
+}
+function navigateFromAnalysis(page: string) {
+  analysisPlanId.value = "";
+  emit("navigate", page);
 }
 // 本地数据减少或状态变化后，将分页约束在有效范围内。
 watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, Math.max(1, Math.ceil(total / pageSize.value))); });
@@ -235,4 +253,10 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
       <el-empty description="暂未配置" :image-size="65" /></template
   ></el-drawer>
   <ProductionImport v-if="importing" :work-order="form.workOrder" @close="importing = false" @imported="planId => { importing = false; detail = planId; }" />
+  <DemandAnalysis
+    v-if="analysisPlanId"
+    :plan-id="analysisPlanId"
+    @close="analysisPlanId = ''"
+    @navigate="navigateFromAnalysis"
+  />
 </template>

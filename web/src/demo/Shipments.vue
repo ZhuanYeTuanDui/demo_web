@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ElDialog from "./CachedDialog.vue";
+import ElDrawer from "./CachedDrawer.vue";
 import { computed, reactive, ref, watch } from "vue";
 import { Plus } from "@element-plus/icons-vue";
 import { ElMessageBox } from "element-plus";

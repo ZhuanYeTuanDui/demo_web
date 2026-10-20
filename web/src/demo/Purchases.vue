@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ElDialog from "./CachedDialog.vue";
+import ElDrawer from "./CachedDrawer.vue";
 import { computed, defineAsyncComponent, ref, watch } from "vue";
 import { ElMessageBox } from "element-plus";
 import { state, material, commit } from "./store";

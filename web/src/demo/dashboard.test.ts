@@ -147,7 +147,7 @@ describe("首页工作台与导航", () => {
     expect(wrapper.emitted("navigate")?.[0]).toEqual(["orders"]);
   });
 
-  it("默认打开工作台，分组可折叠，需求分析属于生产管理", async () => {
+  it("默认打开工作台，生产管理仅提供工单和生产计划入口", async () => {
     history.replaceState(null, "", "/");
     wrapper = mount(App, {
       global: {
@@ -171,7 +171,8 @@ describe("首页工作台与导航", () => {
     const procurement = wrapper
       .findAll(".nav-group")
       .find((group) => group.text().includes("采购管理"))!;
-    expect(production.find('a[href="#analysis"]').exists()).toBe(true);
+    expect(production.find('a[href="#analysis"]').exists()).toBe(false);
+    expect(production.find('a[href="#plans"]').exists()).toBe(true);
     expect(procurement.find('a[href="#analysis"]').exists()).toBe(false);
     const logistics = wrapper
       .findAll(".nav-group")
@@ -183,14 +184,22 @@ describe("首页工作台与导航", () => {
     const heading = production.get('button[aria-label="生产管理"]');
     await heading.trigger("click");
     expect(heading.attributes("aria-expanded")).toBe("false");
-    expect(production.get('a[href="#analysis"]').isVisible()).toBe(false);
+    expect(production.get('a[href="#plans"]').isVisible()).toBe(false);
     await heading.trigger("click");
-    await production.get('a[href="#analysis"]').trigger("click");
-    expect(document.title).toBe("需求分析 · WSN ERP");
+    await production.get('a[href="#plans"]').trigger("click");
+    expect(document.title).toBe("生产计划 · WSN ERP");
     await wrapper.get('button[aria-label="收起导航"]').trigger("click");
     expect(wrapper.get(".erp-shell").classes()).toContain("collapsed");
     await wrapper.get('button[aria-label="展开导航"]').trigger("click");
     expect(wrapper.get(".erp-shell").classes()).not.toContain("collapsed");
+  });
+
+  it("旧需求分析链接兼容进入生产计划，不保留独立分析页", () => {
+    history.replaceState(null, "", "/#analysis");
+    wrapper = mount(App, { global: { plugins: [ElementPlus], stubs: { Production: true } } });
+    expect(document.title).toBe("生产计划 · WSN ERP");
+    expect(location.hash).toBe("#plans");
+    expect(wrapper.find('a[href="#analysis"]').exists()).toBe(false);
   });
 
   it("页面及详情跳转显示 300ms loading，连续跳转重新计时", async () => {

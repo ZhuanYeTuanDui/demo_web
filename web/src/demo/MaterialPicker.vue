@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ElDialog from "./CachedDialog.vue";
 import { computed, ref, watch } from "vue";
 import { Search } from "@element-plus/icons-vue";
 import { state } from "./store";

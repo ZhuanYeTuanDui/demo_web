@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Component } from "vue";
 import { ElMessageBox } from "element-plus";
 import {
   Box,
@@ -19,6 +19,7 @@ import {
   Loading,
   Van,
 } from "@element-plus/icons-vue";
+import CachedPage from "./CachedPage.vue";
 import Inventory from "./Inventory.vue";
 import Procurement from "./Procurement.vue";
 import Production from "./Production.vue";
@@ -61,7 +62,6 @@ const menu = [
     items: [
       { key: "work-orders", label: "工单管理", icon: Tickets },
       { key: "plans", label: "生产计划", icon: Calendar },
-      { key: "analysis", label: "需求分析", icon: SetUp },
     ],
   },
   {
@@ -76,6 +76,8 @@ const menu = [
 const valid = menu.flatMap((m) => m.items.map((i) => i.key));
 function resolveRoute(hash: string) {
   const route = hash.slice(1);
+  // 兼容旧需求分析链接，分析入口统一收敛到生产计划内。
+  if (route === "analysis") return "plans";
   if (/^(warehouses|materials)\/[^/]+$/.test(route) || valid.includes(route)) return route;
   return "home";
 }
@@ -101,6 +103,45 @@ const warehouseId = computed(() =>
 const materialId = computed(() =>
   page.value === "materials" ? route.value.split("/")[1] || "" : ""
 );
+const pageComponents: Record<string, Component> = {
+  home: Dashboard,
+  materials: Materials,
+  stock: Inventory,
+  warehouses: Inventory,
+  movements: Inventory,
+  drafts: Drafts,
+  requests: Procurement,
+  orders: Procurement,
+  receipts: Receipts,
+  "work-orders": WorkOrders,
+  issues: Issues,
+  shipments: Shipments,
+  "finished-stock": FinishedStock,
+  plans: Production,
+};
+const pageComponent = computed(() => pageComponents[page.value]!);
+const pageProps = computed((): Record<string, string> => {
+  if (page.value === "materials") return { materialId: materialId.value };
+  if (["stock", "warehouses", "movements"].includes(page.value))
+    return { page: page.value, warehouseId: warehouseId.value };
+  if (["requests", "orders"].includes(page.value)) return { page: page.value };
+  return {};
+});
+const cacheEpoch = ref(0);
+const scrollPositions = new Map<string, { left: number; top: number }>();
+watch(
+  route,
+  async (current, previous) => {
+    const scrolling = document.scrollingElement || document.documentElement;
+    scrollPositions.set(previous, { left: scrolling.scrollLeft, top: scrolling.scrollTop });
+    await nextTick();
+    if (route.value !== current) return;
+    const position = scrollPositions.get(current);
+    scrolling.scrollLeft = position?.left || 0;
+    scrolling.scrollTop = position?.top || 0;
+  },
+  { flush: "pre" }
+);
 const collapsed = ref(false);
 const closedGroups = ref<string[]>([]);
 const activeGroup = computed(() => menu.find((m) => m.items.some((i) => i.key === page.value))!);
@@ -116,10 +157,11 @@ function focusContent() {
 }
 function navigate(key: string) {
   route.value = resolveRoute(`#${key}`);
-  location.hash = key;
+  location.hash = route.value;
 }
 function syncHash() {
   route.value = resolveRoute(location.hash);
+  if (location.hash === "#analysis") history.replaceState(null, "", "#plans");
 }
 // 跳转到已收起分组内的页面时，展开其所属分组以保留当前位置提示。
 watch(page, () => {
@@ -130,7 +172,10 @@ function toggleGroup(label: string) {
     ? closedGroups.value.filter((item) => item !== label)
     : [...closedGroups.value, label];
 }
-onMounted(() => window.addEventListener("hashchange", syncHash));
+onMounted(() => {
+  if (location.hash === "#analysis") history.replaceState(null, "", "#plans");
+  window.addEventListener("hashchange", syncHash);
+});
 onUnmounted(() => {
   window.removeEventListener("hashchange", syncHash);
   clearTimeout(navigationTimer);
@@ -150,6 +195,8 @@ async function resetAll() {
       type: "warning",
     });
     reset();
+    scrollPositions.clear();
+    cacheEpoch.value++;
   } catch {
     /* 用户取消时保留当前数据。 */
   }
@@ -250,31 +297,14 @@ async function resetAll() {
           show-icon
           class="storage-error"
         />
-        <Dashboard v-if="page === 'home'" @navigate="navigate" />
-        <Materials
-          v-else-if="page === 'materials'"
-          :key="materialId"
-          :material-id="materialId"
-          @navigate="navigate"
-        />
-        <Inventory
-          v-else-if="['stock', 'warehouses', 'movements'].includes(page)"
-          :page="page"
-          :warehouse-id="warehouseId"
-          @navigate="navigate"
-        />
-        <Drafts v-else-if="page === 'drafts'" @navigate="navigate" />
-        <Procurement
-          v-else-if="['analysis', 'requests', 'orders'].includes(page)"
-          :page="page"
-          @navigate="navigate"
-        />
-        <Receipts v-else-if="page === 'receipts'" @navigate="navigate" />
-        <WorkOrders v-else-if="page === 'work-orders'" @navigate="navigate" />
-        <Issues v-else-if="page === 'issues'" @navigate="navigate" />
-        <Shipments v-else-if="page === 'shipments'" @navigate="navigate" />
-        <FinishedStock v-else-if="page === 'finished-stock'" @navigate="navigate" />
-        <Production v-else @navigate="navigate" />
+        <KeepAlive :key="cacheEpoch">
+          <CachedPage
+            :key="route"
+            :component="pageComponent"
+            :page-props="pageProps"
+            @navigate="navigate"
+          />
+        </KeepAlive>
         <footer class="page-footer">
           <span>WSN ERP · 业务流程演示</span><span>静态前端 / Mock 数据 / 无需后端</span>
         </footer>

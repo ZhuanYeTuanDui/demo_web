@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ElDialog from "./CachedDialog.vue";
 import FaManagementList from "./FaManagementList.vue";
 import { computed, reactive, ref, watch } from "vue";
 import { Search, Plus, Download, } from "@element-plus/icons-vue";

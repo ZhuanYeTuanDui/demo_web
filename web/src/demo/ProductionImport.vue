@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ElDialog from "./CachedDialog.vue";
 import { computed, nextTick, reactive, ref } from "vue";
 import { Document, Loading, UploadFilled } from "@element-plus/icons-vue";
 import type { UploadFile, UploadInstance } from "element-plus";

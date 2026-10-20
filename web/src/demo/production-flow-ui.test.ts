@@ -6,6 +6,7 @@ import WorkOrders from "./WorkOrders.vue";
 import Production from "./Production.vue";
 import Issues from "./Issues.vue";
 import Shipments from "./Shipments.vue";
+import DemandAnalysis from "./DemandAnalysis.vue";
 import { state, storageError } from "./store";
 import { requirements, seed, stockKey } from "./model";
 
@@ -29,6 +30,43 @@ const click = async (label: string) => {
 };
 
 describe("生产单据页面闭环", () => {
+  it("计划分析缺料打开绑定当前计划的弹窗，不跳转页面", async () => {
+    wrapper = mount(Production, { global: { plugins: [ElementPlus] } });
+    await flushPromises();
+    await click("分析缺料");
+    await flushPromises();
+    expect(wrapper.emitted("navigate")).toBeUndefined();
+    expect(wrapper.getComponent(DemandAnalysis).props("planId")).toBe(state.value.plans[0]!.id);
+    expect(sessionStorage.getItem("wsn-selected-plan")).toBeNull();
+  });
+
+  it("分析弹窗生成底稿后进入底稿页面并关闭弹窗", async () => {
+    wrapper = mount(Production, { global: { plugins: [ElementPlus] } });
+    await flushPromises();
+    await click("分析缺料");
+    await flushPromises();
+    await click("生成采购底稿");
+    await flushPromises();
+    expect(state.value.drafts.some((draft) => draft.plan === state.value.plans[0]!.id)).toBe(true);
+    expect(wrapper.emitted("navigate")?.at(-1)).toEqual(["drafts"]);
+    expect(wrapper.findComponent(DemandAnalysis).exists()).toBe(false);
+  });
+
+  it("消费分析跳转意图后打开对应计划弹窗，关闭后保留计划筛选", async () => {
+    const planId = state.value.plans[1]!.id;
+    sessionStorage.setItem("wsn-production-plan-analysis", planId);
+    wrapper = mount(Production, { global: { plugins: [ElementPlus] } });
+    await flushPromises();
+    expect(wrapper.getComponent(DemandAnalysis).props("planId")).toBe(planId);
+    expect(sessionStorage.getItem("wsn-production-plan-analysis")).toBeNull();
+    const keyword = wrapper.get('input[placeholder="计划号、名称或产品"]');
+    await keyword.setValue("成型机");
+    wrapper.getComponent(DemandAnalysis).vm.$emit("close");
+    await nextTick();
+    expect(wrapper.findComponent(DemandAnalysis).exists()).toBe(false);
+    expect((keyword.element as HTMLInputElement).value).toBe("成型机");
+  });
+
   it("计划领料跳转单独领料页面，不直接扣库存", async () => {
     wrapper = mount(Production, { global: { plugins: [ElementPlus] } });
     await flushPromises();

@@ -155,8 +155,8 @@ const sections = computed(() => [
         label: "待分析 / 备料",
         value: state.value.plans.filter((p) => ["待分析", "待备料"].includes(p.status)).length,
         unit: "个",
-        note: "进入需求分析，核对物料缺口",
-        route: "analysis",
+        note: "生产计划内分析缺料，核对物料缺口",
+        route: "plans",
       },
       {
         label: "已完工",
@@ -231,7 +231,7 @@ const sections = computed(() => [
 const flow = [
   { label: "工单立项", route: "work-orders" },
   { label: "生产计划", route: "plans" },
-  { label: "需求分析", route: "analysis" },
+  { label: "生产计划内分析缺料", route: "plans" },
   { label: "采购底稿", route: "drafts" },
   { label: "采购下单", route: "orders" },
   { label: "收货入库", route: "receipts" },
