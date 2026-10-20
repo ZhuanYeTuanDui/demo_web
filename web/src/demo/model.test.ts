@@ -23,19 +23,19 @@ describe("采购与生产演示闭环", () => {
     const count = s.requests.length;
     const draft = createDraft(s, s.plans[1]!.id);
     expect(s.requests).toHaveLength(count);
-    expect(draft.lines).toHaveLength(1);
-    expect(s.drafts).toHaveLength(2);
-    expect(s.drafts.some((d) => d.lines[0]!.material === "M002")).toBe(false);
+    expect(draft.lines).toHaveLength(2);
+    expect(s.drafts).toHaveLength(1);
+    expect(draft.lines.some((l) => l.material === "M002")).toBe(false);
     expect(draft.lines[0]!.bomQty).toBe(3);
     expect(draft.lines[0]!.qty).toBe(1);
-    const snapshot = JSON.stringify(draft.lines);
+    const snapshot = JSON.stringify(draft.lines.map(({ status, ...line }) => line));
     const order = convertDraft(s, draft.id, "采购员", "供应商");
     expect(order.request).toBe("");
     expect(order.draft).toBe(draft.id);
-    expect(order.lines.map((l) => l.material)).toEqual(["M001"]);
+    expect(order.lines.map((l) => l.material)).toEqual(["M001", "M003"]);
     auditPurchase(s, order.id);
     receive(s, order.id, "BZ01");
-    expect(JSON.stringify(draft.lines)).toBe(snapshot);
+    expect(JSON.stringify(draft.lines.map(({ status, ...line }) => line))).toBe(snapshot);
   });
   it("迁移旧自动请购及采购关联，保留手工请购和库存，不伪造快照", () => {
     const s = seed();

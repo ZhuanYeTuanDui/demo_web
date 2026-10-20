@@ -47,7 +47,11 @@ describe("生产单据页面闭环", () => {
     await flushPromises();
     await click("生成采购底稿");
     await flushPromises();
-    expect(state.value.drafts.some((draft) => draft.plan === state.value.plans[0]!.id)).toBe(true);
+    const planDrafts = state.value.drafts.filter(
+      (draft) => draft.plan === state.value.plans[0]!.id
+    );
+    expect(planDrafts).toHaveLength(1);
+    expect(planDrafts[0]!.lines).toHaveLength(4);
     expect(wrapper.emitted("navigate")?.at(-1)).toEqual(["drafts"]);
     expect(wrapper.findComponent(DemandAnalysis).exists()).toBe(false);
   });

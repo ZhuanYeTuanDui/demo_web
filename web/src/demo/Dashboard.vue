@@ -171,13 +171,13 @@ const sections = computed(() => [
     title: "采购底稿",
     icon: Collection,
     route: "drafts",
-    description: "保存 BOM 与库存分析快照，按物料选择底稿，跨计划组合采购。",
+    description: "保存 BOM 与库存分析快照，按生产计划归集底稿，勾选物料后跨计划组合采购。",
     metrics: [
       {
         label: "底稿记录",
         value: state.value.drafts.length,
         unit: "份",
-        note: "保留生成时的 BOM 和库存结果",
+        note: "每个生产计划一张，保留物料计算快照",
         route: "drafts",
       },
       {

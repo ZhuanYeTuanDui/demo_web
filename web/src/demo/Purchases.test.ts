@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import ElementPlus from "element-plus";
 import { state } from "./store";
-import { seed, createPurchase, auditPurchase, receive } from "./model";
+import { seed, createPurchase, createDraft, auditPurchase, receive } from "./model";
 import PurchaseEditor from "./PurchaseEditor.vue";
 import Purchases from "./Purchases.vue";
 
@@ -80,6 +80,46 @@ describe("采购页面业务约束", () => {
     expect(edited.amount).toBeNull();
   });
 
+  it("编辑已有未审核采购单可追加底稿部分物料并逐行填金额，保留原采购行", async () => {
+    state.value = seed();
+    const order = createPurchase(state.value, {
+      buyer: "采购",
+      supplier: "供应商",
+      lines: [{ material: "M005", qty: 2 }],
+      lineAmounts: { "manual:0": 20 },
+    });
+    const original = { ...order.lines[0]! };
+    const draft = createDraft(state.value, state.value.plans[0]!.id);
+    const sourceIndex = 1;
+    const picked = draft.lines[sourceIndex]!;
+    wrapper = mount(PurchaseEditor, { props: { order }, attachTo: document.body, global });
+    await flushPromises();
+    await wrapper.get(`[aria-label="选择底稿物料 ${draft.id} ${picked.id}"] input`).setValue(true);
+    await flushPromises();
+    const amount = wrapper.get(
+      `input[aria-label="${state.value.materials.find((m) => m.id === picked.material)!.name}采购金额 draft:${draft.id}:${sourceIndex}"]`
+    );
+    await amount.setValue("99.12");
+    await amount.trigger("change");
+    await wrapper.get("form").trigger("submit");
+    expect(wrapper.emitted("saved")).toHaveLength(1);
+    const updated = state.value.purchases.find((p) => p.id === order.id)!;
+    expect(updated.lines).toHaveLength(2);
+    expect(updated.lines[0]).toEqual(original);
+    expect(updated.lines[1]).toMatchObject({
+      draft: draft.id,
+      draftLine: picked.id,
+      amount: 99.12,
+    });
+    expect(updated.amount).toBe(119.12);
+    expect(
+      state.value.drafts
+        .find((d) => d.id === draft.id)!
+        .lines.filter((l) => l.id !== picked.id)
+        .every((l) => l.status === "待采购")
+    ).toBe(true);
+  });
+
   it("已审核采购单不显示编辑，部分收货后反审核按钮禁用", async () => {
     state.value = seed();
     const order = createPurchase(state.value, {
@@ -98,5 +138,38 @@ describe("采购页面业务约束", () => {
     expect(unaudit.attributes("disabled")).toBeDefined();
     await unaudit.trigger("click");
     expect(state.value.purchases.find((p) => p.id === order.id)!.status).toBe("已审核");
+  });
+  it("底稿子页签切换保留跨底稿选择和金额", async () => {
+    state.value = seed();
+    const first = createDraft(state.value, state.value.plans[0]!.id);
+    const second = createDraft(state.value, state.value.plans[1]!.id);
+    wrapper = mount(PurchaseEditor, {
+      props: { draftIds: [first.id, second.id] },
+      attachTo: document.body,
+      global,
+    });
+    await flushPromises();
+    const switchTo = async (id: string) => {
+      await wrapper!
+        .findAll('[role="tab"]')
+        .find((tab) => tab.text().includes(id))!
+        .trigger("click");
+      await flushPromises();
+    };
+    const selector = (draft: typeof first) =>
+      `[aria-label="选择底稿物料 ${draft.id} ${draft.lines[0]!.id}"] input`;
+    await switchTo(first.id);
+    await wrapper.get(selector(first)).setValue(true);
+    const amount = wrapper.get(`input[aria-label$="draft:${first.id}:0"]`);
+    await amount.setValue("12.34");
+    await amount.trigger("change");
+    await switchTo(second.id);
+    await wrapper.get(selector(second)).setValue(true);
+    await switchTo(first.id);
+    expect((wrapper.get(selector(first)).element as HTMLInputElement).checked).toBe(true);
+    expect(
+      (wrapper.get(`input[aria-label$="draft:${first.id}:0"]`).element as HTMLInputElement).value
+    ).toBe("12.34");
+    expect(wrapper.text()).toContain("共 2 条明细");
   });
 });

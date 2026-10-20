@@ -7,7 +7,8 @@ import MaterialPicker from "./MaterialPicker.vue";
 import Drafts from "./Drafts.vue";
 import { state } from "./store";
 import PurchaseEditor from "./PurchaseEditor.vue";
-import { seed, createDraft } from "./model";
+import CachedDrawer from "./CachedDrawer.vue";
+import { seed, createDraft, createPurchase } from "./model";
 
 let wrapper: VueWrapper | undefined;
 afterEach(() => {
@@ -92,16 +93,18 @@ describe("请购及采购选料", () => {
     expect(editor.emitted("save")?.[0]?.[0]).toMatchObject({ lines: lockedLines });
   });
 
-  it("底稿按物料多选，仅将跨计划选中底稿加入采购，未选保持待采购", async () => {
+  it("跨计划选择底稿后须再勾选物料，部分转采购不改变未选行", async () => {
     state.value = seed();
     createDraft(state.value, state.value.plans[0]!.id);
     createDraft(state.value, state.value.plans[1]!.id);
     const first = state.value.drafts[0]!;
     const second = state.value.drafts.find((d) => d.plan !== first.plan)!;
     const selectedIds = [first.id, second.id];
+    const selectedLines = [first.lines[0]!, second.lines[0]!];
     const untouched = state.value.drafts
-      .filter((d) => !selectedIds.includes(d.id))
-      .map((d) => d.id);
+      .flatMap((d) => d.lines)
+      .filter((l) => !selectedLines.some((chosen) => chosen.id === l.id))
+      .map((l) => l.id);
     expect(untouched.length).toBeGreaterThan(0);
     wrapper = mount(Drafts, {
       attachTo: document.body,
@@ -119,6 +122,12 @@ describe("请购及采购选料", () => {
     await flushPromises();
     const editor = wrapper.getComponent(PurchaseEditor);
     expect(editor.props("draftIds")).toEqual(selectedIds);
+    expect(editor.text()).toContain("共 0 条明细");
+    for (const draft of [first, second]) {
+      await editor
+        .get(`[aria-label="选择底稿物料 ${draft.id} ${draft.lines[0]!.id}"] input`)
+        .setValue(true);
+    }
     const inputs = editor.findAll(".purchase-fields input");
     await inputs[0]!.setValue("测试采购人");
     await inputs[1]!.setValue("测试供应商");
@@ -126,9 +135,89 @@ describe("请购及采购选料", () => {
     await flushPromises();
     const purchase = state.value.purchases[0]!;
     expect(purchase.lines.map((l) => l.draft)).toEqual(selectedIds);
+    expect(purchase.lines.map((l) => l.draftLine)).toEqual(selectedLines.map((l) => l.id));
     expect(purchase.plan).toBe("");
     expect(
-      state.value.drafts.filter((d) => untouched.includes(d.id)).every((d) => d.status === "待采购")
+      state.value.drafts
+        .flatMap((d) => d.lines)
+        .filter((l) => untouched.includes(l.id))
+        .every((l) => l.status === "待采购")
     ).toBe(true);
+    expect(
+      state.value.drafts.some(
+        (d) => d.lines.some((l) => l.status === "待采购") && d.status === "已转采购"
+      )
+    ).toBe(false);
+  });
+  it("部分已转底稿仍完整显示物料且已转行不可重复选择", async () => {
+    state.value = seed();
+    const draft = createDraft(state.value, state.value.plans[0]!.id);
+    const transferred = draft.lines[0]!;
+    createPurchase(state.value, {
+      buyer: "采购",
+      supplier: "供应商",
+      draftLines: [{ draftId: draft.id, lineId: transferred.id }],
+    });
+    wrapper = mount(PurchaseEditor, {
+      props: { draftIds: [draft.id] },
+      attachTo: document.body,
+      global: { plugins: [ElementPlus], stubs: { teleport: true, ElSelect: true, ElOption: true } },
+    });
+    await flushPromises();
+    expect(
+      wrapper
+        .get(`[aria-label="选择底稿物料 ${draft.id} ${transferred.id}"] input`)
+        .attributes("disabled")
+    ).toBeDefined();
+    expect(
+      wrapper
+        .get(`[aria-label="选择底稿物料 ${draft.id} ${draft.lines[1]!.id}"] input`)
+        .attributes("disabled")
+    ).toBeUndefined();
+    expect(wrapper.text()).toContain("共 0 条明细");
+    expect(state.value.drafts[0]!.status).toBe("待采购");
+  });
+  it("底稿详情保留完整快照字段与物料身份，分页不改变明细", async () => {
+    state.value = seed();
+    const draft = createDraft(state.value, state.value.plans[0]!.id);
+    const sample = draft.lines[0]!;
+    draft.lines = state.value.materials
+      .slice(0, 25)
+      .map((m, i) => ({
+        ...sample,
+        id: `DL-${i}`,
+        material: m.id,
+        sourceLine: `SNAPSHOT-${i + 1}`,
+        reserved: 2,
+        covered: 3,
+      }));
+    const before = JSON.stringify(draft.lines);
+    sessionStorage.setItem("wsn-selected-draft", draft.id);
+    wrapper = mount(Drafts, {
+      attachTo: document.body,
+      global: { plugins: [ElementPlus], stubs: { teleport: true, ElSelect: true, ElOption: true } },
+    });
+    await flushPromises();
+    const drawer = wrapper.getComponent(CachedDrawer);
+    for (const label of [
+      "需求量",
+      "库存量",
+      "其他计划占用",
+      "可分配量",
+      "已覆盖量",
+      "需购量",
+      "预交货日期",
+      "来源行",
+      "行状态",
+    ])
+      expect(drawer.text()).toContain(label);
+    expect(drawer.text()).toContain("PLC 控制器");
+    expect(drawer.text()).toContain("LX3V-3624MT-A");
+    expect(drawer.text()).toContain("SNAPSHOT-1");
+    expect(drawer.text()).not.toContain("SNAPSHOT-25");
+    await drawer.get('button[aria-label="Go to next page"]').trigger("click");
+    await flushPromises();
+    expect(drawer.text()).toContain("SNAPSHOT-25");
+    expect(JSON.stringify(state.value.drafts[0]!.lines)).toBe(before);
   });
 });

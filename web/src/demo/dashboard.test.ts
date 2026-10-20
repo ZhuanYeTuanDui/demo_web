@@ -37,17 +37,21 @@ describe("首页工作台与导航", () => {
     state.value.plans.push({ ...firstPlan!, id: "PP-EXTRA", name: "追加生产计划" });
     createDraft(state.value, firstPlan!.id);
     createDraft(state.value, secondPlan!.id);
-    const firstDrafts = state.value.drafts.filter((row) => row.plan === firstPlan!.id);
-    const secondDrafts = state.value.drafts.filter((row) => row.plan === secondPlan!.id);
+    const firstDraft = state.value.drafts.find((row) => row.plan === firstPlan!.id)!;
+    const secondDraft = state.value.drafts.find((row) => row.plan === secondPlan!.id)!;
     const crossOrder = createPurchase(state.value, {
       buyer: "采购员",
       supplier: "同一供应商",
-      draftIds: [firstDrafts[0]!.id, firstDrafts[1]!.id, secondDrafts[0]!.id],
+      draftLines: [
+        { draftId: firstDraft.id, lineId: firstDraft.lines[0]!.id },
+        { draftId: firstDraft.id, lineId: firstDraft.lines[1]!.id },
+        { draftId: secondDraft.id, lineId: secondDraft.lines[0]!.id },
+      ],
     });
     const extraOrder = createPurchase(state.value, {
       buyer: "采购员",
       supplier: "同一供应商",
-      draftIds: [firstDrafts[2]!.id],
+      draftLines: [{ draftId: firstDraft.id, lineId: firstDraft.lines[2]!.id }],
     });
     mergePurchases(state.value, [crossOrder.id, extraOrder.id]);
     // 旧单头计划关系不再用于采购归属，避免把手动物料单错误计入。
@@ -64,16 +68,12 @@ describe("首页工作台与导航", () => {
     await nextTick();
     const progress = wrapper.get('section[aria-label="当前工单进度"]');
     expect(progress.get('[data-test="selected-plan-count"]').text()).toBe("2");
-    expect(progress.get('[data-test="selected-draft-count"]').text()).toBe(
-      String(firstDrafts.length)
-    );
+    expect(progress.get('[data-test="selected-draft-count"]').text()).toBe("1");
     expect(progress.get('[data-test="selected-purchase-count"]').text()).toBe("1");
     selector.vm.$emit("update:modelValue", second!.id);
     await nextTick();
     expect(progress.get('[data-test="selected-plan-count"]').text()).toBe("1");
-    expect(progress.get('[data-test="selected-draft-count"]').text()).toBe(
-      String(secondDrafts.length)
-    );
+    expect(progress.get('[data-test="selected-draft-count"]').text()).toBe("1");
     expect(progress.get('[data-test="selected-purchase-count"]').text()).toBe("1");
   });
 

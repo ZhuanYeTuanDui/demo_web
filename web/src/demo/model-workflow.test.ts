@@ -29,7 +29,10 @@ describe("采购和工单新流程", () => {
     const order = createPurchase(s, {
       buyer: "采购员",
       supplier: "供应商",
-      draftIds: [a.id, b.id],
+      draftLines: [
+        { draftId: a.id, lineId: a.lines[0]!.id },
+        { draftId: b.id, lineId: b.lines[0]!.id },
+      ],
     });
     expect(order.plan).toBe("");
     expect(order.lines.map((l) => l.draft)).toEqual([a.id, b.id]);
@@ -126,20 +129,43 @@ describe("采购和工单新流程", () => {
     expect(work.status).toBe("已发货");
     expect(() => shipWorkOrder(s, work.id, { carrier: "顺丰", tracking: "SF001" })).toThrow();
   });
-  it("旧整单底稿拆分并迁移来源，重复迁移幂等", () => {
+  it("旧单物料底稿按计划归并，行状态来源金额和到货保留，迁移幂等", () => {
     const s = seed();
-    createDraft(s, s.plans[0]!.id);
-    const first = s.drafts[0]!;
-    first.lines.push({ ...s.drafts[1]!.lines[0]! });
-    s.drafts.splice(1, 1);
+    const draft = createDraft(s, s.plans[0]!.id);
+    const oldLines = draft.lines;
+    s.drafts = oldLines.map((line, index) => ({
+      ...draft,
+      id: `OLD-${index}`,
+      status: index === 0 ? "已转采购" : "待采购",
+      lines: [{ ...line, id: undefined, status: undefined }],
+    })) as unknown as typeof s.drafts;
     const order = s.purchases[0]!;
-    order.draft = first.id;
+    order.draft = "OLD-0";
     order.lines = [
-      { ...order.lines[0]!, material: first.lines[1]!.material, qty: first.lines[1]!.qty },
+      {
+        ...order.lines[0]!,
+        material: oldLines[0]!.material,
+        qty: oldLines[0]!.qty,
+        received: 1,
+        amount: 12.34,
+        draft: "OLD-0",
+      },
     ];
+    order.amount = 12.34;
     migrateDrafts(s);
-    expect(s.drafts.every((d) => d.lines.length === 1)).toBe(true);
-    expect(order.lines[0]!.draft).toBe(`${first.id}-2`);
+    expect(s.drafts).toHaveLength(1);
+    expect(s.drafts[0]!.id).toBe("OLD-0");
+    expect(s.drafts[0]!.status).toBe("待采购");
+    expect(s.drafts[0]!.lines.map((l) => l.status)).toEqual([
+      "已转采购",
+      "待采购",
+      "待采购",
+      "待采购",
+    ]);
+    expect(order.lines[0]!.draftLine).toBe("OLD-0-L1");
+    expect(order.lines[0]!.amount).toBe(12.34);
+    expect(order.lines[0]!.received).toBe(1);
+    expect(s.drafts[0]!.lines.map((l) => l.sourceLine)).toEqual(oldLines.map((l) => l.sourceLine));
     const saved = JSON.stringify(s);
     migrateDrafts(s);
     expect(JSON.stringify(s)).toBe(saved);
@@ -238,7 +264,7 @@ describe("采购和工单新流程", () => {
     const order = createPurchase(s, {
       buyer: "甲",
       supplier: "A",
-      draftIds: [draft.id],
+      draftLines: [{ draftId: draft.id, lineId: draft.lines[0]!.id }],
       requestIds: [s.requests[0]!.id],
       lines: [{ material: "M001", qty: 1 }],
       amount: 999,
@@ -309,6 +335,96 @@ describe("采购和工单新流程", () => {
     expect(order.legacyAmount).toBe(88.88);
     expect(order.amount).toBeNull();
     expect(order.lines[0]!.amount).toBeNull();
+    const saved = JSON.stringify(s);
+    migrateDrafts(s);
+    expect(JSON.stringify(s)).toBe(saved);
+  });
+  it("计划底稿精确选行，部分转单保留头待采购，金额按原索引且最后行转完才完成", () => {
+    const s = seed();
+    const draft = createDraft(s, s.plans[0]!.id);
+    const selected = draft.lines[2]!;
+    const order = createPurchase(s, {
+      buyer: "甲",
+      supplier: "A",
+      draftLines: [{ draftId: draft.id, lineId: selected.id }],
+      lineAmounts: { [`draft:${draft.id}:2`]: 23.45 },
+    });
+    expect(order.lines).toHaveLength(1);
+    expect(order.lines[0]!.draftLine).toBe(selected.id);
+    expect(order.amount).toBe(23.45);
+    expect(selected.status).toBe("已转采购");
+    expect(draft.status).toBe("待采购");
+    expect(analysis(s, s.plans[0]!)[2]!.pending).toBe(selected.qty);
+    const saved = JSON.stringify(s);
+    expect(() =>
+      appendPurchase(s, order.id, { draftLines: [{ draftId: draft.id, lineId: selected.id }] })
+    ).toThrow("已转");
+    expect(JSON.stringify(s)).toBe(saved);
+    appendPurchase(s, order.id, { draftIds: [draft.id] });
+    expect(order.lines).toHaveLength(4);
+    expect(draft.status).toBe("已转采购");
+    expect(analysis(s, s.plans[0]!).every((l) => l.shortage === 0)).toBe(true);
+  });
+  it("已转底稿新增缺料追加到原单，同物料新增数量保留历史行及覆盖", () => {
+    const s = seed();
+    const plan = s.plans[0]!;
+    plan.bom = [{ material: "M001", qty: 1 }];
+    const draft = createDraft(s, plan.id);
+    const original = { ...draft.lines[0]! };
+    const order = createPurchase(s, { buyer: "甲", supplier: "A", draftIds: [draft.id] });
+    plan.qty = 6;
+    const updated = createDraft(s, plan.id);
+    expect(updated.id).toBe(draft.id);
+    expect(s.drafts).toHaveLength(1);
+    expect(updated.lines).toHaveLength(2);
+    expect(updated.lines[0]).toEqual({ ...original, status: "已转采购" });
+    expect(updated.lines[1]!.qty).toBe(1);
+    expect(updated.lines[1]!.id).not.toBe(original.id);
+    expect(updated.status).toBe("待采购");
+    expect(analysis(s, plan)[0]!.pending).toBe(4);
+    expect(analysis(s, plan)[0]!.shortage).toBe(0);
+    expect(() => createDraft(s, plan.id)).toThrow("无新增缺料");
+    appendPurchase(s, order.id, {
+      draftLines: [{ draftId: draft.id, lineId: updated.lines[1]!.id }],
+    });
+    expect(updated.status).toBe("已转采购");
+  });
+  it("归并迁移保留原计划库存排队及相同物料不同历史行来源", () => {
+    const s = seed();
+    const a = createDraft(s, s.plans[0]!.id);
+    const b = createDraft(s, s.plans[1]!.id);
+    const duplicate = {
+      ...a,
+      id: "OLD-A-EXTRA",
+      lines: [{ ...a.lines[0]!, id: "OLD-A-L", qty: 1, status: "已转采购" as const }],
+      status: "已转采购" as const,
+    };
+    s.drafts.unshift(duplicate);
+    const order = createPurchase(s, {
+      buyer: "甲",
+      supplier: "A",
+      draftLines: [
+        { draftId: a.id, lineId: a.lines[0]!.id },
+        { draftId: b.id, lineId: b.lines[0]!.id },
+      ],
+    });
+    order.lines.push({
+      ...order.lines[0]!,
+      id: "EXTRA-P-L",
+      draft: duplicate.id,
+      draftLine: "OLD-A-L",
+      qty: 1,
+      received: 0,
+    });
+    const before = analysis(s, s.plans[1]!)[0]!.reserved;
+    migrateDrafts(s);
+    expect(s.drafts).toHaveLength(2);
+    expect(analysis(s, s.plans[1]!)[0]!.reserved).toBe(before);
+    const merged = s.drafts.find((d) => d.plan === a.plan)!;
+    expect(merged.id).toBe(duplicate.id);
+    expect(order.lines[0]!.draft).toBe(merged.id);
+    expect(order.lines[0]!.draftLine).toBe(a.lines[0]!.id);
+    expect(order.lines[2]!.draftLine).toBe("OLD-A-L");
     const saved = JSON.stringify(s);
     migrateDrafts(s);
     expect(JSON.stringify(s)).toBe(saved);

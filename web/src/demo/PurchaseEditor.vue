@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { state, material, commit } from "./store";
 import { createPurchase, updatePurchase, appendPurchase, type Purchase, type Line } from "./model";
 import MaterialPicker from "./MaterialPicker.vue";
@@ -9,7 +9,7 @@ const form = reactive({
   buyer: props.order?.buyer || "",
   supplier: props.order?.supplier || "",
 });
-const drafts = ref<string[]>([...(props.draftIds || [])]);
+const draftLines = ref<{ draftId: string; lineId: string }[]>([]);
 const requests = ref<string[]>([]);
 const lines = ref<Line[]>([]);
 const picker = ref(false);
@@ -23,13 +23,14 @@ const purchaseRows = computed(() => [
     key: line.id,
     source: line.draft || line.request || "手工录入",
   })),
-  ...drafts.value.flatMap((id) =>
-    (state.value.drafts.find((d) => d.id === id)?.lines || []).map((line, index) => ({
-      ...line,
-      key: `draft:${id}:${index}`,
-      source: id,
-    }))
-  ),
+  ...draftLines.value.flatMap(({ draftId, lineId }) => {
+    const draft = state.value.drafts.find((d) => d.id === draftId);
+    const index = draft?.lines.findIndex((line) => line.id === lineId) ?? -1;
+    const line = draft?.lines[index];
+    return line && line.status === "待采购"
+      ? [{ ...line, key: `draft:${draftId}:${index}`, source: draftId }]
+      : [];
+  }),
   ...requests.value.flatMap((id) =>
     (state.value.requests.find((r) => r.id === id)?.lines || []).map((line, index) => ({
       ...line,
@@ -52,21 +53,38 @@ const tab = ref(props.draftIds?.length ? "drafts" : "manual");
 const pendingDrafts = computed(() =>
   state.value.drafts.filter(
     (d) =>
-      d.status === "待采购" &&
-      `${d.id}${d.plan}${material(d.lines[0]!.material)?.name}`.includes(sourceKeyword.value)
+      (!props.draftIds?.length || props.draftIds.includes(d.id)) &&
+      (props.draftIds?.length || d.lines.some((l) => l.status === "待采购")) &&
+      `${d.id}${d.plan}${d.lines.map((l) => `${l.material}${material(l.material)?.name}${material(l.material)?.spec}`).join("")}`.includes(
+        sourceKeyword.value
+      )
   )
 );
-const pendingRequests = computed(() => state.value.requests.filter((r) => r.status === "待采购"));
-const totalLines = computed(
-  () =>
-    (props.order?.lines.length || 0) +
-    lines.value.length +
-    drafts.value.length +
-    requests.value.reduce(
-      (n, id) => n + (state.value.requests.find((r) => r.id === id)?.lines.length || 0),
-      0
-    )
+const activeDraft = ref("");
+// 筛选改变时定位可见底稿，选择和金额仍独立保留，不因切换底稿丢失。
+watch(
+  () => pendingDrafts.value.map((draft) => draft.id),
+  (ids) => {
+    if (!ids.includes(activeDraft.value)) activeDraft.value = ids[0] || "";
+  },
+  { immediate: true }
 );
+function selectedDraftCount(id: string) {
+  return draftLines.value.filter((line) => line.draftId === id).length;
+}
+const pendingRequests = computed(() => state.value.requests.filter((r) => r.status === "待采购"));
+const totalLines = computed(() => purchaseRows.value.length);
+function draftLineSelected(draftId: string, lineId: string) {
+  return draftLines.value.some((row) => row.draftId === draftId && row.lineId === lineId);
+}
+// 明确选择来源物料行，底稿本身的勾选不会隐式选中全部物料。
+function toggleDraftLine(draftId: string, lineId: string, checked: boolean) {
+  const index = draftLines.value.findIndex(
+    (row) => row.draftId === draftId && row.lineId === lineId
+  );
+  if (checked && index < 0) draftLines.value.push({ draftId, lineId });
+  if (!checked && index >= 0) draftLines.value.splice(index, 1);
+}
 // 复选框显式维护 ID 集合，筛选切换不会清空已选来源。
 function toggleSource(ids: string[], id: string, checked: boolean) {
   const index = ids.indexOf(id);
@@ -89,16 +107,20 @@ function save() {
       const amounts = Object.fromEntries(
         purchaseRows.value.map((row) => [row.key, lineAmounts[row.key] ?? null])
       );
-      const data = { buyer: form.buyer, supplier: form.supplier, lineAmounts: amounts };
+      // 已有行更新与新来源追加分别传递金额，避免来源键误作已有采购行 ID。
+      const existingAmounts = Object.fromEntries(
+        (props.order?.lines || []).map((line) => [line.id, lineAmounts[line.id] ?? null])
+      );
+      const data = { buyer: form.buyer, supplier: form.supplier, lineAmounts: existingAmounts };
       const sources = {
-        draftIds: drafts.value,
+        draftLines: draftLines.value,
         requestIds: requests.value,
         lines: lines.value,
         lineAmounts: amounts,
       };
       if (props.order) {
         updatePurchase(s, props.order.id, data);
-        if (drafts.value.length || requests.value.length || lines.value.length)
+        if (draftLines.value.length || requests.value.length || lines.value.length)
           appendPurchase(s, props.order.id, sources);
       } else createPurchase(s, { ...data, ...sources });
     }, "采购单已保存")
@@ -117,33 +139,61 @@ function save() {
         ><el-button @click="picker = true">选择物料</el-button>
         <p class="muted">已手动选择 {{ lines.length }} 种物料，在下方采购明细中填写数量和金额。</p>
       </el-tab-pane>
-      <el-tab-pane :label="`采购底稿（已选 ${drafts.length}）`" name="drafts"
-        ><el-input v-model="sourceKeyword" placeholder="搜索底稿、计划或物料" clearable /><el-table
-          :data="pendingDrafts"
-          max-height="300"
-          empty-text="暂无待采购底稿"
-          ><el-table-column label="选择" width="65"
-            ><template #default="{ row }"
-              ><el-checkbox
-                :model-value="drafts.includes(row.id)"
-                @change="
-                  (checked: string | number | boolean) => toggleSource(drafts, row.id, !!checked)
-                "
-                :value="row.id"
-                :aria-label="`选择底稿 ${row.id}`" /></template></el-table-column
-          ><el-table-column prop="id" label="底稿号" min-width="210" /><el-table-column
-            label="物料"
-            min-width="150"
-            ><template #default="{ row }">{{
-              material(row.lines[0].material)?.name
-            }}</template></el-table-column
-          ><el-table-column prop="plan" label="来源计划" min-width="170" /><el-table-column
-            label="需购数量"
-            width="100"
-            ><template #default="{ row }">{{ row.lines[0].qty }}</template></el-table-column
-          ></el-table
-        ></el-tab-pane
-      >
+      <el-tab-pane :label="`采购底稿（已选 ${draftLines.length} 行）`" name="drafts">
+        <el-input v-model="sourceKeyword" placeholder="搜索底稿、计划或物料" clearable />
+        <p class="muted">
+          先选择底稿中的待采购物料行，已转采购的行不可再次选择；未勾选的行保留待采购。
+        </p>
+        <el-tabs
+          v-if="pendingDrafts.length"
+          v-model="activeDraft"
+          type="card"
+          class="draft-switcher"
+          aria-label="切换采购底稿"
+        >
+          <el-tab-pane
+            v-for="draft in pendingDrafts"
+            :key="draft.id"
+            :name="draft.id"
+            :label="`${draft.id}（已选 ${selectedDraftCount(draft.id)}）`"
+            class="draft-source-group"
+          >
+            <h4>
+              {{ draft.id }} <span class="muted">来源计划：{{ draft.plan }}</span>
+            </h4>
+            <el-table :data="draft.lines" row-key="id" max-height="300" empty-text="暂无物料">
+              <el-table-column label="选择" width="65"
+                ><template #default="{ row }">
+                  <el-checkbox
+                    :model-value="draftLineSelected(draft.id, row.id)"
+                    :disabled="row.status !== '待采购'"
+                    :aria-label="`选择底稿物料 ${draft.id} ${row.id}`"
+                    @change="
+                      (checked: string | number | boolean) =>
+                        toggleDraftLine(draft.id, row.id, !!checked)
+                    "
+                  /> </template
+              ></el-table-column>
+              <el-table-column label="品号 / 名称 / 规格" min-width="240"
+                ><template #default="{ row }"
+                  >{{ material(row.material)?.name }}
+                  <div class="cell-sub">
+                    {{ row.material }} · {{ material(row.material)?.spec }} · 图号
+                    {{ material(row.material)?.details?.drawingNo || "—" }}
+                  </div></template
+                ></el-table-column
+              >
+              <el-table-column prop="qty" label="需购数量" width="110" />
+              <el-table-column label="行状态" width="120"
+                ><template #default="{ row }">{{
+                  row.status === "已转采购" ? "已转采购单" : "未转采购单"
+                }}</template></el-table-column
+              >
+            </el-table>
+          </el-tab-pane>
+        </el-tabs>
+        <el-empty v-else description="暂无可选底稿" />
+      </el-tab-pane>
       <el-tab-pane :label="`请购单（已选 ${requests.length}）`" name="requests"
         ><el-table :data="pendingRequests" max-height="300" empty-text="暂无待采购请购单"
           ><el-table-column label="选择" width="65"
@@ -172,7 +222,8 @@ function save() {
         ><template #default="{ row }"
           >{{ material(row.material)?.name }}
           <div class="cell-sub">
-            {{ row.material }} · {{ material(row.material)?.spec }}
+            {{ row.material }} · {{ material(row.material)?.spec }} · 图号
+            {{ material(row.material)?.details?.drawingNo || "—" }}
           </div></template
         ></el-table-column
       >
@@ -234,6 +285,22 @@ function save() {
   />
 </template>
 <style scoped>
+.draft-switcher :deep(.el-tabs__header) {
+  margin-bottom: 0;
+}
+.draft-switcher :deep(.el-tabs__item) {
+  max-width: 340px;
+}
+.draft-source-group {
+  min-width: 0;
+}
+.draft-source-group h4 {
+  margin: 14px 0 8px;
+}
+.draft-source-group h4 .muted {
+  margin-left: 16px;
+  font-weight: normal;
+}
 .purchase-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;

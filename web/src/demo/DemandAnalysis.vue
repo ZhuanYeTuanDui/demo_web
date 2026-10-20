@@ -16,7 +16,7 @@ function generate() {
   if (
     commit((draft) => {
       createDraft(draft, props.planId);
-    }, "已按缺料物料生成采购底稿")
+    }, "已按生产计划生成采购底稿")
   )
     emit("navigate", "drafts");
 }
@@ -97,7 +97,9 @@ function generate() {
         <div class="analysis-actions">
           <span v-if="['已领料', '已完工'].includes(selectedPlan.status)" class="muted"
             >该计划已领料，不再生成底稿。</span
-          ><span v-else class="muted">仅为缺料生成一物料一底稿；库存充足的行不进入采购底稿。</span>
+          ><span v-else class="muted"
+            >一个生产计划一张底稿，缺料物料逐行保存并独立转采购；库存充足的物料不进入底稿。</span
+          >
           <div class="analysis-action-buttons">
             <el-button
               type="primary"

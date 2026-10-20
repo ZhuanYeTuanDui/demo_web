@@ -44,6 +44,8 @@ const orderInput = 'input[placeholder="单号、供应商、采购人或物料"]
 describe("业务页面缓存", () => {
   it("底稿筛选分页离开再回来保持原值和结果", async () => {
     createDraft(state.value, state.value.plans[0]!.id);
+    expect(state.value.drafts).toHaveLength(1);
+    expect(state.value.drafts[0]!.lines.length).toBeGreaterThan(1);
     const sample = state.value.drafts[0]!;
     state.value.drafts = Array.from({ length: 65 }, (_, index) => ({
       ...sample,

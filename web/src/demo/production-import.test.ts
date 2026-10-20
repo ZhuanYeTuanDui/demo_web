@@ -161,6 +161,23 @@ describe("Excel 生产计划导入", () => {
     expect(state.stocks[stockKey("BZ01", rows[0]!.material)]).toBe(0);
   });
 
+  it("导入多种缺料按生产计划生成一张底稿并保留物料明细", () => {
+    const state = seed();
+    const preview = parseProductionWorkbook(
+      workbook([...simple, ["新增连接件", "NEW-CONNECT", "个", 3]]),
+      "多物料.xlsx",
+      state.materials
+    );
+    const plan = importProductionPlans(state, preview, "2026-10-20")[0]!;
+    const draft = createDraft(state, plan.id);
+    expect(state.drafts.filter((row) => row.plan === plan.id)).toEqual([draft]);
+    expect(draft.lines).toHaveLength(2);
+    expect(draft.lines.map((line) => ({ material: line.material, qty: line.qty }))).toEqual(
+      requirements(plan)
+    );
+    expect(new Set(draft.lines.map((line) => line.sourceLine)).size).toBe(2);
+  });
+
   it("多表精确匹配四种名称，不支持的子表不会误生成计划", () => {
     const state = seed();
     const wb = workbook(simple, "电气");

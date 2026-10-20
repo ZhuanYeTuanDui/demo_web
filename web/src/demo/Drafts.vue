@@ -26,7 +26,9 @@ usePageActivation(() => {
 const filtered = computed(() =>
   state.value.drafts.filter(
     (d) =>
-      `${d.id}${d.plan}${material(d.lines[0]!.material)?.name}`.includes(keyword.value) &&
+      `${d.id}${d.plan}${d.lines.map((l) => `${l.material}${material(l.material)?.name}${material(l.material)?.spec}`).join("")}`.includes(
+        keyword.value
+      ) &&
       (!status.value || d.status === status.value)
   )
 );
@@ -34,6 +36,15 @@ const paged = computed(() =>
   filtered.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
 );
 const selected = computed(() => state.value.drafts.find((d) => d.id === detail.value));
+const detailPage = ref(1);
+const detailLines = computed(
+  () => selected.value?.lines.slice((detailPage.value - 1) * 20, detailPage.value * 20) || []
+);
+watch(detail, () => {
+  detailPage.value = 1;
+});
+const pendingCount = (draft: PurchaseDraft) =>
+  draft.lines.filter((line) => line.status === "待采购").length;
 const selectedPending = computed(() =>
   selectedIds.value.filter((id) =>
     state.value.drafts.some((d) => d.id === id && d.status === "待采购")
@@ -108,14 +119,6 @@ const orders = computed(() =>
           <div class="cell-sub">{{ row.date }}</div></template
         ></el-table-column
       >
-      <el-table-column label="物料 / 规格" min-width="210"
-        ><template #default="{ row }"
-          >{{ material(row.lines[0].material)?.name }}
-          <div class="cell-sub">
-            {{ row.lines[0].material }} · {{ material(row.lines[0].material)?.spec }}
-          </div></template
-        ></el-table-column
-      >
       <el-table-column label="来源计划" min-width="180"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="sourcePlan(row.plan)">{{
@@ -123,13 +126,12 @@ const orders = computed(() =>
           }}</el-button></template
         ></el-table-column
       >
-      <el-table-column label="需求量" width="100" align="right"
-        ><template #default="{ row }">{{ row.lines[0].bomQty ?? "—" }}</template></el-table-column
-      ><el-table-column label="库存量" width="100" align="right"
-        ><template #default="{ row }">{{ row.lines[0].stock ?? "—" }}</template></el-table-column
-      ><el-table-column label="需购量" width="100" align="right"
+      <el-table-column label="物料条数" width="100" align="right"
+        ><template #default="{ row }">{{ row.lines.length }}</template></el-table-column
+      >
+      <el-table-column label="待转 / 已转物料" width="150" align="right"
         ><template #default="{ row }"
-          ><strong class="shortage">{{ row.lines[0].qty }}</strong></template
+          >{{ pendingCount(row) }} / {{ row.lines.length - pendingCount(row) }}</template
         ></el-table-column
       >
       <el-table-column prop="status" label="处理状态" width="110" /><el-table-column
@@ -153,7 +155,7 @@ const orders = computed(() =>
   <el-drawer
     :model-value="!!selected"
     title="采购底稿详情"
-    size="min(760px, 95vw)"
+    size="min(1500px, 95vw)"
     @close="detail = ''"
   >
     <template v-if="selected"
@@ -163,22 +165,60 @@ const orders = computed(() =>
           ><el-button link type="primary" @click="sourcePlan(selected.plan)">{{
             selected.plan
           }}</el-button></el-descriptions-item
-        ><el-descriptions-item label="物料">{{
-          material(selected.lines[0]!.material)?.name
-        }}</el-descriptions-item
         ><el-descriptions-item label="状态">{{ selected.status }}</el-descriptions-item
         ><el-descriptions-item label="备注">{{
           selected.remark
         }}</el-descriptions-item></el-descriptions
       >
-      <el-table :data="selected.lines"
-        ><el-table-column prop="bomQty" label="需求量" /><el-table-column
-          prop="stock"
-          label="库存量" /><el-table-column prop="usable" label="可分配量" /><el-table-column
-          prop="qty"
-          label="本次需购量"
-      /></el-table>
-      <p class="muted">数量保留生成时的计算快照。</p>
+      <p class="muted">
+        此底稿保存生成时的需求与库存计算快照，不随后续库存变化回写；每条物料独立记录转采购状态。
+      </p>
+      <el-table :data="detailLines" stripe max-height="440" row-key="id">
+        <el-table-column label="品号 / 名称 / 规格" min-width="240" fixed="left"
+          ><template #default="{ row }"
+            >{{ material(row.material)?.name }}
+            <div class="cell-sub">
+              {{ row.material }} · {{ material(row.material)?.spec }} · 图号
+              {{ material(row.material)?.details?.drawingNo || "—" }}
+            </div></template
+          ></el-table-column
+        >
+        <el-table-column prop="bomQty" label="需求量" width="100"
+          ><template #default="{ row }">{{ row.bomQty ?? "—" }}</template></el-table-column
+        >
+        <el-table-column prop="stock" label="库存量" width="100"
+          ><template #default="{ row }">{{ row.stock ?? "—" }}</template></el-table-column
+        >
+        <el-table-column prop="reserved" label="其他计划占用" width="120"
+          ><template #default="{ row }">{{ row.reserved ?? "—" }}</template></el-table-column
+        >
+        <el-table-column prop="usable" label="可分配量" width="110"
+          ><template #default="{ row }">{{ row.usable ?? "—" }}</template></el-table-column
+        >
+        <el-table-column prop="covered" label="已覆盖量" width="110"
+          ><template #default="{ row }">{{ row.covered ?? "—" }}</template></el-table-column
+        >
+        <el-table-column prop="qty" label="需购量" width="100" />
+        <el-table-column prop="dueDate" label="预交货日期" width="130" />
+        <el-table-column prop="sourceLine" label="来源行" min-width="240" />
+        <el-table-column label="行状态" width="120" fixed="right"
+          ><template #default="{ row }">{{
+            row.status === "已转采购" ? "已转采购单" : "未转采购单"
+          }}</template></el-table-column
+        >
+      </el-table>
+      <div class="pagination">
+        <span>共 {{ selected.lines.length }} 条物料</span
+        ><el-pagination
+          v-model:current-page="detailPage"
+          :page-size="20"
+          :total="selected.lines.length"
+          layout="prev, pager, next"
+        />
+      </div>
+      <el-button v-if="selected.status === '待采购'" type="primary" @click="convert([selected.id])"
+        >选择物料转采购</el-button
+      >
       <p v-for="o in orders" :key="o.id">
         <el-button link type="primary" @click="emit('navigate', 'orders')"
           >采购单：{{ o.id }}</el-button

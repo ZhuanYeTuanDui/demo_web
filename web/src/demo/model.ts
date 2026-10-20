@@ -52,6 +52,7 @@ export interface PurchaseLine extends Line {
   amount?: number | null;
   id: string;
   draft?: string;
+  draftLine?: string;
   request?: string;
   received: number;
 }
@@ -71,6 +72,8 @@ export interface Purchase {
   mergedInto?: string;
 }
 export interface DraftLine extends Line {
+  id: string;
+  status: "待采购" | "已转采购";
   bomQty: number | null;
   stock: number | null;
   reserved: number | null;
@@ -361,7 +364,7 @@ export function analysis(state: State, plan: Plan) {
       const pending = state.drafts
         .filter((d) => d.plan === planId && d.status === "待采购")
         .flatMap((d) => d.lines)
-        .filter((l) => l.material === line.material)
+        .filter((l) => l.status === "待采购" && l.material === line.material)
         .reduce((n, l) => n + l.qty, 0);
       const incoming = state.purchases
         .filter((p) => !p.mergedInto)
@@ -405,7 +408,7 @@ export function analysis(state: State, plan: Plan) {
     const pendingDraft = state.drafts
       .filter((r) => r.plan === plan.id && r.status === "待采购")
       .flatMap((r) => r.lines)
-      .filter((l) => l.material === line.material)
+      .filter((l) => l.status === "待采购" && l.material === line.material)
       .reduce((n, l) => n + l.qty, 0);
     const incoming = state.purchases
       .filter((p) => !p.mergedInto)
@@ -426,6 +429,12 @@ export function analysis(state: State, plan: Plan) {
     };
   });
 }
+function refreshDraftStatus(draft: PurchaseDraft) {
+  draft.status =
+    draft.lines.length > 0 && draft.lines.every((l) => l.status === "已转采购")
+      ? "已转采购"
+      : "待采购";
+}
 export function createDraft(state: State, planId: string) {
   const plan = state.plans.find((p) => p.id === planId);
   if (!plan || !["待分析", "待备料"].includes(plan.status))
@@ -436,37 +445,44 @@ export function createDraft(state: State, planId: string) {
     state,
     rows.filter((l) => l.shortage > 0).map((l) => ({ material: l.material, qty: l.shortage }))
   );
-  const drafts = rows
+  let draft = state.drafts.find((d) => d.plan === plan.id);
+  const lines: DraftLine[] = rows
     .filter((l) => l.shortage > 0)
-    .map(
-      (l, i): PurchaseDraft => ({
-        id: id("DG"),
-        plan: plan.id,
-        product: plan.product,
-        creator: "演示管理员",
-        createdAt: new Date().toISOString(),
-        remark: "由物料需求计算生成",
-        date: today(),
-        lines: [
-          {
-            material: l.material,
-            qty: l.shortage,
-            bomQty: l.qty,
-            stock: l.stock,
-            reserved: l.reserved,
-            usable: l.usable,
-            covered: l.pending,
-            dueDate: plan.date,
-            sourceLine: `${plan.id}-${String(i + 1).padStart(3, "0")}`,
-          },
-        ],
-        status: "待采购",
-      })
-    );
-  state.drafts.unshift(...drafts);
+    .map((l, i) => ({
+      id: id("DL"),
+      status: "待采购",
+      material: l.material,
+      qty: l.shortage,
+      bomQty: l.qty,
+      stock: l.stock,
+      reserved: l.reserved,
+      usable: l.usable,
+      covered: l.pending,
+      dueDate: plan.date,
+      sourceLine: `${plan.id}-${String((draft?.lines.length || 0) + i + 1).padStart(3, "0")}`,
+    }));
+  if (draft) {
+    // 同物料新增缺口追加独立行，保留已转数量和历史库存快照，不回写旧行。
+    draft.lines.push(...lines);
+    draft.status = "待采购";
+  } else {
+    draft = {
+      id: id("DG"),
+      plan: plan.id,
+      product: plan.product,
+      creator: "演示管理员",
+      createdAt: new Date().toISOString(),
+      remark: "由物料需求计算生成",
+      date: today(),
+      lines,
+      status: "待采购",
+    };
+    state.drafts.unshift(draft);
+  }
   plan.status = "待备料";
-  return drafts[0]!;
+  return draft;
 }
+
 export function convertDraft(state: State, draftId: string, buyer: string, supplier: string) {
   return createPurchase(state, { buyer, supplier, draftIds: [draftId] });
 }
@@ -492,6 +508,8 @@ export function migrateDrafts(state: State) {
         status: r.status,
         lines: r.lines.map((l, i) => ({
           ...l,
+          id: `${draftId}-L${i + 1}`,
+          status: r.status,
           bomQty: null,
           stock: null,
           reserved: null,
@@ -524,6 +542,8 @@ export function migrateDrafts(state: State) {
           legacy: true,
           status: "已转采购",
           lines: purchase.lines.map((l, i) => ({
+            id: `${draftId}-L${i + 1}`,
+            status: "已转采购",
             material: l.material,
             qty: l.qty,
             bomQty: null,
@@ -538,18 +558,38 @@ export function migrateDrafts(state: State) {
       purchase.draft = draftId;
     }
   }
-  // 历史整单底稿拆成单物料记录，并将采购明细来源映射到拆分后的底稿。
-  const split = new Map<string, PurchaseDraft[]>();
-  state.drafts = state.drafts.flatMap((d) => {
-    const rows = d.lines.filter((l) => l.qty > 0);
-    const parts = rows.map((line, index) => ({
-      ...d,
-      id: index === 0 ? d.id : `${d.id}-${index + 1}`,
-      lines: [{ ...line }],
-    }));
-    split.set(d.id, parts);
-    return parts;
-  });
+  // 旧版单物料底稿按计划归并；每行保留原快照和原始来源行，不把整单状态覆盖到其他底稿行。
+  const originalQueue = [
+    ...new Set(
+      [...state.drafts]
+        .reverse()
+        .map((d) => d.plan)
+        .filter(Boolean)
+    ),
+  ];
+  const origins = new Map<string, { draft: PurchaseDraft; lines: DraftLine[] }>();
+  const groups = new Map<string, PurchaseDraft>();
+  const grouped: PurchaseDraft[] = [];
+  for (const original of state.drafts) {
+    const lines = original.lines
+      .filter((l) => l.qty > 0)
+      .map((l, index) => ({
+        ...l,
+        id: l.id || `${original.id}-L${index + 1}`,
+        status: l.status || original.status,
+      }));
+    let group = original.plan ? groups.get(original.plan) : undefined;
+    if (!group) {
+      group = { ...original, lines: [] };
+      grouped.push(group);
+      if (original.plan) groups.set(original.plan, group);
+    }
+    group.lines.push(...lines);
+    origins.set(original.id, { draft: group, lines });
+  }
+  state.drafts = grouped.sort(
+    (a, b) => originalQueue.indexOf(b.plan) - originalQueue.indexOf(a.plan)
+  );
   state.receipts ??= [];
   state.inbounds ??= [];
   state.issues ??= [];
@@ -558,14 +598,17 @@ export function migrateDrafts(state: State) {
   for (const purchase of state.purchases) {
     const oldStatus = purchase.status as string;
     purchase.lines = purchase.lines.map((line, index) => {
-      const origin = split
-        .get(line.draft || purchase.draft || "")
-        ?.find((d) => d.lines[0]?.material === line.material);
+      const source = origins.get(line.draft || purchase.draft || "");
+      const originLine = source?.lines.find((l) =>
+        line.draftLine ? l.id === line.draftLine : l.material === line.material
+      );
+      if (originLine) originLine.status = "已转采购";
       return {
         ...line,
         id: line.id || `${purchase.id}-L${index + 1}`,
         received: line.received ?? (oldStatus === "已入库" ? line.qty : 0),
-        draft: origin?.id || line.draft,
+        draft: source?.draft.id || line.draft,
+        draftLine: originLine?.id || line.draftLine,
         request: line.request || purchase.request || undefined,
       };
     });
@@ -582,7 +625,10 @@ export function migrateDrafts(state: State) {
         ? "部分收货"
         : "未收货";
     purchase.plan = "";
+    if (purchase.draft && origins.has(purchase.draft))
+      purchase.draft = origins.get(purchase.draft)!.draft.id;
   }
+  state.drafts.forEach(refreshDraftStatus);
   // 旧计划补建对应工单，不改变历史库存、采购和生产执行状态。
   for (const plan of state.plans) {
     if (!plan.workOrder) {
@@ -631,6 +677,7 @@ export function move(
   });
 }
 export interface PurchaseSources {
+  draftLines?: { draftId: string; lineId: string }[];
   lineAmounts?: Record<string, number | null>;
   draftIds?: string[];
   requestIds?: string[];
@@ -673,27 +720,42 @@ function sourceLines(state: State, input: PurchaseSources) {
   const requestIds = input.requestIds || [];
   if (new Set(draftIds).size !== draftIds.length || new Set(requestIds).size !== requestIds.length)
     throw new Error("来源单据不能重复选择");
-  const drafts = draftIds.map((key) => {
-    const value = state.drafts.find((d) => d.id === key && d.status === "待采购");
-    if (!value) throw new Error("采购底稿已转采购或不存在");
-    return value;
+  const selected = [...(input.draftLines || [])];
+  for (const key of draftIds) {
+    const draft = state.drafts.find((d) => d.id === key);
+    if (!draft || !draft.lines.some((l) => l.status === "待采购"))
+      throw new Error("采购底稿已转采购或不存在");
+    selected.push(
+      ...draft.lines
+        .filter((l) => l.status === "待采购")
+        .map((l) => ({ draftId: key, lineId: l.id }))
+    );
+  }
+  if (new Set(selected.map((l) => `${l.draftId}:${l.lineId}`)).size !== selected.length)
+    throw new Error("来源物料行不能重复选择");
+  const chosen = selected.map((row) => {
+    const draft = state.drafts.find((d) => d.id === row.draftId);
+    const index = draft?.lines.findIndex((l) => l.id === row.lineId) ?? -1;
+    const line = draft?.lines[index];
+    if (!draft || !line || line.status !== "待采购") throw new Error("底稿物料已转采购或不存在");
+    return { draft, line, index };
   });
+  const drafts = [...new Set(chosen.map((row) => row.draft))];
   const requests = requestIds.map((key) => {
     const value = state.requests.find((r) => r.id === key && r.status === "待采购");
     if (!value) throw new Error("请购单已转采购或不存在");
     return value;
   });
   const rows: PurchaseLine[] = [
-    ...drafts.flatMap((d) =>
-      d.lines.map((l, index) => ({
-        amount: input.lineAmounts?.[`draft:${d.id}:${index}`] ?? null,
-        material: l.material,
-        qty: l.qty,
-        id: id("PL"),
-        received: 0,
-        draft: d.id,
-      }))
-    ),
+    ...chosen.map(({ draft, line, index }) => ({
+      amount: input.lineAmounts?.[`draft:${draft.id}:${index}`] ?? null,
+      material: line.material,
+      qty: line.qty,
+      id: id("PL"),
+      received: 0,
+      draft: draft.id,
+      draftLine: line.id,
+    })),
     ...requests.flatMap((r) =>
       r.lines.map((l, index) => ({
         ...l,
@@ -713,7 +775,7 @@ function sourceLines(state: State, input: PurchaseSources) {
   if (!rows.length) throw new Error("请至少添加一条商品明细");
   rows.forEach((l) => validateLines(state, [l]));
   purchaseTotal(rows);
-  return { rows, drafts, requests };
+  return { rows, drafts, requests, chosen };
 }
 export function createPurchase(state: State, input: PurchaseInput) {
   if (!input.buyer.trim() || !input.supplier.trim()) throw new Error("采购人、供应商不能为空");
@@ -731,7 +793,10 @@ export function createPurchase(state: State, input: PurchaseInput) {
     status: "未审核",
     receiptStatus: "未收货",
   };
-  source.drafts.forEach((d) => (d.status = "已转采购"));
+  source.chosen.forEach(({ line }) => {
+    line.status = "已转采购";
+  });
+  source.drafts.forEach(refreshDraftStatus);
   source.requests.forEach((r) => (r.status = "已转采购"));
   state.purchases.unshift(order);
   return order;
@@ -740,7 +805,10 @@ export function appendPurchase(state: State, orderId: string, input: PurchaseSou
   const order = editable(state, orderId);
   const source = sourceLines(state, input);
   const amount = purchaseTotal([...order.lines, ...source.rows]);
-  source.drafts.forEach((d) => (d.status = "已转采购"));
+  source.chosen.forEach(({ line }) => {
+    line.status = "已转采购";
+  });
+  source.drafts.forEach(refreshDraftStatus);
   source.requests.forEach((r) => (r.status = "已转采购"));
   order.lines.push(...source.rows);
   order.amount = amount;
