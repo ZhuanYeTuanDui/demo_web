@@ -7,6 +7,8 @@ import {
 } from "./production-import";
 import {
   auditPurchase,
+  auditPlan,
+  auditDraft,
   analysis,
   convertDraft,
   createDraft,
@@ -148,8 +150,10 @@ describe("Excel 生产计划导入", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.qty).toBe(10);
     expect(analysis(state, plan)[0]?.shortage).toBe(10);
+    auditPlan(state, plan.id);
     const draft = createDraft(state, plan.id);
     expect(() => createDraft(state, plan.id)).toThrow("无新增缺料");
+    auditDraft(state, draft.id);
     const order = convertDraft(state, draft.id, "采购员", "测试供应商");
     expect(() => issuePlan(state, plan.id)).toThrow("库存不足");
     auditPurchase(state, order.id);
@@ -169,6 +173,7 @@ describe("Excel 生产计划导入", () => {
       state.materials
     );
     const plan = importProductionPlans(state, preview, "2026-10-20")[0]!;
+    auditPlan(state, plan.id);
     const draft = createDraft(state, plan.id);
     expect(state.drafts.filter((row) => row.plan === plan.id)).toEqual([draft]);
     expect(draft.lines).toHaveLength(2);
@@ -318,6 +323,7 @@ describe("导入档案与工单关联", () => {
     const plan = importProductionPlans(state, preview, "2026-10-20", "个", workOrder.id)[0]!;
     expect(state.materials.find((m) => m.id === "TEST-EXIST")).toEqual(original);
     expect(plan.workOrder).toBe(workOrder.id);
+    expect(plan.auditStatus).toBe("未审核");
     expect(plan.importSource?.rows.map((r) => r.created)).toEqual([false, true]);
   });
 

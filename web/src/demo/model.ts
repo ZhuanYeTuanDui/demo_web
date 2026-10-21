@@ -24,7 +24,9 @@ export interface Line {
   material: string;
   qty: number;
 }
+export type AuditStatus = "未审核" | "已审核";
 export interface Plan {
+  auditStatus?: AuditStatus;
   id: string;
   name: string;
   product: string;
@@ -49,6 +51,10 @@ export interface Requisition {
   status: "待采购" | "已转采购";
 }
 export interface PurchaseLine extends Line {
+  unitPrice?: number | null;
+  dueDate?: string;
+  remark?: string;
+  requestLine?: string;
   amount?: number | null;
   id: string;
   draft?: string;
@@ -83,6 +89,7 @@ export interface DraftLine extends Line {
   sourceLine: string;
 }
 export interface PurchaseDraft {
+  auditStatus?: AuditStatus;
   id: string;
   plan: string;
   product: string;
@@ -108,19 +115,24 @@ export interface ReceiptLine extends Line {
   lineId: string;
 }
 export interface Receipt {
+  status?: "待收货" | "已收货";
+  auditStatus?: AuditStatus;
+  carrier?: string;
+  tracking?: string;
   id: string;
   purchase: string;
   warehouse: string;
   date: string;
   lines: ReceiptLine[];
 }
-export interface Inbound extends Receipt {
+export interface Inbound extends Omit<Receipt, "auditStatus"> {
   receipt: string;
 }
 export interface IssueLine extends Line {
   warehouse: string;
 }
 export interface Issue {
+  auditStatus?: AuditStatus;
   id: string;
   plan: string;
   date: string;
@@ -223,6 +235,7 @@ export function seed(): State {
         qty: 5,
         date: today(),
         status: "待分析",
+        auditStatus: "已审核",
       },
       {
         id: "PP202610002",
@@ -232,6 +245,7 @@ export function seed(): State {
         qty: 2,
         date: today(),
         status: "待分析",
+        auditStatus: "已审核",
       },
     ],
     requests: [
@@ -278,7 +292,14 @@ export function seed(): State {
         supplier: "东莞精工电气有限公司",
         date: today(),
         lines: [
-          { id: "POL202610001", material: "M005", qty: 4, received: 0, request: "PR202610001" },
+          {
+            id: "POL202610001",
+            material: "M005",
+            qty: 4,
+            received: 0,
+            request: "PR202610001",
+            requestLine: "0",
+          },
         ],
         amount: null,
         receiptStatus: "未收货",
@@ -362,9 +383,15 @@ export function analysis(state: State, plan: Plan) {
   return requirements(plan).map((line) => {
     const coverage = (planId: string) => {
       const pending = state.drafts
-        .filter((d) => d.plan === planId && d.status === "待采购")
+        .filter((d) => d.plan === planId)
         .flatMap((d) => d.lines)
-        .filter((l) => l.status === "待采购" && l.material === line.material)
+        .filter(
+          (l) =>
+            l.material === line.material &&
+            !state.purchases.some(
+              (p) => !p.mergedInto && p.lines.some((pl) => pl.draftLine === l.id)
+            )
+        )
         .reduce((n, l) => n + l.qty, 0);
       const incoming = state.purchases
         .filter((p) => !p.mergedInto)
@@ -406,9 +433,13 @@ export function analysis(state: State, plan: Plan) {
     const stock = available(state, line.material);
     const usable = Math.max(0, stock - reserved);
     const pendingDraft = state.drafts
-      .filter((r) => r.plan === plan.id && r.status === "待采购")
+      .filter((r) => r.plan === plan.id)
       .flatMap((r) => r.lines)
-      .filter((l) => l.status === "待采购" && l.material === line.material)
+      .filter(
+        (l) =>
+          l.material === line.material &&
+          !state.purchases.some((p) => !p.mergedInto && p.lines.some((pl) => pl.draftLine === l.id))
+      )
       .reduce((n, l) => n + l.qty, 0);
     const incoming = state.purchases
       .filter((p) => !p.mergedInto)
@@ -437,8 +468,8 @@ function refreshDraftStatus(draft: PurchaseDraft) {
 }
 export function createDraft(state: State, planId: string) {
   const plan = state.plans.find((p) => p.id === planId);
-  if (!plan || !["待分析", "待备料"].includes(plan.status))
-    throw new Error("该计划当前不能生成采购底稿");
+  if (!plan || plan.auditStatus !== "已审核" || !["待分析", "待备料"].includes(plan.status))
+    throw new Error("仅已审核且未完工的计划可以生成采购底稿");
   const rows = analysis(state, plan);
   if (!rows.some((l) => l.shortage > 0)) throw new Error("当前无新增缺料，不需要重复生成底稿");
   validateLines(
@@ -462,6 +493,7 @@ export function createDraft(state: State, planId: string) {
       sourceLine: `${plan.id}-${String((draft?.lines.length || 0) + i + 1).padStart(3, "0")}`,
     }));
   if (draft) {
+    if (draft.auditStatus === "已审核") throw new Error("已审核底稿不可追加，请先返审");
     // 同物料新增缺口追加独立行，保留已转数量和历史库存快照，不回写旧行。
     draft.lines.push(...lines);
     draft.status = "待采购";
@@ -470,6 +502,7 @@ export function createDraft(state: State, planId: string) {
       id: id("DG"),
       plan: plan.id,
       product: plan.product,
+      auditStatus: "未审核",
       creator: "演示管理员",
       createdAt: new Date().toISOString(),
       remark: "由物料需求计算生成",
@@ -481,6 +514,155 @@ export function createDraft(state: State, planId: string) {
   }
   plan.status = "待备料";
   return draft;
+}
+
+function getPlan(state: State, planId: string) {
+  const plan = state.plans.find((p) => p.id === planId);
+  if (!plan) throw new Error("生产计划不存在");
+  return plan;
+}
+export function auditPlan(state: State, planId: string) {
+  const plan = getPlan(state, planId);
+  if (plan.auditStatus === "已审核") throw new Error("生产计划已审核");
+  if (!plan.name.trim() || !plan.date) throw new Error("请填写计划名称和日期");
+  positive(plan.qty);
+  requirements(plan);
+  plan.auditStatus = "已审核";
+}
+export function unauditPlan(state: State, planId: string) {
+  const plan = getPlan(state, planId);
+  if (plan.auditStatus !== "已审核") throw new Error("仅已审核生产计划可以返审");
+  if (
+    state.drafts.some((d) => d.plan === plan.id && d.auditStatus === "已审核") ||
+    state.issues.some((i) => i.plan === plan.id && i.auditStatus === "已审核")
+  )
+    throw new Error("存在已审核的直接下游单据，不能返审");
+  plan.auditStatus = "未审核";
+}
+export function updatePlan(
+  state: State,
+  planId: string,
+  input: Pick<Plan, "name" | "product" | "qty" | "date"> & { workOrder?: string; bom?: Line[] }
+) {
+  const plan = getPlan(state, planId);
+  if (plan.auditStatus === "已审核") throw new Error("已审核计划不可修改");
+  if (plan.status === "已完工") throw new Error("已完工计划不可修改执行资料");
+  if (!input.name.trim() || !input.date) throw new Error("请填写计划名称和日期");
+  if (!state.materials.some((m) => m.id === input.product)) throw new Error("计划产品不存在");
+  if (input.workOrder && !state.workOrders.some((w) => w.id === input.workOrder))
+    throw new Error("关联工单不存在");
+  const updated = { ...plan, ...input, name: input.name.trim() };
+  positive(updated.qty);
+  requirements(updated);
+  Object.assign(plan, updated);
+  return plan;
+}
+function editableDraft(state: State, draftId: string) {
+  const draft = state.drafts.find((d) => d.id === draftId);
+  if (!draft || draft.auditStatus === "已审核") throw new Error("仅未审核底稿可以修改或删除");
+  return draft;
+}
+export function createManualDraft(
+  state: State,
+  input: { plan?: string; product?: string; remark?: string; lines: Line[] }
+) {
+  validateLines(state, input.lines);
+  const plan = input.plan ? getPlan(state, input.plan) : undefined;
+  if (plan && plan.auditStatus !== "已审核") throw new Error("请选择已审核生产计划");
+  const draft: PurchaseDraft = {
+    id: id("DG"),
+    plan: plan?.id || "",
+    product: input.product || plan?.product || "",
+    date: today(),
+    createdAt: new Date().toISOString(),
+    creator: "演示管理员",
+    remark: input.remark?.trim() || "",
+    status: "待采购",
+    auditStatus: "未审核",
+    lines: input.lines.map((line) => ({
+      ...line,
+      id: id("DL"),
+      status: "待采购",
+      bomQty: null,
+      stock: null,
+      reserved: null,
+      usable: null,
+      covered: null,
+      dueDate: "",
+      sourceLine: "",
+    })),
+  };
+  state.drafts.unshift(draft);
+  return draft;
+}
+export function updateDraft(
+  state: State,
+  draftId: string,
+  input: { remark?: string; lines: (Line & { id?: string })[] }
+) {
+  const draft = editableDraft(state, draftId);
+  input.lines.forEach((line) => validateLines(state, [line]));
+  if (!input.lines.length) throw new Error("请至少保留一条物料");
+  const ids = input.lines.filter((line) => line.id).map((line) => line.id);
+  if (new Set(ids).size !== ids.length) throw new Error("底稿物料行重复");
+  const lines: DraftLine[] = input.lines.map((line) => {
+    const old = line.id ? draft.lines.find((row) => row.id === line.id) : undefined;
+    if (line.id && !old) throw new Error("底稿物料行不存在");
+    if (old && old.material !== line.material)
+      throw new Error("已有底稿行物料不能替换，请另增一行");
+    return old
+      ? { ...old, qty: line.qty }
+      : {
+          ...line,
+          id: id("DL"),
+          status: "待采购",
+          bomQty: null,
+          stock: null,
+          reserved: null,
+          usable: null,
+          covered: null,
+          dueDate: "",
+          sourceLine: "",
+        };
+  });
+  for (const line of draft.lines) {
+    if (
+      !lines.some((row) => row.id === line.id) &&
+      state.purchases.some((p) =>
+        p.lines.some((row) => row.draft === draft.id && row.draftLine === line.id)
+      )
+    )
+      throw new Error("底稿物料已有采购来源引用，不能删除");
+  }
+  draft.lines = lines;
+  draft.remark = input.remark?.trim() ?? draft.remark;
+  return draft;
+}
+export function deleteDraft(state: State, draftId: string) {
+  const draft = editableDraft(state, draftId);
+  if (state.purchases.some((p) => p.lines.some((line) => line.draft === draft.id)))
+    throw new Error("底稿已有采购来源引用，不能删除");
+  state.drafts = state.drafts.filter((d) => d.id !== draftId);
+}
+export function auditDraft(state: State, draftId: string) {
+  const draft = editableDraft(state, draftId);
+  draft.lines.forEach((line) => validateLines(state, [line]));
+  if (!draft.lines.length) throw new Error("底稿没有物料");
+  if (draft.plan && getPlan(state, draft.plan).auditStatus !== "已审核")
+    throw new Error("来源生产计划未审核");
+  draft.auditStatus = "已审核";
+}
+export function unauditDraft(state: State, draftId: string) {
+  const draft = state.drafts.find((d) => d.id === draftId);
+  if (!draft || draft.auditStatus !== "已审核") throw new Error("仅已审核底稿可以返审");
+  if (
+    state.purchases.some(
+      (p) =>
+        !p.mergedInto && p.status === "已审核" && p.lines.some((line) => line.draft === draft.id)
+    )
+  )
+    throw new Error("存在已审核的直接下游采购单，不能返审");
+  draft.auditStatus = "未审核";
 }
 
 export function convertDraft(state: State, draftId: string, buyer: string, supplier: string) {
@@ -578,11 +760,12 @@ export function migrateDrafts(state: State) {
         id: l.id || `${original.id}-L${index + 1}`,
         status: l.status || original.status,
       }));
-    let group = original.plan ? groups.get(original.plan) : undefined;
+    const groupingKey = original.auditStatus ? original.id : original.plan;
+    let group = groupingKey ? groups.get(groupingKey) : undefined;
     if (!group) {
       group = { ...original, lines: [] };
       grouped.push(group);
-      if (original.plan) groups.set(original.plan, group);
+      if (groupingKey) groups.set(groupingKey, group);
     }
     group.lines.push(...lines);
     origins.set(original.id, { draft: group, lines });
@@ -610,6 +793,13 @@ export function migrateDrafts(state: State) {
         draft: source?.draft.id || line.draft,
         draftLine: originLine?.id || line.draftLine,
         request: line.request || purchase.request || undefined,
+        requestLine:
+          line.requestLine ??
+          (() => {
+            const request = state.requests.find((r) => r.id === (line.request || purchase.request));
+            const index = request?.lines.findIndex((l) => l.material === line.material) ?? -1;
+            return index >= 0 ? String(index) : undefined;
+          })(),
       };
     });
     if (purchase.lines.some((l) => l.amount === undefined) && purchase.legacyAmount === undefined)
@@ -629,6 +819,29 @@ export function migrateDrafts(state: State) {
       purchase.draft = origins.get(purchase.draft)!.draft.id;
   }
   state.drafts.forEach(refreshDraftStatus);
+  for (const draft of state.drafts) {
+    draft.auditStatus ??= state.purchases.some(
+      (p) => !p.mergedInto && p.lines.some((l) => l.draft === draft.id)
+    )
+      ? "已审核"
+      : "未审核";
+  }
+  for (const receipt of state.receipts) {
+    receipt.status ??= "已收货";
+    receipt.auditStatus ??= receipt.status === "已收货" ? "已审核" : "未审核";
+  }
+  // 入库单是收货执行凭证，不拥有独立审核状态；旧版本复制来的字段移除。
+  for (const inbound of state.inbounds)
+    delete (inbound as Inbound & { auditStatus?: AuditStatus }).auditStatus;
+  for (const issue of state.issues) issue.auditStatus ??= "已审核";
+  for (const plan of state.plans) {
+    plan.auditStatus ??=
+      plan.status !== "待分析" ||
+      state.drafts.some((d) => d.plan === plan.id) ||
+      state.issues.some((i) => i.plan === plan.id)
+        ? "已审核"
+        : "未审核";
+  }
   // 旧计划补建对应工单，不改变历史库存、采购和生产执行状态。
   for (const plan of state.plans) {
     if (!plan.workOrder) {
@@ -681,6 +894,11 @@ export interface PurchaseSources {
   lineAmounts?: Record<string, number | null>;
   draftIds?: string[];
   requestIds?: string[];
+  requestLines?: { requestId: string; lineIndex: number }[];
+  lineEdits?: Record<
+    string,
+    { qty?: number; unitPrice?: number | null; dueDate?: string; remark?: string }
+  >;
   lines?: Line[];
 }
 export interface PurchaseInput extends PurchaseSources {
@@ -700,11 +918,27 @@ function amountValid(value: number | null | undefined) {
   )
     throw new Error("物料金额须为空或最多两位小数的非负数字");
 }
-// 逐行金额按分合计；任何行未填时，单据合计明确保持未填写状态。
-export function purchaseTotal(lines: { amount?: number | null }[]) {
-  lines.forEach((line) => amountValid(line.amount));
-  if (!lines.length || lines.some((line) => line.amount == null)) return null;
-  const cents = lines.reduce((sum, line) => sum + Math.round(line.amount! * 100), 0);
+// 单价和行合计以分计算，旧数据缺单价时仅显示其历史行金额。
+export function purchaseLineAmount(line: {
+  qty: number;
+  unitPrice?: number | null;
+  amount?: number | null;
+}) {
+  amountValid(line.unitPrice);
+  if (line.unitPrice == null) {
+    amountValid(line.amount);
+    return line.amount ?? null;
+  }
+  const cents = Math.round(line.unitPrice * 100) * line.qty;
+  if (!Number.isSafeInteger(cents)) throw new Error("采购金额超出支持范围");
+  return cents / 100;
+}
+export function purchaseTotal(
+  lines: { amount?: number | null; qty?: number; unitPrice?: number | null }[]
+) {
+  const values = lines.map((line) => purchaseLineAmount({ ...line, qty: line.qty ?? 1 }));
+  if (!values.length || values.some((value) => value == null)) return null;
+  const cents = values.reduce<number>((sum, value) => sum + Math.round(value! * 100), 0);
   if (!Number.isSafeInteger(cents)) throw new Error("采购金额合计超出支持范围");
   return cents / 100;
 }
@@ -713,69 +947,77 @@ function editable(state: State, orderId: string) {
   if (!order || order.status !== "未审核") throw new Error("仅未审核采购单可以修改或合并");
   return order;
 }
-// 先解析和校验全部来源，再修改占用标记，避免直接调用时出现半张单据。
+// 来源只记录关联，不占用、不扣减来源要求量；每次允许按完整来源量取用。
 function sourceLines(state: State, input: PurchaseSources) {
   Object.values(input.lineAmounts || {}).forEach(amountValid);
-  const draftIds = input.draftIds || [];
-  const requestIds = input.requestIds || [];
-  if (new Set(draftIds).size !== draftIds.length || new Set(requestIds).size !== requestIds.length)
-    throw new Error("来源单据不能重复选择");
   const selected = [...(input.draftLines || [])];
-  for (const key of draftIds) {
+  for (const key of input.draftIds || []) {
     const draft = state.drafts.find((d) => d.id === key);
-    if (!draft || !draft.lines.some((l) => l.status === "待采购"))
-      throw new Error("采购底稿已转采购或不存在");
-    selected.push(
-      ...draft.lines
-        .filter((l) => l.status === "待采购")
-        .map((l) => ({ draftId: key, lineId: l.id }))
-    );
+    if (!draft || draft.auditStatus !== "已审核") throw new Error("请选择已审核采购底稿");
+    selected.push(...draft.lines.map((line) => ({ draftId: key, lineId: line.id })));
   }
-  if (new Set(selected.map((l) => `${l.draftId}:${l.lineId}`)).size !== selected.length)
+  if (new Set(selected.map((row) => `${row.draftId}:${row.lineId}`)).size !== selected.length)
     throw new Error("来源物料行不能重复选择");
   const chosen = selected.map((row) => {
     const draft = state.drafts.find((d) => d.id === row.draftId);
-    const index = draft?.lines.findIndex((l) => l.id === row.lineId) ?? -1;
+    const index = draft?.lines.findIndex((line) => line.id === row.lineId) ?? -1;
     const line = draft?.lines[index];
-    if (!draft || !line || line.status !== "待采购") throw new Error("底稿物料已转采购或不存在");
+    if (!draft || !line || draft.auditStatus !== "已审核") throw new Error("底稿不存在或未审核");
     return { draft, line, index };
   });
-  const drafts = [...new Set(chosen.map((row) => row.draft))];
-  const requests = requestIds.map((key) => {
-    const value = state.requests.find((r) => r.id === key && r.status === "待采购");
-    if (!value) throw new Error("请购单已转采购或不存在");
+  const requestRows = [...(input.requestLines || [])];
+  for (const key of input.requestIds || []) {
+    const request = state.requests.find((r) => r.id === key);
+    if (!request) throw new Error("请购单不存在");
+    requestRows.push(...request.lines.map((_, lineIndex) => ({ requestId: key, lineIndex })));
+  }
+  if (
+    new Set(requestRows.map((row) => `${row.requestId}:${row.lineIndex}`)).size !==
+    requestRows.length
+  )
+    throw new Error("来源物料行不能重复选择");
+  function row(line: Line, key: string, source: Partial<PurchaseLine>): PurchaseLine {
+    const edit = input.lineEdits?.[key] || {};
+    const value: PurchaseLine = {
+      ...line,
+      ...source,
+      id: id("PL"),
+      received: 0,
+      amount: input.lineAmounts?.[key] ?? null,
+      ...edit,
+    };
+    validateLines(state, [value]);
+    amountValid(value.unitPrice);
+    value.amount = purchaseLineAmount(value);
     return value;
+  }
+  const requests = requestRows.map(({ requestId, lineIndex }) => {
+    const request = state.requests.find((r) => r.id === requestId);
+    if (!request || !Number.isInteger(lineIndex) || !request.lines[lineIndex])
+      throw new Error("请购来源物料不存在");
+    return request;
   });
-  const rows: PurchaseLine[] = [
-    ...chosen.map(({ draft, line, index }) => ({
-      amount: input.lineAmounts?.[`draft:${draft.id}:${index}`] ?? null,
-      material: line.material,
-      qty: line.qty,
-      id: id("PL"),
-      received: 0,
-      draft: draft.id,
-      draftLine: line.id,
-    })),
-    ...requests.flatMap((r) =>
-      r.lines.map((l, index) => ({
-        ...l,
-        amount: input.lineAmounts?.[`request:${r.id}:${index}`] ?? null,
-        id: id("PL"),
-        received: 0,
-        request: r.id,
-      }))
+  const rows = [
+    ...chosen.map(({ draft, line, index }) =>
+      row(line, `draft:${draft.id}:${index}`, { draft: draft.id, draftLine: line.id })
     ),
-    ...(input.lines || []).map((l, index) => ({
-      ...l,
-      amount: input.lineAmounts?.[`manual:${index}`] ?? null,
-      id: id("PL"),
-      received: 0,
-    })),
+    ...requestRows.map(({ requestId, lineIndex }) =>
+      row(
+        state.requests.find((r) => r.id === requestId)!.lines[lineIndex]!,
+        `request:${requestId}:${lineIndex}`,
+        { request: requestId, requestLine: String(lineIndex) }
+      )
+    ),
+    ...(input.lines || []).map((line, index) => row(line, `manual:${index}`, {})),
   ];
   if (!rows.length) throw new Error("请至少添加一条商品明细");
-  rows.forEach((l) => validateLines(state, [l]));
   purchaseTotal(rows);
-  return { rows, drafts, requests, chosen };
+  return {
+    rows,
+    drafts: [...new Set(chosen.map((value) => value.draft))],
+    requests: [...new Set(requests)],
+    chosen,
+  };
 }
 export function createPurchase(state: State, input: PurchaseInput) {
   if (!input.buyer.trim() || !input.supplier.trim()) throw new Error("采购人、供应商不能为空");
@@ -793,11 +1035,6 @@ export function createPurchase(state: State, input: PurchaseInput) {
     status: "未审核",
     receiptStatus: "未收货",
   };
-  source.chosen.forEach(({ line }) => {
-    line.status = "已转采购";
-  });
-  source.drafts.forEach(refreshDraftStatus);
-  source.requests.forEach((r) => (r.status = "已转采购"));
   state.purchases.unshift(order);
   return order;
 }
@@ -805,11 +1042,6 @@ export function appendPurchase(state: State, orderId: string, input: PurchaseSou
   const order = editable(state, orderId);
   const source = sourceLines(state, input);
   const amount = purchaseTotal([...order.lines, ...source.rows]);
-  source.chosen.forEach(({ line }) => {
-    line.status = "已转采购";
-  });
-  source.drafts.forEach(refreshDraftStatus);
-  source.requests.forEach((r) => (r.status = "已转采购"));
   order.lines.push(...source.rows);
   order.amount = amount;
   return order;
@@ -822,6 +1054,8 @@ export function updatePurchase(
     supplier: string;
     amount?: number | null;
     lineAmounts?: Record<string, number | null>;
+    lines?: PurchaseLine[];
+    sources?: PurchaseSources;
   }
 ) {
   const order = editable(state, orderId);
@@ -829,10 +1063,53 @@ export function updatePurchase(
   const updates = input.lineAmounts || {};
   if (Object.keys(updates).some((key) => !order.lines.some((l) => l.id === key)))
     throw new Error("采购金额明细不存在");
-  const lines = order.lines.map((l) => ({
-    ...l,
-    amount: Object.hasOwn(updates, l.id) ? updates[l.id]! : (l.amount ?? null),
-  }));
+  const base = input.lines ?? order.lines;
+  if (new Set(base.map((line) => line.id)).size !== base.length)
+    throw new Error("采购明细不能重复");
+  const added = input.sources ? sourceLines(state, input.sources).rows : [];
+  const lines: PurchaseLine[] = [
+    ...base
+      .map((l) => {
+        const original = order.lines.find((row) => row.id === l.id);
+        if (
+          !original ||
+          original.material !== l.material ||
+          original.draft !== l.draft ||
+          original.draftLine !== l.draftLine ||
+          original.request !== l.request ||
+          original.requestLine !== l.requestLine
+        )
+          throw new Error("采购明细来源不可修改");
+        validateLines(state, [l]);
+        if (l.received !== original.received) throw new Error("已收数量不可修改");
+        return {
+          ...l,
+          amount:
+            l.qty !== original.qty && l.unitPrice == null
+              ? null
+              : Object.hasOwn(updates, l.id)
+                ? updates[l.id]!
+                : (l.amount ?? null),
+        };
+      })
+      .map((line) => ({ ...line, amount: purchaseLineAmount(line) })),
+    ...added,
+  ];
+  if (!lines.length) throw new Error("请保留至少一条采购明细");
+  // 未审核下游仍保留来源，禁止删除其引用或缩减到已收/待收量以下。
+  for (const original of order.lines) {
+    const reserved = state.receipts
+      .filter((receipt) => receipt.purchase === order.id && receipt.status !== "已收货")
+      .flatMap((receipt) => receipt.lines)
+      .filter((line) => line.lineId === original.id)
+      .reduce((sum, line) => sum + line.qty, 0);
+    const replacement = lines.find((line) => line.id === original.id);
+    if (
+      (original.received > 0 || reserved > 0) &&
+      (!replacement || replacement.qty < original.received + reserved)
+    )
+      throw new Error("采购明细已有收货单引用，数量不能低于已收与待收数量");
+  }
   const amount = purchaseTotal(lines);
   Object.assign(order, {
     buyer: input.buyer.trim(),
@@ -842,28 +1119,56 @@ export function updatePurchase(
   });
   return order;
 }
-export function auditPurchase(state: State, orderId: string) {
+export function purchaseDifferences(state: State, orderId: string) {
+  const order = state.purchases.find((p) => p.id === orderId && !p.mergedInto);
+  if (!order) throw new Error("采购单不存在");
+  return order.lines.flatMap((line) => {
+    const source = line.draft
+      ? state.drafts.find((d) => d.id === line.draft)?.lines.find((l) => l.id === line.draftLine)
+      : line.request
+        ? state.requests.find((r) => r.id === line.request)?.lines[Number(line.requestLine)]
+        : undefined;
+    if ((line.draft || line.request) && !source) throw new Error("采购明细来源已缺失，不能审核");
+    return source && source.qty !== line.qty
+      ? [
+          {
+            material: line.material,
+            source: line.draft || line.request || "",
+            required: source.qty,
+            qty: line.qty,
+          },
+        ]
+      : [];
+  });
+}
+export function auditPurchase(state: State, orderId: string, confirmDifferences = false) {
   const order = editable(state, orderId);
   if (!order.lines.length) throw new Error("采购单没有物料");
+  for (const line of order.lines) {
+    if (line.draft && state.drafts.find((d) => d.id === line.draft)?.auditStatus !== "已审核")
+      throw new Error("来源底稿未审核，不能审核采购单");
+  }
+  if (purchaseDifferences(state, orderId).length && !confirmDifferences)
+    throw new Error("采购数量与来源要求存在差异，请确认后继续审核");
   order.lines.forEach((l) => validateLines(state, [l]));
   const amount = purchaseTotal(order.lines);
+  order.lines = order.lines.map((line) => ({ ...line, amount: purchaseLineAmount(line) }));
   order.amount = amount;
   order.status = "已审核";
 }
 export function unauditPurchase(state: State, orderId: string) {
   const order = state.purchases.find((p) => p.id === orderId && !p.mergedInto);
   if (!order || order.status !== "已审核") throw new Error("仅已审核采购单可以反审核");
-  if (
-    order.lines.some((l) => l.received > 0) ||
-    state.receipts.some((r) => r.purchase === order.id)
-  )
-    throw new Error("发生收货后不能反审核");
+  if (state.receipts.some((r) => r.purchase === order.id && r.auditStatus === "已审核"))
+    throw new Error("存在已审核的直接下游收货单，不能反审核");
   order.status = "未审核";
 }
 export function mergePurchases(state: State, orderIds: string[]) {
   if (orderIds.length < 2 || new Set(orderIds).size !== orderIds.length)
     throw new Error("请选择至少两张不同的采购单");
   const orders = orderIds.map((key) => editable(state, key));
+  if (state.receipts.some((receipt) => orderIds.includes(receipt.purchase)))
+    throw new Error("存在收货单引用的采购单不能合并");
   if (orders.some((p) => p.supplier !== orders[0]!.supplier))
     throw new Error("仅同供应商采购单可以合并");
   const result: Purchase = {
@@ -883,87 +1188,259 @@ export function mergePurchases(state: State, orderIds: string[]) {
   state.purchases.unshift(result);
   return result;
 }
+function purchaseForReceipt(state: State, orderId: string) {
+  const order = state.purchases.find((p) => p.id === orderId && !p.mergedInto);
+  if (!order || order.status !== "已审核") throw new Error("请选择已审核采购单");
+  return order;
+}
+function receiptWarehouse(state: State, warehouse: string) {
+  if (!state.warehouses.some((w) => w.id === warehouse && w.available && !w.inactive))
+    throw new Error("采购入库请选择参与可用量计算的仓库");
+}
+export function receiptRemaining(state: State, orderId: string, excludeReceiptId?: string) {
+  const order = state.purchases.find((p) => p.id === orderId && !p.mergedInto);
+  if (!order) throw new Error("采购单不存在");
+  return order.lines.map((line) => ({
+    lineId: line.id,
+    material: line.material,
+    qty: Math.max(
+      0,
+      line.qty -
+        line.received -
+        state.receipts
+          .filter(
+            (r) => r.purchase === order.id && r.id !== excludeReceiptId && r.status !== "已收货"
+          )
+          .flatMap((r) => r.lines)
+          .filter((l) => l.lineId === line.id)
+          .reduce((sum, l) => sum + l.qty, 0)
+    ),
+  }));
+}
+function plannedReceiptLines(
+  state: State,
+  orderId: string,
+  input: { lineId: string; qty: number }[],
+  exclude?: string
+): ReceiptLine[] {
+  const remaining = receiptRemaining(state, orderId, exclude);
+  if (!input.length || new Set(input.map((row) => row.lineId)).size !== input.length)
+    throw new Error("请选择不重复的收货物料");
+  return input.map((row) => {
+    positive(row.qty);
+    const source = remaining.find((l) => l.lineId === row.lineId);
+    if (!source || row.qty > source.qty) throw new Error("收货数量超过剩余应收数量");
+    validateLines(state, [{ material: source.material, qty: row.qty }]);
+    return { lineId: row.lineId, material: source.material, qty: row.qty };
+  });
+}
+export function createReceipt(
+  state: State,
+  orderId: string,
+  warehouse: string,
+  input: { lineId: string; qty: number }[],
+  logistics: { carrier?: string; tracking?: string } = {}
+) {
+  purchaseForReceipt(state, orderId);
+  receiptWarehouse(state, warehouse);
+  const lines = plannedReceiptLines(state, orderId, input);
+  const receipt: Receipt = {
+    id: id("RC"),
+    purchase: orderId,
+    warehouse,
+    date: today(),
+    lines,
+    status: "待收货",
+    auditStatus: "未审核",
+    carrier: logistics.carrier?.trim() || "",
+    tracking: logistics.tracking?.trim() || "",
+  };
+  state.receipts.unshift(receipt);
+  return receipt;
+}
+export function updateReceipt(
+  state: State,
+  receiptId: string,
+  input: { lineId: string; qty: number }[]
+) {
+  const receipt = state.receipts.find((r) => r.id === receiptId);
+  if (!receipt || receipt.status === "已收货" || receipt.auditStatus === "已审核")
+    throw new Error("仅待收货单可以修改数量");
+  purchaseForReceipt(state, receipt.purchase);
+  if (
+    input.length !== receipt.lines.length ||
+    input.some((row) => !receipt.lines.some((l) => l.lineId === row.lineId))
+  )
+    throw new Error("待收货单只能修改已有物料的数量");
+  const lines = plannedReceiptLines(state, receipt.purchase, input, receipt.id);
+  receipt.lines = lines;
+  return receipt;
+}
+function refreshReceiptStatus(order: Purchase) {
+  order.receiptStatus = order.lines.every((l) => l.received === l.qty)
+    ? "全部收货"
+    : order.lines.some((l) => l.received > 0)
+      ? "部分收货"
+      : "未收货";
+}
+export function confirmReceipt(
+  state: State,
+  receiptId: string,
+  actual?: { lineId: string; qty: number }[]
+) {
+  const receipt = state.receipts.find((r) => r.id === receiptId);
+  if (!receipt || receipt.status === "已收货" || receipt.auditStatus === "已审核")
+    throw new Error("收货单已完成，不能重复入库");
+  const order = purchaseForReceipt(state, receipt.purchase);
+  receiptWarehouse(state, receipt.warehouse);
+  const input = actual ?? receipt.lines;
+  if (
+    input.length !== receipt.lines.length ||
+    new Set(input.map((row) => row.lineId)).size !== input.length
+  )
+    throw new Error("实收物料必须与待收货单一致");
+  const lines: ReceiptLine[] = input.map((row) => {
+    if (!Number.isSafeInteger(row.qty) || row.qty < 0 || row.qty > 100000)
+      throw new Error("实收数量须为非负整数");
+    const planned = receipt.lines.find((l) => l.lineId === row.lineId);
+    const source = order.lines.find((l) => l.id === row.lineId);
+    if (!planned || !source || row.qty > planned.qty || row.qty > source.qty - source.received)
+      throw new Error("实收数量不能超过本单安排数量及剩余应收量");
+    if (row.qty) validateLines(state, [{ material: planned.material, qty: row.qty }]);
+    return { lineId: row.lineId, material: planned.material, qty: row.qty };
+  });
+  if (!lines.some((l) => l.qty > 0)) throw new Error("实收数量至少有一条大于零");
+  const { auditStatus: _auditStatus, ...receiptData } = receipt;
+  const inbound: Inbound = {
+    ...receiptData,
+    id: id("IN"),
+    receipt: receipt.id,
+    lines: lines.filter((l) => l.qty > 0),
+    status: "已收货",
+  };
+  for (const line of inbound.lines) {
+    move(
+      state,
+      receipt.warehouse,
+      line,
+      "入库",
+      inbound.id,
+      `采购收货 ${order.id} / ${receipt.id}`
+    );
+    order.lines.find((l) => l.id === line.lineId)!.received += line.qty;
+  }
+  receipt.lines = lines;
+  receipt.status = "已收货";
+  receipt.auditStatus = "已审核";
+  state.inbounds.unshift(inbound);
+  refreshReceiptStatus(order);
+  return receipt;
+}
+export function unauditReceipt(state: State, receiptId: string) {
+  const receipt = state.receipts.find((r) => r.id === receiptId);
+  if (!receipt || receipt.auditStatus !== "已审核" || receipt.status !== "已收货")
+    throw new Error("仅已审核收货单可以反审核");
+  const order = state.purchases.find((p) => p.id === receipt.purchase);
+  if (!order) throw new Error("来源采购单不存在");
+  const inbounds = state.inbounds.filter((i) => i.receipt === receipt.id);
+  if (!inbounds.length) throw new Error("历史收货缺少入库关联，无法安全反审核");
+  const totals = new Map<string, number>();
+  for (const line of receipt.lines) {
+    const key = stockKey(receipt.warehouse, line.material);
+    totals.set(key, (totals.get(key) || 0) + line.qty);
+    const source = order.lines.find((l) => l.id === line.lineId);
+    if (!source || source.received < line.qty) throw new Error("采购已收数量与收货记录不一致");
+  }
+  for (const [key, qty] of totals)
+    if ((state.stocks[key] || 0) < qty) throw new Error("收货库存已被使用，库存不足，不能反审核");
+  for (const [key, qty] of totals) state.stocks[key] = (state.stocks[key] || 0) - qty;
+  for (const line of receipt.lines)
+    order.lines.find((l) => l.id === line.lineId)!.received -= line.qty;
+  const ids = new Set(inbounds.map((i) => i.id));
+  state.movements = state.movements.filter((m) => !ids.has(m.source));
+  state.inbounds = state.inbounds.filter((i) => i.receipt !== receipt.id);
+  receipt.lines = receipt.lines.filter((l) => l.qty > 0);
+  receipt.status = "待收货";
+  receipt.auditStatus = "未审核";
+  refreshReceiptStatus(order);
+}
+/** 兼容旧调用；新页面必须使用创建待单、确认实收两个独立步骤。 */
 export function receive(
   state: State,
   orderId: string,
   warehouse: string,
   input?: { lineId: string; qty: number }[]
 ) {
-  if (!state.warehouses.some((w) => w.id === warehouse && w.available && !w.inactive))
-    throw new Error("采购入库请选择参与可用量计算的仓库");
-  const order = state.purchases.find((p) => p.id === orderId && !p.mergedInto);
-  if (!order || order.status !== "已审核" || order.receiptStatus === "全部收货")
-    throw new Error("请选择已审核且未全部收货的采购单");
-  const rows =
-    input ??
-    order.lines
-      .filter((l) => l.qty > l.received)
-      .map((l) => ({ lineId: l.id, qty: l.qty - l.received }));
-  if (!rows.length || new Set(rows.map((l) => l.lineId)).size !== rows.length)
-    throw new Error("请选择不重复的收货物料");
-  const lines = rows.map((r) => {
-    positive(r.qty);
-    const line = order.lines.find((l) => l.id === r.lineId);
-    if (!line || r.qty > line.qty - line.received) throw new Error("收货数量超过剩余应收数量");
-    validateLines(state, [{ material: line.material, qty: r.qty }]);
-    return { lineId: line.id, material: line.material, qty: r.qty };
-  });
-  const receipt: Receipt = { id: id("RC"), purchase: order.id, warehouse, date: today(), lines };
-  const inbound: Inbound = { ...receipt, id: id("IN"), receipt: receipt.id };
-  lines.forEach((l) => {
-    move(state, warehouse, l, "入库", inbound.id, `采购收货 ${order.id} / ${receipt.id}`);
-    order.lines.find((row) => row.id === l.lineId)!.received += l.qty;
-  });
-  order.receiptStatus = order.lines.every((l) => l.received === l.qty) ? "全部收货" : "部分收货";
-  state.receipts.unshift(receipt);
-  state.inbounds.unshift(inbound);
-  return receipt;
+  receiptWarehouse(state, warehouse);
+  purchaseForReceipt(state, orderId);
+  const rows = input ?? receiptRemaining(state, orderId).filter((l) => l.qty > 0);
+  const receipt = createReceipt(state, orderId, warehouse, rows);
+  return confirmReceipt(state, receipt.id);
+}
+function validateIssueLines(state: State, lines: IssueLine[]) {
+  if (!lines.length) throw new Error("请至少保留一条领料物料");
+  const totals = new Map<string, number>();
+  for (const line of lines) {
+    validateLines(state, [line]);
+    if (!state.warehouses.some((w) => w.id === line.warehouse && !w.inactive))
+      throw new Error("请选择正常使用的仓库");
+    const key = stockKey(line.warehouse, line.material);
+    totals.set(key, (totals.get(key) || 0) + line.qty);
+  }
+  for (const [key, qty] of totals)
+    if ((state.stocks[key] || 0) < qty) throw new Error("该仓库库存不足，不能出库");
 }
 export function createIssue(state: State, planId: string, input?: IssueLine[]) {
-  const plan = state.plans.find((p) => p.id === planId);
-  if (!plan || !["待分析", "待备料"].includes(plan.status)) throw new Error("该计划不能重复领料");
-  const needs = requirements(plan);
-  if (analysis(state, plan).some((r) => r.usable < r.qty))
-    throw new Error("可用库存不足，请先完成采购入库；其他已备料计划优先占用库存");
-  const lines: IssueLine[] = input
-    ? input.map((l) => ({ ...l }))
-    : needs.flatMap((line) => {
-        let remaining = line.qty;
-        return state.warehouses
-          .filter((w) => w.available && !w.inactive)
-          .flatMap((w) => {
-            const qty = Math.min(remaining, state.stocks[stockKey(w.id, line.material)] || 0);
-            remaining -= qty;
-            return qty ? [{ warehouse: w.id, material: line.material, qty }] : [];
-          });
-      });
-  // 领料是一次覆盖整份计划，逐仓汇总校验后再扣减，重复仓行也不能穿透库存校验。
-  const totals = new Map<string, number>();
-  const warehouseTotals = new Map<string, number>();
-  lines.forEach((l) => {
-    validateLines(state, [l]);
-    if (!state.warehouses.some((w) => w.id === l.warehouse && w.available && !w.inactive))
-      throw new Error("请选择参与可用量计算的有效仓库");
-    totals.set(l.material, (totals.get(l.material) || 0) + l.qty);
-    const key = stockKey(l.warehouse, l.material);
-    warehouseTotals.set(key, (warehouseTotals.get(key) || 0) + l.qty);
-  });
-  if (totals.size !== needs.length || needs.some((l) => totals.get(l.material) !== l.qty))
-    throw new Error("领料明细必须与计划全部需求一致");
-  for (const [key, qty] of warehouseTotals)
-    if ((state.stocks[key] || 0) < qty) throw new Error("该仓库库存不足，不能出库");
-  const issue: Issue = { id: id("IS"), plan: plan.id, date: today(), lines };
-  lines.forEach((l) => move(state, l.warehouse, l, "出库", issue.id, `生产领料 ${plan.id}`));
+  const plan = getPlan(state, planId);
+  if (plan.auditStatus !== "已审核") throw new Error("请选择已审核生产计划");
+  const lines =
+    input?.map((l) => ({ ...l })) ??
+    requirements(plan).map((line) => ({
+      ...line,
+      warehouse:
+        state.warehouses.find(
+          (w) => !w.inactive && (state.stocks[stockKey(w.id, line.material)] || 0) >= line.qty
+        )?.id || "BZ01",
+    }));
+  validateIssueLines(state, lines);
+  const issue: Issue = { id: id("IS"), plan: plan.id, date: today(), lines, auditStatus: "已审核" };
+  for (const line of lines)
+    move(state, line.warehouse, line, "出库", issue.id, `生产领料 ${plan.id}`);
   state.issues.unshift(issue);
-  plan.status = "已领料";
   return issue;
+}
+export function auditIssue(state: State, issueId: string) {
+  const issue = state.issues.find((i) => i.id === issueId);
+  if (!issue || issue.auditStatus === "已审核") throw new Error("仅未审核领料单可以审核");
+  if (getPlan(state, issue.plan).auditStatus !== "已审核") throw new Error("来源计划未审核");
+  validateIssueLines(state, issue.lines);
+  for (const line of issue.lines)
+    move(state, line.warehouse, line, "出库", issue.id, `生产领料 ${issue.plan}`);
+  issue.auditStatus = "已审核";
+}
+export function unauditIssue(state: State, issueId: string) {
+  const issue = state.issues.find((i) => i.id === issueId);
+  if (!issue || issue.auditStatus !== "已审核") throw new Error("仅已审核领料单可以反审核");
+  // 领料执行状态不推导计划齐料，返审只撤销本单对应的实际出库。
+  const totals = new Map<string, number>();
+  for (const line of issue.lines) {
+    const key = stockKey(line.warehouse, line.material);
+    totals.set(key, (totals.get(key) || 0) + line.qty);
+  }
+  for (const [key, qty] of totals)
+    if (!Number.isSafeInteger((state.stocks[key] || 0) + qty))
+      throw new Error("回补库存超出支持范围");
+  for (const [key, qty] of totals) state.stocks[key] = (state.stocks[key] || 0) + qty;
+  state.movements = state.movements.filter((m) => m.source !== issue.id);
+  issue.auditStatus = "未审核";
 }
 export function issuePlan(state: State, planId: string) {
   return createIssue(state, planId);
 }
 export function finishPlan(state: State, planId: string) {
-  const plan = state.plans.find((p) => p.id === planId);
-  if (!plan || plan.status !== "已领料") throw new Error("请先完成领料，且不能重复完工");
+  const plan = getPlan(state, planId);
+  if (plan.auditStatus !== "已审核" || plan.status === "已完工")
+    throw new Error("仅已审核且未完工计划可以完工，不能重复完工");
   move(state, "CP01", { material: plan.product, qty: plan.qty }, "入库", plan.id, "生产完工");
   plan.status = "已完工";
 }

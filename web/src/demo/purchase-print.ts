@@ -1,7 +1,7 @@
-import { purchaseAmount, type Material, type Purchase } from "./model";
+import { purchaseAmount, purchaseLineAmount, type Material, type Purchase } from "./model";
 
 // 所有业务文字先转义，避免供应商名、物料规格被当作 HTML 执行。
-function escape(value: string | number) {
+function escape(value: unknown) {
   return String(value).replace(
     /[&<>"']/g,
     (char) =>
@@ -30,14 +30,15 @@ const terms = [
 ];
 
 export function purchasePrintHtml(order: Purchase, materials: Material[]) {
-  // 行金额来自采购录入；合计统一派生，任一行未填则不展示伪合计。
+  // 单价与数量派生行金额，历史无单价行沿用旧金额，合计复用模型。
   const total = purchaseAmount(order.lines);
   const rows = order.lines
     .map((line, index) => {
       const item = materials.find((m) => m.id === line.material);
       if (!item) throw new Error(`采购单物料不存在：${line.material}`);
 
-      return `<tr><td>${String(index + 1).padStart(3, "0")}</td><td>${escape(item.id)}</td><td>${escape(item.name)}</td><td>${escape(item.spec)}</td><td>${escape(line.draft || line.request || "")}</td><td></td><td>${escape(line.qty)}</td><td>${escape(item.unit)}</td><td></td><td>${line.amount == null ? "未填写" : line.amount.toFixed(2)}</td><td></td><td></td></tr>`;
+      const amount = purchaseLineAmount(line);
+      return `<tr><td>${String(index + 1).padStart(3, "0")}</td><td>${escape(item.id)}</td><td>${escape(item.name)}</td><td>${escape([item.spec, item.details?.drawingNo].filter(Boolean).join(" / "))}</td><td>${escape(line.draft || line.request || "")}</td><td>${escape([item.details?.brand, item.details?.texture].filter(Boolean).join(" / "))}</td><td>${escape(line.qty)}</td><td>${escape(item.unit)}</td><td>${line.unitPrice == null ? "未填写" : line.unitPrice.toFixed(2)}</td><td>${amount == null ? "未填写" : amount.toFixed(2)}</td><td>${escape(line.dueDate || "")}</td><td>${escape(line.remark || "")}</td></tr>`;
     })
     .join("");
   return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>采购合同-${escape(order.id)}</title>
@@ -76,6 +77,6 @@ tr { break-inside: avoid; }
 ${order.legacyAmount == null ? "" : `<p class="note">旧版单头历史金额：¥ ${order.legacyAmount.toFixed(2)}；未分摊到物料，不计入当前明细合计。</p>`}
 <section class="terms">${terms.map((term) => `<p>${escape(term)}</p>`).join("")}</section>
 <section class="sign"><div>甲方签字（盖章）：</div><div>乙方签字（盖章）：</div><div>制单：${escape(order.buyer)}　审核：</div><div>签字：</div><div>签字日期：</div><div>签字日期：</div></section>
-<p class="note">当前为演示采购合同，行金额采用采购明细录入金额，合计由明细计算；单价、交期、联系方式及品牌材质未配置。合同条款请在签署前核对。</p>
+<p class="note">当前为演示采购合同，价税合计按采购数量与含税单价计算，交期及备注取各物料行；历史无单价行保留原金额，缺失资料留空。合同条款请在签署前核对。</p>
 </main></body></html>`;
 }

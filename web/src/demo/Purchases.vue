@@ -3,10 +3,12 @@ import DataLink from "./DataLink.vue";
 import ElDialog from "./CachedDialog.vue";
 import ElDrawer from "./CachedDrawer.vue";
 import { computed, defineAsyncComponent, ref, watch } from "vue";
-import { ElMessageBox } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { state, material, commit } from "./store";
 import {
   purchaseAmount,
+  purchaseLineAmount,
+  purchaseDifferences,
   auditPurchase,
   unauditPurchase,
   mergePurchases,
@@ -23,6 +25,7 @@ const keyword = ref(""),
   receiptStatus = ref(""),
   page = ref(1),
   pageSize = ref(50);
+const auditing = ref(false);
 const editing = ref(false),
   editId = ref(""),
   detail = ref(""),
@@ -63,9 +66,41 @@ function source(line: PurchaseLine) {
     emit("navigate", "requests");
   }
 }
-function receive(order: Purchase) {
-  sessionStorage.setItem("wsn-selected-purchase", order.id);
-  emit("navigate", "receipts");
+async function audit(order: Purchase) {
+  if (auditing.value) return;
+  auditing.value = true;
+  try {
+    const differences = purchaseDifferences(state.value, order.id);
+    const snapshot = JSON.stringify({ order, differences });
+    if (differences.length) {
+      const message = differences
+        .map(
+          (line) =>
+            `${material(line.material)?.name || line.material}（${line.material}），来源 ${line.source}：要求 ${line.required}，本次采购 ${line.qty}`
+        )
+        .join("\n");
+      try {
+        await ElMessageBox.confirm(
+          `以下物料采购数量与来源要求不一致：\n${message}\n确认后仍可审核，不改变来源要求数量。`,
+          "采购数量差异确认",
+          { type: "warning", confirmButtonText: "确认差异并审核", cancelButtonText: "返回检查" }
+        );
+      } catch {
+        return;
+      }
+    }
+    commit((s) => {
+      const current = s.purchases.find((item) => item.id === order.id);
+      const currentDifferences = purchaseDifferences(s, order.id);
+      if (JSON.stringify({ order: current, differences: currentDifferences }) !== snapshot)
+        throw new Error("采购单或来源数量已变化，请重新核对并审核");
+      auditPurchase(s, order.id, differences.length > 0);
+    }, "采购单已审核");
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : "无法核对采购来源，请检查后重试");
+  } finally {
+    auditing.value = false;
+  }
 }
 async function merge() {
   try {
@@ -90,17 +125,16 @@ function actions(row: Purchase) {
     ...(row.status === "未审核"
       ? [
           { label: "编辑 / 添加", action: () => edit(row) },
-          { label: "审核", action: () => commit((s) => auditPurchase(s, row.id), "采购单已审核") },
+          { label: "审核", disabled: auditing.value, action: () => audit(row) },
         ]
       : [
           {
             label: "反审核",
-            disabled: row.lines.some((l) => l.received > 0),
+            disabled: state.value.receipts.some(
+              (receipt) => receipt.purchase === row.id && receipt.auditStatus === "已审核"
+            ),
             action: () => commit((s) => unauditPurchase(s, row.id), "采购单已反审核"),
           },
-          ...(row.receiptStatus !== "全部收货"
-            ? [{ label: "办理收货", action: () => receive(row) }]
-            : []),
         ]),
     { label: "打印预览", action: () => (printOrder.value = row) },
   ];
@@ -142,7 +176,7 @@ function actions(row: Purchase) {
       ><el-button type="primary" @click="edit()">新增采购单</el-button
       ><el-button :disabled="selectedIds.length < 2" @click="merge"
         >合并所选（{{ selectedIds.length }}）</el-button
-      ><el-button @click="emit('navigate', 'receipts')">收货管理</el-button></template
+      ></template
     >
     <el-table
       :data="paged"
@@ -228,43 +262,69 @@ function actions(row: Purchase) {
         旧版单头历史金额：{{ selected.legacyAmount.toFixed(2) }}
         元；未分摊到物料，不计入当前明细合计。
       </p>
-      <el-table :data="selected.lines"
-        ><el-table-column label="物料" min-width="180"
+      <el-table :data="selected.lines" max-height="460">
+        <el-table-column prop="material" label="品号" min-width="150" />
+        <el-table-column label="品名" min-width="170"
           ><template #default="{ row }"
-            >{{ material(row.material)?.name }}
+            ><DataLink
+              :href="`#materials/${row.material}`"
+              @click="emit('navigate', `materials/${row.material}`)"
+              >{{ material(row.material)?.name || row.material }}</DataLink
+            ></template
+          ></el-table-column
+        >
+        <el-table-column label="规格 / 图号" min-width="200"
+          ><template #default="{ row }"
+            >{{ material(row.material)?.spec || "—" }}
             <div class="cell-sub">
-              {{ row.material }} · {{ material(row.material)?.spec }}
+              {{ material(row.material)?.details?.drawingNo || "—" }}
             </div></template
           ></el-table-column
-        ><el-table-column prop="qty" label="采购量" width="85" /><el-table-column
-          prop="received"
-          label="已收量"
-          width="85"
-        /><el-table-column label="剩余量" width="85"
-          ><template #default="{ row }">{{ row.qty - row.received }}</template></el-table-column
-        ><el-table-column label="行金额（元）" width="130" align="right"
-          ><template #default="{ row }">{{
-            row.amount == null ? "未填写" : row.amount.toFixed(2)
-          }}</template></el-table-column
-        ><el-table-column label="来源单据" min-width="210"
+        >
+        <el-table-column label="来源单号" min-width="210"
           ><template #default="{ row }"
             ><DataLink v-if="row.draft || row.request" @click="source(row)">{{
               row.draft || row.request
-            }}</DataLink><span v-else>手工录入</span>
-            <div v-if="row.draft" class="cell-sub">
-              计划：{{ state.drafts.find((d) => d.id === row.draft)?.plan }}
+            }}</DataLink
+            ><span v-else>手工录入</span>
+            <div v-if="row.draftLine || row.requestLine" class="cell-sub">
+              来源行：{{ row.draftLine || row.requestLine }}
             </div></template
           ></el-table-column
-        ></el-table
-      >
+        >
+        <el-table-column label="品牌 / 材质" min-width="150"
+          ><template #default="{ row }"
+            >{{ material(row.material)?.details?.brand || "—" }} /
+            {{ material(row.material)?.details?.texture || "—" }}</template
+          ></el-table-column
+        >
+        <el-table-column prop="qty" label="数量" width="90" align="right" />
+        <el-table-column label="单位" width="80"
+          ><template #default="{ row }">{{
+            material(row.material)?.unit || "—"
+          }}</template></el-table-column
+        >
+        <el-table-column label="含税单价（元）" width="140" align="right"
+          ><template #default="{ row }">{{
+            row.unitPrice == null ? "未填写" : row.unitPrice.toFixed(2)
+          }}</template></el-table-column
+        >
+        <el-table-column label="价税合计（元）" width="150" align="right"
+          ><template #default="{ row }">{{
+            purchaseLineAmount(row) == null ? "未填写" : purchaseLineAmount(row)!.toFixed(2)
+          }}</template></el-table-column
+        >
+        <el-table-column prop="dueDate" label="交期" width="125"
+          ><template #default="{ row }">{{ row.dueDate || "—" }}</template></el-table-column
+        >
+        <el-table-column prop="remark" label="备注" min-width="180"
+          ><template #default="{ row }">{{ row.remark || "—" }}</template></el-table-column
+        >
+        <el-table-column prop="received" label="已收数量" width="100" align="right" />
+      </el-table>
       <div class="analysis-action-buttons">
         <el-button v-if="selected.status === '未审核'" @click="edit(selected)"
           >编辑 / 添加物料</el-button
-        ><el-button
-          v-if="selected.status === '已审核' && selected.receiptStatus !== '全部收货'"
-          type="primary"
-          @click="receive(selected)"
-          >办理收货</el-button
         ><el-button @click="printOrder = selected">打印预览</el-button>
       </div></template
     > </el-drawer

@@ -79,7 +79,7 @@ const sections = computed(() => [
         label: "收货单",
         value: state.value.receipts.length,
         unit: "笔",
-        note: "确认即入库，支持分次收货",
+        note: "先建待收货单，确认实收后入库",
         route: "receipts",
       },
       {
@@ -182,17 +182,17 @@ const sections = computed(() => [
         route: "drafts",
       },
       {
-        label: "待采购核对",
-        value: state.value.drafts.filter((d) => d.status === "待采购").length,
+        label: "未审核底稿",
+        value: state.value.drafts.filter((d) => d.auditStatus !== "已审核").length,
         unit: "份",
         note: "与仓库手工请购单独立管理",
         route: "drafts",
       },
       {
-        label: "已转采购",
-        value: state.value.drafts.filter((d) => d.status === "已转采购").length,
+        label: "已审核底稿",
+        value: state.value.drafts.filter((d) => d.auditStatus === "已审核").length,
         unit: "份",
-        note: "可追溯对应采购订单",
+        note: "可从采购单逐行取料，允许重复取用",
         route: "orders",
       },
     ],
@@ -341,7 +341,7 @@ const flow = [
           <div>
             <span>采购底稿</span
             ><strong data-test="selected-draft-count">{{ selectedDrafts.length }}</strong
-            ><small>待采购 {{ selectedDrafts.filter((d) => d.status === "待采购").length }}</small>
+            ><small>未审核 {{ selectedDrafts.filter((d) => d.auditStatus !== "已审核").length }}</small>
           </div>
           <div>
             <span>关联采购单</span
@@ -462,6 +462,7 @@ const flow = [
 }
 .order-overview strong {
   font-size: 28px;
+  font-variant-numeric: tabular-nums;
   color: var(--el-text-color-primary);
 }
 .order-overview small,
@@ -531,6 +532,7 @@ const flow = [
 }
 .order-related strong {
   font-size: 20px;
+  font-variant-numeric: tabular-nums;
 }
 .order-related small {
   display: block;
@@ -567,15 +569,37 @@ const flow = [
   .order-overview > div {
     padding: 14px;
   }
+  /* 两列统计区按行分隔，避免只保留原四列的竖线。 */
+  .order-overview > div:nth-child(2n) {
+    border-right: 0;
+  }
+  .order-overview > div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+  .order-identity {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .order-identity > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
   .order-stages {
     font-size: 12px;
     flex-wrap: wrap;
   }
   .order-switch {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .order-switch .el-select {
-    min-width: 160px;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+  }
+  .order-switch .el-button {
+    width: 100%;
   }
 }
 </style>

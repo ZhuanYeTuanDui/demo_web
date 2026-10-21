@@ -274,7 +274,7 @@ async function resetAll() {
           ><span class="breadcrumb"
             >工作空间 <el-icon><ArrowRight /></el-icon> {{ activeGroup.label }}
             <el-icon><ArrowRight /></el-icon> <strong>{{ title }}</strong></span
-          >
+          ><span class="mobile-page-title" :title="title">{{ title }}</span>
         </div>
         <div class="topbar-right">
           <el-tag effect="plain" type="success">本地演示</el-tag

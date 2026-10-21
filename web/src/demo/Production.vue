@@ -5,6 +5,7 @@ import ElDrawer from "./CachedDrawer.vue";
 import FaManagementList from "./FaManagementList.vue";
 import FaTableActions from "./FaTableActions.vue";
 import DemandAnalysis from "./DemandAnalysis.vue";
+import PlanMaterialsTable from "./PlanMaterialsTable.vue";
 import { computed, defineAsyncComponent, reactive, ref, watch } from "vue";
 import { Plus, Search, Upload } from "@element-plus/icons-vue";
 import { ElMessageBox } from "element-plus";
@@ -15,7 +16,9 @@ import {
   today,
   id,
   finishPlan,
-  planBom,
+  updatePlan,
+  auditPlan,
+  unauditPlan,
   requirements,
   type Plan,
 } from "./model";
@@ -26,6 +29,9 @@ const keyword = ref("");
 const page = ref(1);
 const pageSize = ref(50);
 const status = ref("");
+const auditTab = ref("未审核");
+const editingId = ref("");
+const editingPlan = computed(() => state.value.plans.find(plan => plan.id === editingId.value));
 const dialog = ref(false);
 const detail = ref("");
 const analysisPlanId = ref("");
@@ -36,17 +42,24 @@ const saving = ref(false);
 usePageActivation(() => {
   const analysisId = sessionStorage.getItem("wsn-production-plan-analysis");
   if (analysisId) {
-    analysisPlanId.value = analysisId;
+    const found = state.value.plans.find(plan => plan.id === analysisId);
+    if (found?.auditStatus === "已审核" || (found && !found.auditStatus)) {
+      auditTab.value = "已审核";
+      analysisPlanId.value = analysisId;
+    }
     sessionStorage.removeItem("wsn-production-plan-analysis");
   }
   const planId = sessionStorage.getItem("wsn-production-plan-detail");
   if (planId) {
     detail.value = planId;
+    const found = state.value.plans.find(plan => plan.id === planId);
+    if (found) auditTab.value = found.auditStatus || "已审核";
     sessionStorage.removeItem("wsn-production-plan-detail");
   }
   const workOrderId = sessionStorage.getItem("wsn-selected-work-order");
   if (workOrderId) {
     form.workOrder = workOrderId;
+    editingId.value = "";
     dialog.value = true;
     sessionStorage.removeItem("wsn-selected-work-order");
   }
@@ -55,13 +68,14 @@ const plans = computed(() =>
   state.value.plans.filter(
     (p) =>
       `${p.id}${p.name}${material(p.product).name}`.includes(keyword.value) &&
-      (!status.value || p.status === status.value)
+      (!status.value || p.status === status.value) &&
+      (p.auditStatus || "已审核") === auditTab.value
   )
 );
 const pagedPlans = computed(() =>
   plans.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
 );
-watch([keyword, status, pageSize], () => {
+watch([keyword, status, pageSize, auditTab], () => {
   page.value = 1;
 });
 const selected = computed(() => state.value.plans.find((p) => p.id === detail.value));
@@ -75,25 +89,51 @@ function create() {
       if (!s.workOrders.some(order => order.id === form.workOrder && order.status !== "已发货")) throw new Error("请选择未发货工单");
       if (!form.name.trim() || !form.date) throw new Error("请填写计划名称和计划日期");
       if (
-        !products.some((p) => p.id === form.product) ||
+        (!editingPlan.value?.importSource && !products.some((p) => p.id === form.product)) ||
         !Number.isSafeInteger(form.qty) ||
         form.qty <= 0 ||
         form.qty > 100000
       )
         throw new Error("请选择产品并填写有效整数数量");
-      const plan: Plan = { ...form, name: form.name.trim(), id: id("PP"), status: "待分析" };
-      requirements(plan);
-      s.plans.unshift(plan);
-    }, "生产计划已创建，可到采购管理分析缺料")
+      if (editingId.value) {
+        updatePlan(s, editingId.value, { ...form });
+      } else {
+        const plan: Plan = { ...form, name: form.name.trim(), id: id("PP"), status: "待分析", auditStatus: "未审核" };
+        requirements(plan);
+        s.plans.unshift(plan);
+      }
+    }, editingId.value ? "生产计划已修改" : "生产计划已创建，请审核后分析缺料")
   ) {
     dialog.value = false;
     form.name = "";
   }
   saving.value = false;
 }
-function issue(planId: string) {
-  sessionStorage.setItem("wsn-selected-issue-plan", planId);
-  emit("navigate", "issues");
+function openEditor(plan?: Plan) {
+  editingId.value = plan?.id || "";
+  Object.assign(form, plan ? { name: plan.name, product: plan.product, qty: plan.qty, date: plan.date, workOrder: plan.workOrder || "" } : { name: "", product: "FG001", qty: 5, date: today(), workOrder: "" });
+  formError.value = "";
+  dialog.value = true;
+}
+function audit(planId: string) {
+  commit(s => auditPlan(s, planId), "生产计划已审核");
+}
+function unaudit(planId: string) {
+  commit(s => unauditPlan(s, planId), "生产计划已返审");
+}
+function actions(row: Plan) {
+  const audited = (row.auditStatus || "已审核") === "已审核";
+  return [
+    ...(audited ? [
+      { label: "分析缺料", action: () => analyze(row.id), disabled: row.status === "已完工" },
+      { label: "返审", action: () => unaudit(row.id) },
+      { label: "完工入库", action: () => { finish(row.id); }, disabled: row.status === "已完工" || finishing.value },
+    ] : [
+      { label: "编辑", action: () => openEditor(row) },
+      { label: "审核", action: () => audit(row.id) },
+    ]),
+    { label: "查看详情", action: () => { detail.value = row.id; } },
+  ];
 }
 function viewWorkOrder(orderId: string) {
   sessionStorage.setItem("wsn-work-order-detail", orderId);
@@ -108,7 +148,8 @@ async function finish(planId: string) {
   finishing.value = false;
 }
 function analyze(planId: string) {
-  analysisPlanId.value = planId;
+  const plan = state.value.plans.find(item => item.id === planId);
+  if (plan && (plan.auditStatus || "已审核") === "已审核") analysisPlanId.value = planId;
 }
 function navigateFromAnalysis(page: string) {
   analysisPlanId.value = "";
@@ -118,6 +159,7 @@ function navigateFromAnalysis(page: string) {
 watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, Math.max(1, Math.ceil(total / pageSize.value))); });
 </script>
 <template>
+  <el-tabs v-model="auditTab" aria-label="生产计划审核状态"><el-tab-pane label="未审核" name="未审核" /><el-tab-pane label="已审核" name="已审核" /></el-tabs>
 
 
   <FaManagementList
@@ -149,7 +191,7 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
     <template #toolbar
       ><div class="panel-heading">
         <el-button :icon="Upload" @click="importing = true">导入 Excel</el-button>
-        <el-button type="primary" :icon="Plus" @click="dialog = true">新增生产计划</el-button>
+        <el-button type="primary" :icon="Plus" @click="openEditor()">新增生产计划</el-button>
 
         <h2>
           计划列表 <span class="count-badge">{{ plans.length }}</span>
@@ -183,7 +225,7 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
         ></el-table-column
       ><el-table-column label="操作" width="190" fixed="right"
         ><template #default="{ row }"
-          ><FaTableActions :actions="['待分析', '待备料'].includes(row.status) ? [{ label: '分析缺料', action: () => analyze(row.id) }, { label: '生产领料', action: () => issue(row.id) }, { label: '查看详情', action: () => { detail = row.id; } }] : row.status === '已领料' ? [{ label: '完工入库', action: () => { finish(row.id); }, disabled: finishing }, { label: '查看详情', action: () => { detail = row.id; } }] : [{ label: '查看详情', action: () => { detail = row.id; } }]" /></template
+          ><FaTableActions :actions="actions(row)" /></template
         ></el-table-column
       ></el-table
     >
@@ -201,7 +243,7 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
       生产领料通过领料单办理；完工后成品入库，再由工单办理发货。
     </div>
   </FaManagementList>
-  <el-dialog v-model="dialog" title="新增生产计划" width="520px"
+  <el-dialog v-model="dialog" :title="editingId ? '编辑生产计划' : '新增生产计划'" width="520px"
     ><el-form label-position="top" @submit.prevent="create"
       ><el-form-item label="关联工单" required :error="!form.workOrder ? formError : ''"><el-select v-model="form.workOrder" filterable placeholder="请先选择工单"><el-option v-for="order in workOrders" :key="order.id" :label="`${order.name}（${order.id}）`" :value="order.id" /></el-select></el-form-item><el-form-item label="计划名称" required :error="!form.name.trim() ? formError : ''"
         ><el-input
@@ -209,8 +251,8 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
           placeholder="例如：十月包装机交付计划"
           maxlength="60" /></el-form-item
       ><el-form-item label="计划产品（预设 BOM）" required
-        ><el-select v-model="form.product"
-          ><el-option v-for="p in products" :key="p.id" :label="p.name" :value="p.id" /></el-select
+        ><el-select v-model="form.product" :disabled="!!editingPlan?.importSource"
+          ><el-option v-if="editingPlan?.importSource" :label="material(form.product)?.name || form.product" :value="form.product" /><el-option v-for="p in products" :key="p.id" :label="p.name" :value="p.id" /></el-select
       ></el-form-item>
       <div class="form-grid">
         <el-form-item label="计划数量（台）" required
@@ -224,10 +266,10 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
         /></el-form-item></div><el-alert v-if="formError" :title="formError" type="error" :closable="false" /></el-form
     ><template #footer
       ><el-button @click="dialog = false">取消</el-button
-      ><el-button type="primary" :loading="saving" @click="create">创建计划</el-button></template
+      ><el-button type="primary" :loading="saving" @click="create">{{ editingId ? "保存修改" : "创建计划" }}</el-button></template
     ></el-dialog
   >
-  <el-drawer :model-value="!!selected" title="生产计划详情" size="620px" @close="detail = ''"
+  <el-drawer :model-value="!!selected" title="生产计划详情" size="min(960px, 96vw)" @close="detail = ''"
     ><template v-if="selected"
       ><el-descriptions :column="1" border
         ><el-descriptions-item label="计划号">{{ selected.id }}</el-descriptions-item
@@ -237,19 +279,13 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
           material(selected.product).name
         }}</el-descriptions-item
         ><el-descriptions-item label="数量">{{ selected.qty }} 台</el-descriptions-item
-        ><el-descriptions-item label="状态">{{
+        ><el-descriptions-item label="审核状态">{{ selected.auditStatus || "已审核" }}</el-descriptions-item><el-descriptions-item label="业务状态">{{
           selected.status
         }}</el-descriptions-item></el-descriptions
       >
       <p v-if="selected.importSource" class="muted">来源：{{ selected.importSource.file }} / {{ selected.importSource.sheet }}，{{ selected.importSource.rows.length }} 条原始明细</p>
       <h3>{{ selected.importSource?.basis === 'total' ? '本次需求清单' : '单台产品 BOM' }}</h3>
-      <el-table :data="planBom(selected)"
-        ><el-table-column label="物料"
-          ><template #default="{ row }"><DataLink :href="`#materials/${row.material}`" @click="emit('navigate', `materials/${row.material}`)">{{ material(row.material).name }}</DataLink><el-tag v-if="selected.importSource" size="small" :type="selected.importSource.rows.some(r => r.material === row.material && r.created) ? 'success' : 'info'">{{ selected.importSource.rows.some(r => r.material === row.material && r.created) ? '本次新建' : '匹配已有' }}</el-tag></template></el-table-column
-        ><el-table-column label="图号 / 规格" min-width="180"><template #default="{ row }">{{ material(row.material).details?.drawingNo || material(row.material).spec || '—' }}</template></el-table-column
-        ><el-table-column label="单位" width="70"><template #default="{ row }">{{ material(row.material).unit }}</template></el-table-column
-        ><el-table-column prop="qty" :label="selected.importSource?.basis === 'total' ? '需求量' : '单台用量'" width="90"
-      /></el-table>
+      <PlanMaterialsTable :plan="selected" @navigate="emit('navigate', $event)" />
       <h3>工序与排程</h3>
       <el-empty description="暂未配置" :image-size="65" /></template
   ></el-drawer>

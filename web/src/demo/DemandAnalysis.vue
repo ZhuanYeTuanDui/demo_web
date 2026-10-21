@@ -13,6 +13,7 @@ const analysisRows = computed(() =>
 );
 const shortages = computed(() => analysisRows.value.filter((row) => row.shortage > 0));
 function generate() {
+  if (selectedPlan.value?.auditStatus !== "已审核" && selectedPlan.value?.auditStatus) return;
   if (
     commit((draft) => {
       createDraft(draft, props.planId);
@@ -37,7 +38,13 @@ function generate() {
         >{{ selectedPlan.id }} · {{ selectedPlan.qty }} 台 · {{ selectedPlan.status }}</span
       >
     </div>
-    <template v-if="selectedPlan">
+    <el-alert
+      v-if="selectedPlan?.auditStatus === '未审核'"
+      title="生产计划尚未审核，请先审核后分析缺料。"
+      type="warning"
+      :closable="false"
+    />
+    <template v-if="selectedPlan && selectedPlan.auditStatus !== '未审核'">
       <section class="panel">
         <div class="panel-heading">
           <h2>
@@ -96,9 +103,9 @@ function generate() {
         >
         <div class="analysis-actions">
           <span v-if="['已领料', '已完工'].includes(selectedPlan.status)" class="muted"
-            >该计划已领料，不再生成底稿。</span
+            >该计划已执行，不再生成底稿。</span
           ><span v-else class="muted"
-            >一个生产计划一张底稿，缺料物料逐行保存并独立转采购；库存充足的物料不进入底稿。</span
+            >一个生产计划一张底稿，保存缺料物料后先审核，再由采购单选择来源物料；库存充足的物料不进入底稿。</span
           >
           <div class="analysis-action-buttons">
             <el-button

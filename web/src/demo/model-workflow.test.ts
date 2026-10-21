@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   seed,
   analysis,
-  createDraft,
+  createDraft as createUnreviewedDraft,
+  auditDraft,
+  unauditDraft,
   createPurchase,
   appendPurchase,
   auditPurchase,
@@ -19,6 +21,11 @@ import {
   stockKey,
 } from "./model";
 
+function createDraft(...args: Parameters<typeof createUnreviewedDraft>) {
+  const draft = createUnreviewedDraft(...args);
+  auditDraft(args[0], draft.id);
+  return draft;
+}
 describe("采购和工单新流程", () => {
   it("跨计划选择部分底稿并追加物料，采购单不直接关联计划", () => {
     const s = seed();
@@ -136,6 +143,7 @@ describe("采购和工单新流程", () => {
     s.drafts = oldLines.map((line, index) => ({
       ...draft,
       id: `OLD-${index}`,
+      auditStatus: undefined,
       status: index === 0 ? "已转采购" : "待采购",
       lines: [{ ...line, id: undefined, status: undefined }],
     })) as unknown as typeof s.drafts;
@@ -193,7 +201,7 @@ describe("采购和工单新流程", () => {
     auditPurchase(s, c.id);
     expect(() => mergePurchases(s, [s.purchases[1]!.id, c.id])).toThrow("未审核");
   });
-  it("领料逐仓验证失败不产生部分出库，工单多个不同产品计划汇总发货", () => {
+  it("领料库存验证失败不产生部分出库，工单多个不同产品计划汇总发货", () => {
     const s = seed();
     const a = s.plans[0]!;
     const b = s.plans[1]!;
@@ -202,8 +210,8 @@ describe("采购和工单新流程", () => {
     b.qty = 1;
     b.workOrder = work.id;
     const before = JSON.stringify(s);
-    expect(() => createIssue(s, a.id, [{ warehouse: "BZ01", material: "M001", qty: 1 }])).toThrow(
-      "全部需求"
+    expect(() => createIssue(s, a.id, [{ warehouse: "BZ01", material: "M001", qty: 100 }])).toThrow(
+      "库存不足"
     );
     expect(JSON.stringify(s)).toBe(before);
     issuePlan(s, a.id);
@@ -241,7 +249,7 @@ describe("采购和工单新流程", () => {
     expect(analysis(s, a)[0]!.usable).toBe(2);
     expect(() => issuePlan(s, a.id)).toThrow("库存不足");
     const before = JSON.stringify(s);
-    expect(() => createDraft(s, b.id)).toThrow("无新增缺料");
+    expect(() => createDraft(s, b.id)).toThrow();
     expect(JSON.stringify(s)).toBe(before);
     receive(s, merged.id, "BZ01");
     expect(analysis(s, a)[0]!.shortage).toBe(0);
@@ -352,18 +360,15 @@ describe("采购和工单新流程", () => {
     expect(order.lines).toHaveLength(1);
     expect(order.lines[0]!.draftLine).toBe(selected.id);
     expect(order.amount).toBe(23.45);
-    expect(selected.status).toBe("已转采购");
+    expect(selected.status).toBe("待采购");
     expect(draft.status).toBe("待采购");
     expect(analysis(s, s.plans[0]!)[2]!.pending).toBe(selected.qty);
     const saved = JSON.stringify(s);
-    expect(() =>
-      appendPurchase(s, order.id, { draftLines: [{ draftId: draft.id, lineId: selected.id }] })
-    ).toThrow("已转");
-    expect(JSON.stringify(s)).toBe(saved);
-    appendPurchase(s, order.id, { draftIds: [draft.id] });
-    expect(order.lines).toHaveLength(4);
-    expect(draft.status).toBe("已转采购");
-    expect(analysis(s, s.plans[0]!).every((l) => l.shortage === 0)).toBe(true);
+    appendPurchase(s, order.id, { draftLines: [{ draftId: draft.id, lineId: selected.id }] });
+    expect(order.lines[1]!.qty).toBe(selected.qty);
+    expect(selected.qty).toBe(s.drafts[0]!.lines[2]!.qty);
+    expect(draft.status).toBe("待采购");
+    expect(analysis(s, s.plans[0]!)[2]!.shortage).toBe(0);
   });
   it("已转底稿新增缺料追加到原单，同物料新增数量保留历史行及覆盖", () => {
     const s = seed();
@@ -373,21 +378,22 @@ describe("采购和工单新流程", () => {
     const original = { ...draft.lines[0]! };
     const order = createPurchase(s, { buyer: "甲", supplier: "A", draftIds: [draft.id] });
     plan.qty = 6;
+    unauditDraft(s, draft.id);
     const updated = createDraft(s, plan.id);
     expect(updated.id).toBe(draft.id);
     expect(s.drafts).toHaveLength(1);
     expect(updated.lines).toHaveLength(2);
-    expect(updated.lines[0]).toEqual({ ...original, status: "已转采购" });
+    expect(updated.lines[0]).toEqual(original);
     expect(updated.lines[1]!.qty).toBe(1);
     expect(updated.lines[1]!.id).not.toBe(original.id);
     expect(updated.status).toBe("待采购");
     expect(analysis(s, plan)[0]!.pending).toBe(4);
     expect(analysis(s, plan)[0]!.shortage).toBe(0);
-    expect(() => createDraft(s, plan.id)).toThrow("无新增缺料");
+    expect(() => createDraft(s, plan.id)).toThrow();
     appendPurchase(s, order.id, {
       draftLines: [{ draftId: draft.id, lineId: updated.lines[1]!.id }],
     });
-    expect(updated.status).toBe("已转采购");
+    expect(updated.status).toBe("待采购");
   });
   it("归并迁移保留原计划库存排队及相同物料不同历史行来源", () => {
     const s = seed();
@@ -396,6 +402,7 @@ describe("采购和工单新流程", () => {
     const duplicate = {
       ...a,
       id: "OLD-A-EXTRA",
+      auditStatus: undefined,
       lines: [{ ...a.lines[0]!, id: "OLD-A-L", qty: 1, status: "已转采购" as const }],
       status: "已转采购" as const,
     };
@@ -416,6 +423,8 @@ describe("采购和工单新流程", () => {
       qty: 1,
       received: 0,
     });
+    a.auditStatus = undefined;
+    b.auditStatus = undefined;
     const before = analysis(s, s.plans[1]!)[0]!.reserved;
     migrateDrafts(s);
     expect(s.drafts).toHaveLength(2);

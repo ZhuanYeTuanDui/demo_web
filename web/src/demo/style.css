@@ -4,7 +4,7 @@
   background: var(--page-background);
   font-synthesis: none;
   --brand: #3167e3;
-  --muted: #69788e;
+  --muted: #596a80;
   --line: #e8ecf2;
   --surface: #fff;
   --page-background: #f5f7fa;
@@ -20,6 +20,8 @@
   --el-border-radius-base: 6px;
   --el-font-size-base: 14px;
   --el-text-color-primary: #253449;
+  --el-text-color-regular: #44536a;
+  --el-text-color-secondary: var(--muted);
 }
 * {
   box-sizing: border-box;
@@ -27,6 +29,7 @@
 body {
   margin: 0;
   font-size: 14px;
+  line-height: 1.5;
 }
 a {
   color: inherit;
@@ -177,7 +180,11 @@ button:focus-visible {
   padding: 10px;
 }
 .collapsed .nav-item {
-  padding: 12px 14px;
+  justify-content: center;
+  padding: 12px 0;
+}
+.collapsed .sidebar nav {
+  padding: 0 7px;
 }
 .collapsed .nav-item.active::after {
   display: none;
@@ -586,7 +593,7 @@ h3 {
 }
 .form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 .el-form .el-select,
@@ -844,6 +851,7 @@ html {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  min-width: 0;
 }
 .management-filters .el-form-item__label {
   justify-content: flex-start;
@@ -897,6 +905,16 @@ html {
 }
 .management-display .el-button {
   color: var(--muted);
+}
+.management-business .panel-heading > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.management-business .panel-heading > div > .el-button + .el-button {
+  margin-left: 0;
 }
 .management-content {
   min-width: 0;
@@ -1016,6 +1034,9 @@ html {
 .breadcrumb {
   white-space: nowrap;
 }
+.mobile-page-title {
+  display: none;
+}
 @media (max-width: 1100px) {
   .topbar-right > span:last-child {
     display: none;
@@ -1024,6 +1045,18 @@ html {
 @media (max-width: 960px) {
   .breadcrumb {
     display: none;
+  }
+  .mobile-page-title {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .topbar-right {
+    flex-shrink: 0;
   }
 }
 
@@ -1104,6 +1137,22 @@ button.nav-heading:hover {
   margin-bottom: 16px;
 }
 @media (max-width: 760px) {
+  .sidebar .nav-item {
+    justify-content: center;
+    padding: 12px 0;
+  }
+  .analysis-action-buttons {
+    flex-wrap: wrap;
+    flex-shrink: 1;
+    margin-left: 0;
+  }
+  .analysis-selector > div,
+  .form-grid > * {
+    min-width: 0;
+  }
+  .topbar-right .avatar {
+    display: none;
+  }
   .nav-chevron {
     display: none;
   }
@@ -1129,6 +1178,13 @@ button.nav-heading:hover {
 }
 
 /* 路由切换提示不占文档空间，也不打断已有焦点和连续导航。 */
+@media (max-width: 480px) {
+  /* 极窄屏优先保留页面名称和操作，演示环境说明仍可在页尾查看。 */
+  .topbar-right > .el-tag {
+    display: none;
+  }
+}
+
 .route-loading {
   position: fixed;
   inset: 0;

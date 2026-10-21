@@ -8,7 +8,7 @@ import FaManagementList from "./FaManagementList.vue";
 import FaTableActions from "./FaTableActions.vue";
 import { state, material, warehouseName, commit } from "./store";
 import { usePageActivation } from "./page-cache";
-import { createIssue, requirements, stockKey } from "./model";
+import { createIssue, auditIssue, unauditIssue, requirements, stockKey, type Issue } from "./model";
 const emit = defineEmits<{ navigate: [page: string] }>();
 const keyword = ref("");
 const page = ref(1);
@@ -22,9 +22,9 @@ const form = reactive({
   lines: [] as { warehouse: string; material: string; qty: number }[],
 });
 const plans = computed(() =>
-  state.value.plans.filter((plan) => ["待分析", "待备料"].includes(plan.status))
+  state.value.plans.filter((plan) => (plan.auditStatus || "已审核") === "已审核")
 );
-const warehouses = computed(() => state.value.warehouses.filter((w) => w.available && !w.inactive));
+const warehouses = computed(() => state.value.warehouses.filter((w) => !w.inactive));
 const rows = computed(() =>
   state.value.issues.filter((row) =>
     `${row.id}${row.plan}${state.value.plans.find((p) => p.id === row.plan)?.name || ""}`.includes(
@@ -86,7 +86,7 @@ async function create() {
   if (saving.value) return;
   error.value = "";
   if (!form.plan || !form.lines.length) {
-    error.value = "请选择生产计划";
+    error.value = "请选择生产计划并保留至少一条领用物料";
     return;
   }
   if (
@@ -118,6 +118,44 @@ async function create() {
     dialog.value = false;
   saving.value = false;
 }
+async function toggleAudit(row: Issue) {
+  const audited = (row.auditStatus || "已审核") === "已审核";
+  try {
+    await ElMessageBox.confirm(
+      audited
+        ? `返审领料单 ${row.id} 将恢复本单出库库存，是否继续？`
+        : `审核领料单 ${row.id} 将重新校验并扣减库存，是否继续？`,
+      audited ? "返审领料单" : "审核领料单",
+      {
+        type: "warning",
+        confirmButtonText: audited ? "确认返审" : "审核并出库",
+        cancelButtonText: "取消",
+      }
+    );
+  } catch {
+    return;
+  }
+  commit(
+    (s) => (audited ? unauditIssue(s, row.id) : auditIssue(s, row.id)),
+    audited ? "领料单已返审，库存已恢复" : "领料单已审核并出库"
+  );
+}
+function actions(row: Issue) {
+  return [
+    {
+      label: "查看详情",
+      action: () => {
+        detail.value = row.id;
+      },
+    },
+    {
+      label: row.auditStatus === "未审核" ? "审核并出库" : "返审",
+      action: () => {
+        toggleAudit(row);
+      },
+    },
+  ];
+}
 </script>
 <template>
   <FaManagementList
@@ -148,18 +186,14 @@ async function create() {
         width="110"
         ><template #default="{ row }">{{ row.lines.length }}</template></el-table-column
       ><el-table-column label="状态" width="100"
-        ><template #default><el-tag type="success">已出库</el-tag></template></el-table-column
+        ><template #default="{ row }"
+          ><el-tag :type="row.auditStatus === '未审核' ? 'info' : 'success'">{{
+            row.auditStatus === "未审核" ? "未审核" : "已审核 / 已出库"
+          }}</el-tag></template
+        ></el-table-column
       ><el-table-column label="操作" width="130" fixed="right"
         ><template #default="{ row }"
-          ><FaTableActions
-            :actions="[
-              {
-                label: '查看详情',
-                action: () => {
-                  detail = row.id;
-                },
-              },
-            ]" /></template></el-table-column
+          ><FaTableActions :actions="actions(row)" /></template></el-table-column
     ></el-table>
     <div class="pagination">
       <span>共 {{ rows.length }} 条记录</span
@@ -175,7 +209,7 @@ async function create() {
   <el-dialog v-model="dialog" title="新增领料单" width="min(900px, 96vw)">
     <el-form label-position="top" @submit.prevent="create"
       ><el-form-item label="生产计划" required :error="!form.plan ? error : ''"
-        ><el-select v-model="form.plan" filterable placeholder="请选择未领料生产计划"
+        ><el-select v-model="form.plan" filterable placeholder="请选择生产计划"
           ><el-option
             v-for="plan in plans"
             :key="plan.id"
@@ -210,8 +244,18 @@ async function create() {
               controls-position="right"
               :aria-label="`${material(row.material)?.name}领用数量`"
               style="width: 140px" /></template></el-table-column
-      ></el-table>
-      <p class="muted">本轮按整份计划领料；可调整各仓库分配数量，合计必须与 BOM 需求一致。</p>
+        ><el-table-column label="操作" width="90" fixed="right"
+          ><template #default="{ $index }"
+            ><el-button link type="danger" @click="form.lines.splice($index, 1)"
+              >移除</el-button
+            ></template
+          ></el-table-column
+        ></el-table
+      >
+      <p class="muted">
+        可移除本次不领用的物料，同一计划允许多次领料。只按所选仓库实际库存出库，不扣除需求分析占用，不计算
+        BOM 剩余量。
+      </p>
       <el-alert v-if="error" :title="error" type="error" :closable="false" /> </el-form
     ><template #footer
       ><el-button @click="dialog = false">取消</el-button
@@ -230,6 +274,9 @@ async function create() {
         ><el-descriptions-item label="领料单号">{{ selected.id }}</el-descriptions-item
         ><el-descriptions-item label="生产计划">{{
           state.plans.find((p) => p.id === selected!.plan)?.name || selected.plan
+        }}</el-descriptions-item
+        ><el-descriptions-item label="审核状态">{{
+          selected.auditStatus || "已审核"
         }}</el-descriptions-item
         ><el-descriptions-item label="日期">{{
           selected.date

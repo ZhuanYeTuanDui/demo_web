@@ -33,6 +33,32 @@ describe("采购合同打印文档", () => {
     expect(html).toContain("旧版单头历史金额：¥ 88.80");
   });
 
+  it("打印逐行单价、价税合计、交期备注及物料属性，不使用旧行金额覆盖新单价", () => {
+    const state = seed();
+    const order = state.purchases[0]!;
+    const line = order.lines[0]!;
+    Object.assign(line, {
+      qty: 3,
+      unitPrice: 12.34,
+      amount: 999,
+      dueDate: "2026-11-02",
+      remark: "独立包装 <检查>",
+    });
+    state.materials.find((item) => item.id === line.material)!.details = {
+      drawingNo: "DRAW-001",
+      brand: "品牌甲",
+      texture: "不锈钢",
+    };
+    const html = purchasePrintHtml(order, state.materials);
+    expect(html).toContain("<td>12.34</td>");
+    expect(html).toContain("<td>37.02</td>");
+    expect(html).toContain("2026-11-02");
+    expect(html).toContain("独立包装 &lt;检查&gt;");
+    expect(html).toContain("DRAW-001");
+    expect(html).toContain("品牌甲 / 不锈钢");
+    expect(html).not.toContain("999.00");
+  });
+
   it("转义用户数据，物料缺失时明确报错", () => {
     const state = seed();
     const order = state.purchases[0]!;

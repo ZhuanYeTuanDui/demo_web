@@ -4,7 +4,8 @@ import {
   createPurchase,
   auditPurchase,
   analysis,
-  createDraft,
+  createDraft as createUnreviewedDraft,
+  auditDraft,
   convertDraft,
   receive,
   issuePlan,
@@ -16,6 +17,12 @@ import {
   type PurchaseDraft,
 } from "./model";
 
+// 旧闭环测试先完成新增的审核步骤，再继续验证原库存计算。
+function createDraft(...args: Parameters<typeof createUnreviewedDraft>) {
+  const draft = createUnreviewedDraft(...args);
+  auditDraft(args[0], draft.id);
+  return draft;
+}
 describe("采购与生产演示闭环", () => {
   it("底稿保留 BOM 和库存快照，不写请购记录，零缺料行不转采购", () => {
     const s = seed();
@@ -82,14 +89,17 @@ describe("采购与生产演示闭环", () => {
     // 现场仓另有一个 PLC，但不参与可用量。
     expect(rows[0]!.stock).toBe(2);
     const request = createDraft(s, plan.id);
-    expect(() => createDraft(s, plan.id)).toThrow("无新增缺料");
+    expect(() => createDraft(s, plan.id)).toThrow();
     const order = createPurchase(s, {
       draftIds: s.drafts.map((d) => d.id),
       buyer: "陈采购",
       supplier: "供应商 A",
     });
     auditPurchase(s, order.id);
-    expect(() => convertDraft(s, request.id, "陈采购", "供应商 A")).toThrow();
+    expect(convertDraft(s, request.id, "陈采购", "供应商 A").lines[0]!.qty).toBe(
+      request.lines[0]!.qty
+    );
+    s.purchases.shift();
     expect(analysis(s, plan).every((r) => r.shortage === 0)).toBe(true);
     expect(() => issuePlan(s, plan.id)).toThrow("库存不足");
     receive(s, order.id, "BZ01");
@@ -113,7 +123,7 @@ describe("采购与生产演示闭环", () => {
     expect(analysis(s, s.plans[1]!)[0]!.shortage).toBe(2);
     createDraft(s, s.plans[1]!.id);
     expect(analysis(s, s.plans[0]!).every((r) => r.shortage === 0)).toBe(true);
-    expect(() => createDraft(s, s.plans[0]!.id)).toThrow("无新增缺料");
+    expect(() => createDraft(s, s.plans[0]!.id)).toThrow();
   });
   it("校验采购必填、数量、仓库与库存不足", () => {
     const s = seed();

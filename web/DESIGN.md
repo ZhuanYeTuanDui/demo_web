@@ -1,6 +1,13 @@
 # WSN 前端设计约定
 
-从同源 YSZN 后台延续的页面偏好。用于新页面和明确要求调整的页面，不要求批量改造现有页面；用户当次明确需求优先。
+前端风格以 [.agents/ui/](.agents/ui/) 下全部 Markdown 为准，取代此前从同源 YSZN 后台延续的风格偏好。用户当前明确需求优先；既有业务与交互规则继续由 README.md 和 UX-CONTRACT.md 维护。
+
+## 新规范的项目落地
+
+- 面向中文 ERP 操作人员，优先信息可读、对齐准确、间距一致和操作可达；沿用现有 Vue 3、Element Plus 与蓝色主题，避免无业务依据的装饰或依赖替换。
+- 配色、字号与间距从 `src/demo/style.css` 统一维护。辅助文字 `--muted: #596a80` 同时映射 `--el-text-color-secondary`，正文行高 1.5；数字使用等宽数字，长业务名称允许换行。
+- 桌面导航收起后图标居中；960px 以下保留当前页名称，760px 以下列表工具栏换行、表单双列改单列，表格横向滚动留在自身容器内。
+- 检查视觉层级、空白、焦点、控件状态和跨页一致性；截图及交互验证是运行时证据，静态审查不能代替浏览器检查。详细执行要求见 [AGENTS.md](AGENTS.md)。
 
 ## 视觉与布局
 
@@ -28,7 +35,7 @@
 
 ## 公共组件与当前差距
 
-当前演示初始化 Element Plus，标准列表使用 `src/demo/FaManagementList.vue`。该组件沿用来源的筛选与工具栏插槽结构，移除后台状态、权限和请求依赖。FaTableActions、FaFileUpload 的来源参考保留在 [设计参考目录](docs/design-reference/README.md)，尚未接入运行目录。
+当前演示初始化 Element Plus，标准列表使用 `src/demo/FaManagementList.vue`。该组件沿用来源的筛选与工具栏插槽结构，移除后台状态、权限和请求依赖。行操作已使用 `src/demo/FaTableActions.vue`；FaFileUpload 的来源参考保留在 [设计参考目录](docs/design-reference/README.md)，尚未接入运行目录。
 
 新增标准列表时优先评估接入 FaManagementList；行内操作复用 FaTableActions，上传使用统一组件。先核对状态管理、国际化、主题、自动导入和请求契约，再在 src 建立共享实现，避免逐页重复整套结构。树表、主从档案、流程画布可以使用专用结构并说明原因。
 

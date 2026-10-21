@@ -39,6 +39,8 @@ describe("首页工作台与导航", () => {
     createDraft(state.value, secondPlan!.id);
     const firstDraft = state.value.drafts.find((row) => row.plan === firstPlan!.id)!;
     const secondDraft = state.value.drafts.find((row) => row.plan === secondPlan!.id)!;
+    firstDraft.auditStatus = "已审核";
+    secondDraft.auditStatus = "已审核";
     const crossOrder = createPurchase(state.value, {
       buyer: "采购员",
       supplier: "同一供应商",

@@ -8,7 +8,7 @@ import Drafts from "./Drafts.vue";
 import { state } from "./store";
 import PurchaseEditor from "./PurchaseEditor.vue";
 import CachedDrawer from "./CachedDrawer.vue";
-import { seed, createDraft, createPurchase } from "./model";
+import { seed, createDraft, createPurchase, auditDraft } from "./model";
 
 let wrapper: VueWrapper | undefined;
 afterEach(() => {
@@ -25,7 +25,10 @@ const setup = (props: {
   wrapper = mount(DocumentEditor, {
     props,
     attachTo: document.body,
-    global: { plugins: [ElementPlus], stubs: { teleport: true, ElSelect: true, ElOption: true } },
+    global: {
+      plugins: [ElementPlus],
+      stubs: { teleport: true, ElSelect: true, ElOption: true, ElDropdown: true },
+    },
   });
   return wrapper;
 };
@@ -93,7 +96,7 @@ describe("请购及采购选料", () => {
     expect(editor.emitted("save")?.[0]?.[0]).toMatchObject({ lines: lockedLines });
   });
 
-  it("跨计划选择底稿后须再勾选物料，部分转采购不改变未选行", async () => {
+  it("采购单逐行选取跨计划底稿，不改变来源明细", async () => {
     state.value = seed();
     createDraft(state.value, state.value.plans[0]!.id);
     createDraft(state.value, state.value.plans[1]!.id);
@@ -106,22 +109,18 @@ describe("请购及采购选料", () => {
       .filter((l) => !selectedLines.some((chosen) => chosen.id === l.id))
       .map((l) => l.id);
     expect(untouched.length).toBeGreaterThan(0);
-    wrapper = mount(Drafts, {
+    auditDraft(state.value, first.id);
+    auditDraft(state.value, second.id);
+    wrapper = mount(PurchaseEditor, {
+      props: { draftIds: selectedIds },
       attachTo: document.body,
-      global: { plugins: [ElementPlus], stubs: { teleport: true, ElSelect: true, ElOption: true } },
+      global: {
+        plugins: [ElementPlus],
+        stubs: { teleport: true, ElSelect: true, ElOption: true, ElDropdown: true },
+      },
     });
     await flushPromises();
-    for (const id of selectedIds) {
-      const row = wrapper.findAll("tr").find((r) => r.text().includes(id))!;
-      await row.get('input[type="checkbox"]').setValue(true);
-    }
-    await wrapper
-      .findAll("button")
-      .find((b) => b.text().includes("所选底稿转采购"))!
-      .trigger("click");
-    await flushPromises();
-    const editor = wrapper.getComponent(PurchaseEditor);
-    expect(editor.props("draftIds")).toEqual(selectedIds);
+    const editor = wrapper;
     expect(editor.text()).toContain("共 0 条明细");
     for (const draft of [first, second]) {
       await editor
@@ -149,9 +148,10 @@ describe("请购及采购选料", () => {
       )
     ).toBe(false);
   });
-  it("部分已转底稿仍完整显示物料且已转行不可重复选择", async () => {
+  it("已被采购取用的已审核底稿物料仍允许重复选择", async () => {
     state.value = seed();
     const draft = createDraft(state.value, state.value.plans[0]!.id);
+    auditDraft(state.value, draft.id);
     const transferred = draft.lines[0]!;
     createPurchase(state.value, {
       buyer: "采购",
@@ -161,14 +161,17 @@ describe("请购及采购选料", () => {
     wrapper = mount(PurchaseEditor, {
       props: { draftIds: [draft.id] },
       attachTo: document.body,
-      global: { plugins: [ElementPlus], stubs: { teleport: true, ElSelect: true, ElOption: true } },
+      global: {
+        plugins: [ElementPlus],
+        stubs: { teleport: true, ElSelect: true, ElOption: true, ElDropdown: true },
+      },
     });
     await flushPromises();
     expect(
       wrapper
         .get(`[aria-label="选择底稿物料 ${draft.id} ${transferred.id}"] input`)
         .attributes("disabled")
-    ).toBeDefined();
+    ).toBeUndefined();
     expect(
       wrapper
         .get(`[aria-label="选择底稿物料 ${draft.id} ${draft.lines[1]!.id}"] input`)
@@ -181,21 +184,22 @@ describe("请购及采购选料", () => {
     state.value = seed();
     const draft = createDraft(state.value, state.value.plans[0]!.id);
     const sample = draft.lines[0]!;
-    draft.lines = state.value.materials
-      .slice(0, 25)
-      .map((m, i) => ({
-        ...sample,
-        id: `DL-${i}`,
-        material: m.id,
-        sourceLine: `SNAPSHOT-${i + 1}`,
-        reserved: 2,
-        covered: 3,
-      }));
+    draft.lines = state.value.materials.slice(0, 25).map((m, i) => ({
+      ...sample,
+      id: `DL-${i}`,
+      material: m.id,
+      sourceLine: `SNAPSHOT-${i + 1}`,
+      reserved: 2,
+      covered: 3,
+    }));
     const before = JSON.stringify(draft.lines);
     sessionStorage.setItem("wsn-selected-draft", draft.id);
     wrapper = mount(Drafts, {
       attachTo: document.body,
-      global: { plugins: [ElementPlus], stubs: { teleport: true, ElSelect: true, ElOption: true } },
+      global: {
+        plugins: [ElementPlus],
+        stubs: { teleport: true, ElSelect: true, ElOption: true, ElDropdown: true },
+      },
     });
     await flushPromises();
     const drawer = wrapper.getComponent(CachedDrawer);
@@ -208,7 +212,6 @@ describe("请购及采购选料", () => {
       "需购量",
       "预交货日期",
       "来源行",
-      "行状态",
     ])
       expect(drawer.text()).toContain(label);
     expect(drawer.text()).toContain("PLC 控制器");

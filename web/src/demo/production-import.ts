@@ -455,6 +455,7 @@ export function importProductionPlans(
       qty: planQty,
       date,
       status: "待分析",
+      auditStatus: "未审核",
       bom: lines,
       importSource: {
         file: preview.file,

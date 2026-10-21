@@ -1,175 +1,182 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
-import ElementPlus from "element-plus";
+import ElementPlus, { ElMessageBox } from "element-plus";
 import { state } from "./store";
-import { seed, createPurchase, createDraft, auditPurchase, receive } from "./model";
+import { seed, createPurchase, createDraft, auditDraft, purchaseLineAmount } from "./model";
 import PurchaseEditor from "./PurchaseEditor.vue";
 import Purchases from "./Purchases.vue";
-
+import FaTableActions from "./FaTableActions.vue";
+type ConfirmationResult = Awaited<ReturnType<typeof ElMessageBox.confirm>>;
+const confirmation = "confirm" as unknown as ConfirmationResult;
 let wrapper: VueWrapper | undefined;
 afterEach(() => {
   wrapper?.unmount();
   wrapper = undefined;
   document.body.innerHTML = "";
   localStorage.clear();
+  vi.restoreAllMocks();
 });
 const global = {
   plugins: [ElementPlus],
   stubs: { teleport: true, ElSelect: true, ElOption: true, ElDropdown: true },
 };
+const selectRequest = async (index: number) => {
+  await flushPromises();
+  await wrapper!.get(`[aria-label="选择请购物料 PR202610001 ${index}"] input`).setValue(true);
+  await flushPromises();
+};
+const inputNumber = async (label: string, value: string) => {
+  const input = wrapper!.get(`input[aria-label="${label}"]`);
+  await input.setValue(value);
+  await input.trigger("change");
+};
+async function fillHeader() {
+  const inputs = wrapper!.findAll(".purchase-fields input");
+  await inputs[0]!.setValue("采购人");
+  await inputs[1]!.setValue("供应商");
+}
 
-describe("采购页面业务约束", () => {
-  it("新建与重新编辑采购单均保留空金额，不用物料参考价替代", async () => {
+describe("采购来源编辑与审核", () => {
+  it("请购单按行取料，少买多买均允许且来源数量不变，再次取料仍显示完整要求量", async () => {
     state.value = seed();
-    wrapper = mount(PurchaseEditor, { attachTo: document.body, global });
-    const inputs = wrapper.findAll(".purchase-fields input");
-    await inputs[0]!.setValue("采购人");
-    await inputs[1]!.setValue("供应商");
-    // 从待采购请购单取料，金额字段保持未填。
-    state.value.requests[0]!.status = "待采购";
-    await flushPromises();
-    await wrapper.get('[aria-label="选择请购单 PR202610001"] input').setValue(true);
-    await wrapper.get("form").trigger("submit");
-    expect(wrapper.emitted("saved")).toHaveLength(1);
-    const order = state.value.purchases[0]!;
-    expect(order.lines[0]!.amount).toBeNull();
-    expect(order.amount).toBeNull();
-    wrapper.unmount();
-    wrapper = mount(PurchaseEditor, { props: { order }, attachTo: document.body, global });
-    await wrapper.get("form").trigger("submit");
-    expect(wrapper.emitted("saved")).toHaveLength(1);
-    expect(state.value.purchases.find((p) => p.id === order.id)!.amount).toBeNull();
-  });
-
-  it("逐物料行录入金额，保存后编辑保留数值，清空其中一行后合计为空", async () => {
-    state.value = seed();
-    state.value.requests[0]!.status = "待采购";
     state.value.requests[0]!.lines = [
       { material: "M001", qty: 2 },
       { material: "M002", qty: 3 },
     ];
     wrapper = mount(PurchaseEditor, { attachTo: document.body, global });
-    const inputs = wrapper.findAll(".purchase-fields input");
-    await inputs[0]!.setValue("采购人");
-    await inputs[1]!.setValue("供应商");
-    await flushPromises();
-    await wrapper.get('[aria-label="选择请购单 PR202610001"] input').setValue(true);
-    await flushPromises();
-    const setAmount = async (selector: string, value: string) => {
-      const input = wrapper!.get(selector);
-      await input.setValue(value);
-      await input.trigger("change");
-    };
-    await setAmount('input[aria-label="PLC 控制器采购金额 request:PR202610001:0"]', "123.45");
-    await setAmount('input[aria-label="触摸屏采购金额 request:PR202610001:1"]', "54.32");
+    await fillHeader();
+    await selectRequest(0);
+    expect(wrapper.text()).toContain("共 1 条明细");
+    await inputNumber("采购数量 request:PR202610001:0", "5");
+    await inputNumber("含税单价 request:PR202610001:0", "12.34");
+    await wrapper.get('input[aria-label="备注 request:PR202610001:0"]').setValue("单独包装");
     await wrapper.get("form").trigger("submit");
+    expect(wrapper.emitted("saved")).toHaveLength(1);
     const order = state.value.purchases[0]!;
-    expect(order.lines.map((l) => l.amount)).toEqual([123.45, 54.32]);
-    expect(order.amount).toBe(177.77);
+    expect(order.lines).toHaveLength(1);
+    expect(order.lines[0]).toMatchObject({
+      qty: 5,
+      unitPrice: 12.34,
+      remark: "单独包装",
+      request: "PR202610001",
+      requestLine: "0",
+    });
+    expect(purchaseLineAmount(order.lines[0]!)).toBe(61.7);
+    expect(state.value.requests[0]!.lines.map((line) => line.qty)).toEqual([2, 3]);
     wrapper.unmount();
-    wrapper = mount(PurchaseEditor, { props: { order }, attachTo: document.body, global });
-    await flushPromises();
-    const firstAmount = `input[aria-label="PLC 控制器采购金额 ${order.lines[0]!.id}"]`;
-    const secondAmount = `input[aria-label="触摸屏采购金额 ${order.lines[1]!.id}"]`;
-    expect((wrapper.get(firstAmount).element as HTMLInputElement).value).toBe("123.45");
-    expect((wrapper.get(secondAmount).element as HTMLInputElement).value).toBe("54.32");
-    await setAmount(secondAmount, "");
-    await wrapper.get("form").trigger("submit");
-    const edited = state.value.purchases.find((p) => p.id === order.id)!;
-    expect(edited.lines.map((l) => l.amount)).toEqual([123.45, null]);
-    expect(edited.amount).toBeNull();
+    wrapper = mount(PurchaseEditor, { attachTo: document.body, global });
+    await selectRequest(0);
+    expect(
+      (
+        wrapper.get('input[aria-label="采购数量 request:PR202610001:0"]')
+          .element as HTMLInputElement
+      ).value
+    ).toBe("2");
   });
 
-  it("编辑已有未审核采购单可追加底稿部分物料并逐行填金额，保留原采购行", async () => {
+  it("仅已审核底稿可取料，已取过来源可再次选择", async () => {
+    state.value = seed();
+    const draft = createDraft(state.value, state.value.plans[0]!.id);
+    wrapper = mount(PurchaseEditor, { attachTo: document.body, global });
+    expect(
+      wrapper.find(`[aria-label="选择底稿物料 ${draft.id} ${draft.lines[0]!.id}"]`).exists()
+    ).toBe(false);
+    auditDraft(state.value, draft.id);
+    await flushPromises();
+    const line = draft.lines[0]!;
+    createPurchase(state.value, {
+      buyer: "旧采购",
+      supplier: "供应商",
+      draftLines: [{ draftId: draft.id, lineId: line.id }],
+    });
+    await flushPromises();
+    await wrapper.get(`[aria-label="选择底稿物料 ${draft.id} ${line.id}"] input`).setValue(true);
+    expect(wrapper.text()).toContain("共 1 条明细");
+    expect(draft.lines[0]!.qty).toBe(line.qty);
+  });
+
+  it("重新编辑可移除全部旧行再添加新来源，保存原子更新，取消保留已保存数据", async () => {
     state.value = seed();
     const order = createPurchase(state.value, {
       buyer: "采购",
       supplier: "供应商",
       lines: [{ material: "M005", qty: 2 }],
-      lineAmounts: { "manual:0": 20 },
     });
-    const original = { ...order.lines[0]! };
-    const draft = createDraft(state.value, state.value.plans[0]!.id);
-    const sourceIndex = 1;
-    const picked = draft.lines[sourceIndex]!;
+    const before = JSON.stringify(state.value.purchases);
     wrapper = mount(PurchaseEditor, { props: { order }, attachTo: document.body, global });
     await flushPromises();
-    await wrapper.get(`[aria-label="选择底稿物料 ${draft.id} ${picked.id}"] input`).setValue(true);
-    await flushPromises();
-    const amount = wrapper.get(
-      `input[aria-label="${state.value.materials.find((m) => m.id === picked.material)!.name}采购金额 draft:${draft.id}:${sourceIndex}"]`
-    );
-    await amount.setValue("99.12");
-    await amount.trigger("change");
+    await wrapper.get(`button[aria-label="移除采购明细 ${order.lines[0]!.id}"]`).trigger("click");
+    await selectRequest(0);
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "取消")!
+      .trigger("click");
+    expect(JSON.stringify(state.value.purchases)).toBe(before);
     await wrapper.get("form").trigger("submit");
     expect(wrapper.emitted("saved")).toHaveLength(1);
-    const updated = state.value.purchases.find((p) => p.id === order.id)!;
-    expect(updated.lines).toHaveLength(2);
-    expect(updated.lines[0]).toEqual(original);
-    expect(updated.lines[1]).toMatchObject({
-      draft: draft.id,
-      draftLine: picked.id,
-      amount: 99.12,
-    });
-    expect(updated.amount).toBe(119.12);
-    expect(
-      state.value.drafts
-        .find((d) => d.id === draft.id)!
-        .lines.filter((l) => l.id !== picked.id)
-        .every((l) => l.status === "待采购")
-    ).toBe(true);
+    expect(state.value.purchases.find((item) => item.id === order.id)!.lines[0]!.request).toBe(
+      "PR202610001"
+    );
   });
 
-  it("已审核采购单不显示编辑，部分收货后反审核按钮禁用", async () => {
+  it("采购审核数量差异可取消或确认继续，界面不含收货入口", async () => {
     state.value = seed();
     const order = createPurchase(state.value, {
-      buyer: "采购人",
+      buyer: "采购",
       supplier: "供应商",
-      lines: [{ material: "M001", qty: 3 }],
+      requestLines: [{ requestId: "PR202610001", lineIndex: 0 }],
+      lineEdits: { "request:PR202610001:0": { qty: 5 } },
     });
-    auditPurchase(state.value, order.id);
-    receive(state.value, order.id, "BZ01", [{ lineId: order.lines[0]!.id, qty: 1 }]);
+    const confirm = vi
+      .spyOn(ElMessageBox, "confirm")
+      .mockRejectedValueOnce("cancel")
+      .mockResolvedValueOnce(confirmation);
+    wrapper = mount(Purchases, { attachTo: document.body, global });
+    expect(wrapper.text()).not.toContain("收货管理");
+    await flushPromises();
+    const rowActions = wrapper
+      .findAllComponents(FaTableActions)
+      .find((component) => component.props("actions").some((action) => action.label === "审核"))!;
+    await rowActions
+      .props("actions")
+      .find((action) => action.label === "审核")!
+      .action();
+    expect(state.value.purchases.find((item) => item.id === order.id)!.status).toBe("未审核");
+    await rowActions
+      .props("actions")
+      .find((action) => action.label === "审核")!
+      .action();
+    expect(state.value.purchases.find((item) => item.id === order.id)!.status).toBe("已审核");
+    expect(confirm.mock.calls[0]![0]).toContain("来源 PR202610001");
+    expect(confirm.mock.calls[0]![0]).toContain("本次采购 5");
+    expect(wrapper.text()).not.toContain("办理收货");
+  });
+
+  it("确认审核期间数量变化会阻止沿用旧确认", async () => {
+    state.value = seed();
+    const order = createPurchase(state.value, {
+      buyer: "采购",
+      supplier: "供应商",
+      requestLines: [{ requestId: "PR202610001", lineIndex: 0 }],
+      lineEdits: { "request:PR202610001:0": { qty: 5 } },
+    });
+    let resolve!: (value: ConfirmationResult) => void;
+    vi.spyOn(ElMessageBox, "confirm").mockImplementation(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        })
+    );
     wrapper = mount(Purchases, { attachTo: document.body, global });
     await flushPromises();
-    const row = wrapper.findAll("tr").find((r) => r.text().includes(order.id))!;
-    expect(row.text()).not.toContain("编辑 / 添加");
-    expect(row.text()).toContain("部分收货");
-    const unaudit = row.findAll("button").find((b) => b.text() === "反审核")!;
-    expect(unaudit.attributes("disabled")).toBeDefined();
-    await unaudit.trigger("click");
-    expect(state.value.purchases.find((p) => p.id === order.id)!.status).toBe("已审核");
-  });
-  it("底稿子页签切换保留跨底稿选择和金额", async () => {
-    state.value = seed();
-    const first = createDraft(state.value, state.value.plans[0]!.id);
-    const second = createDraft(state.value, state.value.plans[1]!.id);
-    wrapper = mount(PurchaseEditor, {
-      props: { draftIds: [first.id, second.id] },
-      attachTo: document.body,
-      global,
-    });
-    await flushPromises();
-    const switchTo = async (id: string) => {
-      await wrapper!
-        .findAll('[role="tab"]')
-        .find((tab) => tab.text().includes(id))!
-        .trigger("click");
-      await flushPromises();
-    };
-    const selector = (draft: typeof first) =>
-      `[aria-label="选择底稿物料 ${draft.id} ${draft.lines[0]!.id}"] input`;
-    await switchTo(first.id);
-    await wrapper.get(selector(first)).setValue(true);
-    const amount = wrapper.get(`input[aria-label$="draft:${first.id}:0"]`);
-    await amount.setValue("12.34");
-    await amount.trigger("change");
-    await switchTo(second.id);
-    await wrapper.get(selector(second)).setValue(true);
-    await switchTo(first.id);
-    expect((wrapper.get(selector(first)).element as HTMLInputElement).checked).toBe(true);
-    expect(
-      (wrapper.get(`input[aria-label$="draft:${first.id}:0"]`).element as HTMLInputElement).value
-    ).toBe("12.34");
-    expect(wrapper.text()).toContain("共 2 条明细");
+    const actions = wrapper
+      .findAllComponents(FaTableActions)
+      .find((component) => component.props("actions").some((action) => action.label === "审核"))!
+      .props("actions");
+    const pending = actions.find((action) => action.label === "审核")!.action();
+    state.value.requests[0]!.lines[0]!.qty += 1;
+    resolve(confirmation);
+    await pending;
+    expect(state.value.purchases.find((item) => item.id === order.id)!.status).toBe("未审核");
   });
 });

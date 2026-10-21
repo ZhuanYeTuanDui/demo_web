@@ -40,6 +40,7 @@ describe("后台列表布局", () => {
     const plan = state.value.plans[0]!;
     state.value.plans = Array.from({ length: 25 }, (_, index) => ({ ...plan, id: `PP-${index}` }));
     wrapper = mount(Production, { global: { plugins: [ElementPlus] } });
+    await wrapper.findAll('[role="tab"]').find(tab => tab.text() === "已审核")!.trigger("click");
     const pagination = wrapper.getComponent(ElPagination);
     expect(pagination.props("pageSize")).toBe(50);
     pagination.vm.$emit("update:page-size", 10);
