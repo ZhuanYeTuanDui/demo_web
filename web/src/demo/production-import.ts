@@ -1,12 +1,15 @@
 import { read, utils, type WorkBook } from "xlsx";
 import { id, validateLines, type Material, type Plan, type State } from "./model";
 
+export type IdentifierSource = "drawingNo" | "spec" | "merged" | "none";
+
 export interface ImportRow {
   row: number;
   part: string;
   name: string;
   spec: string;
   drawingNo: string;
+  identifierSource: IdentifierSource;
   unit: string;
   qty: number;
   brand: string;
@@ -36,12 +39,13 @@ const sheetCategories: Record<string, string> = { 机加: "JJ", 钣金: "BJ", �
 const text = (v: unknown) => (v == null ? "" : String(v).trim());
 const header = (v: unknown) =>
   text(v)
+    .replace(/[／]/g, "/")
     .replace(/[\s（）()]/g, "")
     .toLowerCase();
 const aliases = {
-  name: ["名称", "品名", "物料名称"],
-  spec: ["型号/规格", "规格/型号", "规格", "型号"],
-  drawingNo: ["图号", "图纸编号"],
+  name: ["名称", "品名", "物料名称", "零件名称", "部品名称", "产品名称"],
+  spec: ["型号/规格", "规格/型号", "型号规格", "规格型号", "规格", "型号"],
+  drawingNo: ["图号", "图纸编号", "零件号"],
   unit: ["单位", "库存单位"],
   qty: ["数量/台", "数量", "单台用量", "用量"],
   brand: ["品牌"],
@@ -51,10 +55,59 @@ const aliases = {
   remark: ["备注"],
   sequence: ["序号"],
 };
+const mergedIdentifierHeaders = ["图号/规格", "规格/图号", "图号规格"];
+
+function indexesOf(headers: string[], values: string[]) {
+  return headers.flatMap((value, index) => (values.includes(value) ? [index] : []));
+}
+
+function resolveIdentifierColumns(headers: string[]) {
+  const drawingNo = indexesOf(headers, aliases.drawingNo);
+  const spec = indexesOf(headers, aliases.spec);
+  const merged = indexesOf(headers, mergedIdentifierHeaders);
+  const errors: string[] = [];
+  if (drawingNo.length > 1) errors.push("“图号”对应多个表头，请保留一列后重新导入。");
+  if (spec.length > 1) errors.push("“规格/型号”对应多个表头，请保留一列后重新导入。");
+  if (merged.length > 1) errors.push("“图号/规格”对应多个表头，请保留一列后重新导入。");
+  return {
+    drawingNo: drawingNo[0] ?? -1,
+    spec: spec[0] ?? -1,
+    merged: merged[0] ?? -1,
+    errors,
+  };
+}
+
+function parseQuantity(raw: unknown) {
+  const value = text(raw);
+  if (value === "") return { qty: 1, note: "" };
+  if (typeof raw === "number") return { qty: raw, note: "" };
+  const changed = value.match(/^(\d+)\s*(?:→|->|~|～)\s*(\d+)$/);
+  if (changed)
+    return { qty: Number(changed[2]), note: `数量“${value}”按变更后 ${changed[2]} 导入` };
+  if (/^\d+$/.test(value)) return { qty: Number(value), note: "" };
+  return { qty: NaN, note: "" };
+}
+
+function parseWeight(raw: unknown) {
+  const value = text(raw);
+  if (value === "") return { weight: null as number | null, note: "" };
+  if (typeof raw === "number") return { weight: raw, note: "" };
+  const multiDot = value.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (multiDot) {
+    const fixed = `${multiDot[1]}.${multiDot[2]}${multiDot[3]}`;
+    return { weight: Number(fixed), note: `重量“${value}”按 ${fixed} 导入` };
+  }
+  return { weight: Number(value), note: "" };
+}
 
 // 图号与加工属性共同识别加工件；采购件要求名称、规格及品牌一致，禁止仅凭同名关联库存。
 export function matchingMaterials(row: ImportRow, materials: Material[]) {
   if (!row.drawingNo && !row.spec) return [];
+  const useDrawing =
+    row.identifierSource === "drawingNo" ||
+    (row.identifierSource === "merged" && ["JJ", "BJ"].includes(row.category)) ||
+    (row.identifierSource === "none" && !!row.drawingNo);
+  const identifier = useDrawing ? row.drawingNo || row.spec : row.spec || row.drawingNo;
   return materials.filter((m) => {
     const d = m.details;
     if (
@@ -63,9 +116,9 @@ export function matchingMaterials(row: ImportRow, materials: Material[]) {
       d.category !== row.category
     )
       return false;
-    if (row.drawingNo)
+    if (useDrawing)
       return (
-        text(d?.drawingNo) === row.drawingNo &&
+        text(d?.drawingNo) === identifier &&
         m.name === row.name &&
         text(d?.texture) === row.texture &&
         text(d?.surfaceTreatment) === row.surfaceTreatment &&
@@ -74,7 +127,7 @@ export function matchingMaterials(row: ImportRow, materials: Material[]) {
       );
     return (
       m.name === row.name &&
-      m.spec === row.spec &&
+      m.spec === identifier &&
       text(d?.brand) === row.brand &&
       (!row.unit || !m.unit || row.unit === m.unit)
     );
@@ -112,10 +165,24 @@ export function parseProductionWorkbook(
     });
     const headerIndex = rows.findIndex((r) => r.some((v) => aliases.name.includes(header(v))));
     if (headerIndex < 0) {
-      preview.errors.push(`${name}：未找到“名称/品名/物料名称”表头。`);
+      preview.errors.push(`${name}：未找到“名称/品名/物料名称/零件名称”表头。`);
       continue;
     }
     const headers = rows[headerIndex]!.map(header);
+    const identifiers = resolveIdentifierColumns(headers);
+    identifiers.errors.forEach((message) => preview.errors.push(`${name}：${message}`));
+    const specIndex = identifiers.spec >= 0 ? identifiers.spec : identifiers.merged;
+    const drawingIndex = identifiers.drawingNo >= 0 ? identifiers.drawingNo : identifiers.merged;
+    const identifierSource: IdentifierSource =
+      identifiers.drawingNo >= 0 && identifiers.spec >= 0
+        ? "drawingNo"
+        : identifiers.drawingNo >= 0
+          ? "drawingNo"
+          : identifiers.spec >= 0
+            ? "spec"
+            : identifiers.merged >= 0
+              ? "merged"
+              : "none";
     const columns = Object.fromEntries(
       Object.entries(aliases).map(([key, values]) => {
         const indices = headers.flatMap((h, i) => (values.includes(h) ? [i] : []));
@@ -173,19 +240,19 @@ export function parseProductionWorkbook(
       const itemName = text(get(r, "name"));
       const rawQty = get(r, "qty");
       const missingQty = text(rawQty) === "";
-      const qty = missingQty
-        ? 1
-        : typeof rawQty === "number"
-          ? rawQty
-          : /^\d+$/.test(text(rawQty))
-            ? Number(rawQty)
-            : NaN;
-      if (!itemName || !Number.isSafeInteger(qty) || qty <= 0 || qty > 100000) {
+      const parsedQty = parseQuantity(rawQty);
+      if (
+        !itemName ||
+        !Number.isSafeInteger(parsedQty.qty) ||
+        parsedQty.qty <= 0 ||
+        parsedQty.qty > 100000
+      ) {
         preview.errors.push(
           `${name} 第 ${i + 1} 行：${!itemName ? "物料名称缺失" : "数量须为 1～100000 的整数"}。`
         );
         continue;
       }
+      if (parsedQty.note) preview.warnings.push(`${name} 第 ${i + 1} 行：${parsedQty.note}。`);
       const numericColumns = [columns.qty, columns.weightKg].filter((c) => c >= 0);
       if (numericColumns.some((c) => ws[utils.encode_cell({ r: i, c })]?.f)) {
         preview.errors.push(
@@ -193,12 +260,16 @@ export function parseProductionWorkbook(
         );
         continue;
       }
-      const rawWeight = get(r, "weightKg");
-      const weight = text(rawWeight) === "" ? null : Number(rawWeight);
-      if (weight !== null && (!Number.isFinite(weight) || weight < 0)) {
+      const parsedWeight = parseWeight(get(r, "weightKg"));
+      if (
+        parsedWeight.weight !== null &&
+        (!Number.isFinite(parsedWeight.weight) || parsedWeight.weight < 0)
+      ) {
         preview.errors.push(`${name} 第 ${i + 1} 行：重量不是有效的非负数。`);
         continue;
       }
+      if (parsedWeight.note)
+        preview.warnings.push(`${name} 第 ${i + 1} 行：${parsedWeight.note}。`);
       const remarkCell =
         columns.remark < 0 ? undefined : ws[utils.encode_cell({ r: i, c: columns.remark })];
       const picture = /DISPIMG/.test(text(remarkCell?.f) + text(get(r, "remark")));
@@ -206,14 +277,15 @@ export function parseProductionWorkbook(
         row: i + 1,
         part,
         name: itemName,
-        spec: text(get(r, "spec")),
-        drawingNo: text(get(r, "drawingNo")),
+        spec: specIndex >= 0 ? text(r[specIndex]) : "",
+        drawingNo: drawingIndex >= 0 ? text(r[drawingIndex]) : "",
+        identifierSource,
         unit: text(get(r, "unit")),
-        qty,
+        qty: parsedQty.qty,
         brand: text(get(r, "brand")),
         texture: text(get(r, "texture")),
         surfaceTreatment: text(get(r, "surfaceTreatment")),
-        weightKg: weight,
+        weightKg: parsedWeight.weight,
         remark: picture ? "源表备注含图片，图片未导入" : text(get(r, "remark")),
         category,
         materialId: "",
@@ -323,15 +395,19 @@ export function importProductionPlans(
       if (!Number.isSafeInteger(rowQty) || rowQty <= 0 || rowQty > 100000 || !row.name.trim())
         throw new Error(`${sheet.sheet} 第 ${row.row} 行：物料名称或数量无效`);
       if (!m) {
+        const mergedAsDrawing =
+          row.identifierSource === "merged" && ["JJ", "BJ"].includes(row.category);
+        const materialDrawingNo =
+          row.identifierSource === "merged" && !mergedAsDrawing ? "" : row.drawingNo;
         m = {
           id: id("IMP"),
           name: row.name,
-          spec: row.spec,
+          spec: mergedAsDrawing ? "" : row.spec,
           unit,
           price: 0,
           details: {
             category: row.category,
-            drawingNo: row.drawingNo,
+            drawingNo: materialDrawingNo,
             brand: row.brand,
             texture: row.texture,
             surfaceTreatment: row.surfaceTreatment,
