@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataLink from "./DataLink.vue";
 import ElDialog from "./CachedDialog.vue";
 import FaManagementList from "./FaManagementList.vue";
 import { computed, reactive, ref, watch } from "vue";
@@ -160,15 +161,15 @@ watch(() => list.value.length, (total) => { currentPage.value = Math.min(current
       <el-table :data="state.warehouses" stripe
         ><el-table-column label="仓库编号" min-width="130"
           ><template #default="{ row }"
-            ><el-button link type="primary" @click="emit('navigate', `warehouses/${row.id}`)">{{
+            ><DataLink :href="`#warehouses/${row.id}`" @click="emit('navigate', `warehouses/${row.id}`)">{{
               row.id
-            }}</el-button></template
+            }}</DataLink></template
           ></el-table-column
         ><el-table-column label="仓库名称" min-width="180"
           ><template #default="{ row }"
-            ><el-button link type="primary" @click="emit('navigate', `warehouses/${row.id}`)">{{
+            ><DataLink :href="`#warehouses/${row.id}`" @click="emit('navigate', `warehouses/${row.id}`)">{{
               row.name
-            }}</el-button></template
+            }}</DataLink></template
           ></el-table-column
         ><el-table-column prop="kind" label="仓库性质" min-width="120" /><el-table-column
           label="纳入可用量计算"
@@ -236,9 +237,9 @@ watch(() => list.value.length, (total) => { currentPage.value = Math.min(current
         ><el-table-column label="商品信息" min-width="230"
           ><template #default="{ row }"
             ><div class="cell-title">
-              <el-button link type="primary" @click="emit('navigate', `materials/${row.id}`)">{{
+              <DataLink :href="`#materials/${row.id}`" @click="emit('navigate', `materials/${row.id}`)">{{
                 row.name
-              }}</el-button>
+              }}</DataLink>
             </div>
             <span class="cell-sub">{{ row.id }} · {{ row.spec }}</span></template
           ></el-table-column

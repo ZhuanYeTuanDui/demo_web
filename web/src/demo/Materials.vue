@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataLink from "./DataLink.vue";
 import FaManagementList from "./FaManagementList.vue";
 import { computed, reactive, ref, watch } from "vue";
 import type { FormInstance, FormRules } from "element-plus";
@@ -177,13 +178,13 @@ watch(() => filtered.value.length, (total) => { page.value = Math.min(page.value
         <el-table :data="paged" stripe empty-text="该分类暂无物料"
           ><el-table-column label="物料信息" min-width="235"
             ><template #default="{ row }"
-              ><el-button link type="primary" @click="emit('navigate', `materials/${row.id}`)">{{
+              ><DataLink :href="`#materials/${row.id}`" @click="emit('navigate', `materials/${row.id}`)">{{
                 row.name
-              }}</el-button>
+              }}</DataLink>
               <div class="cell-sub code">
-                <el-button link type="primary" @click="emit('navigate', `materials/${row.id}`)">{{
+                <DataLink :href="`#materials/${row.id}`" @click="emit('navigate', `materials/${row.id}`)">{{
                   row.id
-                }}</el-button>
+                }}</DataLink>
               </div></template
             ></el-table-column
           ><el-table-column prop="spec" label="规格" min-width="190" /><el-table-column

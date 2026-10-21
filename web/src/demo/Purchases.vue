@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataLink from "./DataLink.vue";
 import ElDialog from "./CachedDialog.vue";
 import ElDrawer from "./CachedDrawer.vue";
 import { computed, defineAsyncComponent, ref, watch } from "vue";
@@ -157,7 +158,7 @@ function actions(row: Purchase) {
         label="采购单号 / 日期"
         min-width="230"
         ><template #default="{ row }"
-          ><el-button link type="primary" @click="detail = row.id">{{ row.id }}</el-button>
+          ><DataLink @click="detail = row.id">{{ row.id }}</DataLink>
           <div class="cell-sub">{{ row.date }}</div></template
         ></el-table-column
       ><el-table-column label="供应商 / 采购人" min-width="200"
@@ -247,10 +248,9 @@ function actions(row: Purchase) {
           }}</template></el-table-column
         ><el-table-column label="来源单据" min-width="210"
           ><template #default="{ row }"
-            ><el-button v-if="row.draft || row.request" link type="primary" @click="source(row)">{{
+            ><DataLink v-if="row.draft || row.request" @click="source(row)">{{
               row.draft || row.request
-            }}</el-button
-            ><span v-else>手工录入</span>
+            }}</DataLink><span v-else>手工录入</span>
             <div v-if="row.draft" class="cell-sub">
               计划：{{ state.drafts.find((d) => d.id === row.draft)?.plan }}
             </div></template

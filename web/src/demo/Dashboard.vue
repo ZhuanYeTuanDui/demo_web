@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataLink from "./DataLink.vue";
 import { computed, ref, watch } from "vue";
 import { ArrowRight, Box, ShoppingCart, Calendar, Collection } from "@element-plus/icons-vue";
 import { state } from "./store";
@@ -304,7 +305,7 @@ const flow = [
       <template v-if="selectedOrder">
         <div class="order-identity">
           <div>
-            <el-button link type="primary" @click="viewOrder">{{ selectedOrder.name }}</el-button>
+            <DataLink @click="viewOrder">{{ selectedOrder.name }}</DataLink>
             <p class="muted">
               {{ selectedOrder.id }} · {{ selectedOrder.customer || "未填写客户" }}
             </p>
@@ -359,9 +360,9 @@ const flow = [
         >
           <el-table-column label="生产计划" min-width="200"
             ><template #default="{ row }"
-              ><el-button link type="primary" @click="viewPlan(row.id)">{{
+              ><DataLink @click="viewPlan(row.id)">{{
                 row.name
-              }}</el-button></template
+              }}</DataLink></template
             ></el-table-column
           >
           <el-table-column prop="qty" label="计划数量（台）" width="135" />

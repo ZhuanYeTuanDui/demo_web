@@ -22,7 +22,7 @@ export const categories = [
   { id: "F", name: "辅材" },
   { id: "D", name: "成品" },
   { id: "C", name: "客户" },
-  { id: "B", name: "半品" },
+  { id: "B", name: "半成品" },
   { id: "M", name: "模具" },
   { id: "YM", name: "模具零配件" },
   { id: "YL", name: "零件" },

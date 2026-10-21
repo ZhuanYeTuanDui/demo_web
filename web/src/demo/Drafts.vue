@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataLink from "./DataLink.vue";
 import ElDialog from "./CachedDialog.vue";
 import ElDrawer from "./CachedDrawer.vue";
 import { computed, ref, watch } from "vue";
@@ -115,15 +116,15 @@ const orders = computed(() =>
         width="48" />
       <el-table-column label="底稿号 / 日期" min-width="230"
         ><template #default="{ row }"
-          ><el-button link type="primary" @click="detail = row.id">{{ row.id }}</el-button>
+          ><DataLink @click="detail = row.id">{{ row.id }}</DataLink>
           <div class="cell-sub">{{ row.date }}</div></template
         ></el-table-column
       >
       <el-table-column label="来源计划" min-width="180"
         ><template #default="{ row }"
-          ><el-button link type="primary" @click="sourcePlan(row.plan)">{{
+          ><DataLink @click="sourcePlan(row.plan)">{{
             row.plan
-          }}</el-button></template
+          }}</DataLink></template
         ></el-table-column
       >
       <el-table-column label="物料条数" width="100" align="right"
@@ -162,9 +163,9 @@ const orders = computed(() =>
       ><el-descriptions :column="1" border
         ><el-descriptions-item label="底稿号">{{ selected.id }}</el-descriptions-item
         ><el-descriptions-item label="来源计划"
-          ><el-button link type="primary" @click="sourcePlan(selected.plan)">{{
+          ><DataLink @click="sourcePlan(selected.plan)">{{
             selected.plan
-          }}</el-button></el-descriptions-item
+          }}</DataLink></el-descriptions-item
         ><el-descriptions-item label="状态">{{ selected.status }}</el-descriptions-item
         ><el-descriptions-item label="备注">{{
           selected.remark
@@ -220,9 +221,8 @@ const orders = computed(() =>
         >选择物料转采购</el-button
       >
       <p v-for="o in orders" :key="o.id">
-        <el-button link type="primary" @click="emit('navigate', 'orders')"
-          >采购单：{{ o.id }}</el-button
-        >
+        <DataLink href="#orders" @click="emit('navigate', 'orders')"
+          >采购单：{{ o.id }}</DataLink>
       </p></template
     >
   </el-drawer>

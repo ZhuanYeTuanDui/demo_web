@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataLink from "./DataLink.vue";
 import { computed, ref, watch } from "vue";
 import FaManagementList from "./FaManagementList.vue";
 import { state, material, warehouseName } from "./store";
@@ -70,9 +71,9 @@ watch(
         label="成品名称"
         min-width="230"
         ><template #default="{ row }"
-          ><el-button link type="primary" @click="emit('navigate', `materials/${row.product}`)">{{
+          ><DataLink :href="`#materials/${row.product}`" @click="emit('navigate', `materials/${row.product}`)">{{
             material(row.product)?.name || row.product
-          }}</el-button></template
+          }}</DataLink></template
         ></el-table-column
       ><el-table-column label="规格" min-width="180"
         ><template #default="{ row }">{{

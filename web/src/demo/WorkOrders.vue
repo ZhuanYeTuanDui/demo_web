@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataLink from "./DataLink.vue";
 import ElDialog from "./CachedDialog.vue";
 import ElDrawer from "./CachedDrawer.vue";
 import { computed, defineAsyncComponent, reactive, ref, watch } from "vue";
@@ -146,7 +147,7 @@ function viewPlan(planId: string) {
     <el-table :data="paged" empty-text="暂无工单，请先创建工单再安排生产计划">
       <el-table-column label="工单" min-width="230"
         ><template #default="{ row }"
-          ><el-button link type="primary" @click="detail = row.id">{{ row.name }}</el-button>
+          ><DataLink @click="detail = row.id">{{ row.name }}</DataLink>
           <div class="cell-sub code">{{ row.id }}</div></template
         ></el-table-column
       >
@@ -286,9 +287,9 @@ function viewPlan(planId: string) {
       <el-table :data="related" empty-text="暂无关联计划"
         ><el-table-column label="计划" min-width="180"
           ><template #default="{ row }"
-            ><el-button link type="primary" @click="viewPlan(row.id)">{{
+            ><DataLink @click="viewPlan(row.id)">{{
               row.name
-            }}</el-button></template
+            }}</DataLink></template
           ></el-table-column
         ><el-table-column label="产品" min-width="180"
           ><template #default="{ row }">{{

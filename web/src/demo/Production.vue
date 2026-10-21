@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataLink from "./DataLink.vue";
 import ElDialog from "./CachedDialog.vue";
 import ElDrawer from "./CachedDrawer.vue";
 import FaManagementList from "./FaManagementList.vue";
@@ -159,7 +160,7 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
     <el-table :data="pagedPlans" stripe empty-text="暂无生产计划"
       ><el-table-column label="生产计划" min-width="255"
         ><template #default="{ row }"
-          ><el-button link type="primary" @click="detail = row.id">{{ row.name }}</el-button>
+          ><DataLink @click="detail = row.id">{{ row.name }}</DataLink>
           <div class="cell-sub code">{{ row.id }}</div></template
         ></el-table-column
       ><el-table-column label="计划产品" min-width="220"
@@ -167,7 +168,7 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
           ><div class="cell-title">{{ material(row.product).name }}</div>
           <span class="cell-sub">{{ material(row.product).spec }}</span></template
         ></el-table-column
-      ><el-table-column label="关联工单" min-width="180"><template #default="{ row }"><el-button v-if="row.workOrder" link type="primary" @click="viewWorkOrder(row.workOrder)">{{ state.workOrders.find(w => w.id === row.workOrder)?.name || row.workOrder }}</el-button><span v-else class="muted">—</span></template></el-table-column><el-table-column prop="qty" label="数量（台）" width="110" align="right" /><el-table-column
+      ><el-table-column label="关联工单" min-width="180"><template #default="{ row }"><DataLink v-if="row.workOrder" @click="viewWorkOrder(row.workOrder)">{{ state.workOrders.find(w => w.id === row.workOrder)?.name || row.workOrder }}</DataLink><span v-else class="muted">—</span></template></el-table-column><el-table-column prop="qty" label="数量（台）" width="110" align="right" /><el-table-column
         prop="date"
         label="计划日期"
         width="125"
@@ -231,7 +232,7 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
       ><el-descriptions :column="1" border
         ><el-descriptions-item label="计划号">{{ selected.id }}</el-descriptions-item
         ><el-descriptions-item label="名称">{{ selected.name }}</el-descriptions-item
-        ><el-descriptions-item label="关联工单"><el-button v-if="selected.workOrder" link type="primary" @click="viewWorkOrder(selected.workOrder)">{{ state.workOrders.find(w => w.id === selected!.workOrder)?.name || selected.workOrder }}</el-button><span v-else>—</span></el-descriptions-item
+        ><el-descriptions-item label="关联工单"><DataLink v-if="selected.workOrder" @click="viewWorkOrder(selected.workOrder)">{{ state.workOrders.find(w => w.id === selected!.workOrder)?.name || selected.workOrder }}</DataLink><span v-else>—</span></el-descriptions-item
         ><el-descriptions-item label="产品">{{
           material(selected.product).name
         }}</el-descriptions-item
@@ -244,7 +245,7 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
       <h3>{{ selected.importSource?.basis === 'total' ? '本次需求清单' : '单台产品 BOM' }}</h3>
       <el-table :data="planBom(selected)"
         ><el-table-column label="物料"
-          ><template #default="{ row }"><el-button link type="primary" @click="emit('navigate', `materials/${row.material}`)">{{ material(row.material).name }}</el-button><el-tag v-if="selected.importSource" size="small" :type="selected.importSource.rows.some(r => r.material === row.material && r.created) ? 'success' : 'info'">{{ selected.importSource.rows.some(r => r.material === row.material && r.created) ? '本次新建' : '匹配已有' }}</el-tag></template></el-table-column
+          ><template #default="{ row }"><DataLink :href="`#materials/${row.material}`" @click="emit('navigate', `materials/${row.material}`)">{{ material(row.material).name }}</DataLink><el-tag v-if="selected.importSource" size="small" :type="selected.importSource.rows.some(r => r.material === row.material && r.created) ? 'success' : 'info'">{{ selected.importSource.rows.some(r => r.material === row.material && r.created) ? '本次新建' : '匹配已有' }}</el-tag></template></el-table-column
         ><el-table-column label="图号 / 规格" min-width="180"><template #default="{ row }">{{ material(row.material).details?.drawingNo || material(row.material).spec || '—' }}</template></el-table-column
         ><el-table-column label="单位" width="70"><template #default="{ row }">{{ material(row.material).unit }}</template></el-table-column
         ><el-table-column prop="qty" :label="selected.importSource?.basis === 'total' ? '需求量' : '单台用量'" width="90"

@@ -1,6 +1,9 @@
 # 依赖和包管理器缓存
 node_modules/
 .pnpm-store/
+exports/
+todo/
+tools/
 
 # 构建产物和测试覆盖率
 dist/

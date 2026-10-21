@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataLink from "./DataLink.vue";
 import ElDialog from "./CachedDialog.vue";
 import ElDrawer from "./CachedDrawer.vue";
 import { computed, ref, watch } from "vue";
@@ -109,7 +110,7 @@ async function save() {
     <el-table :data="paged" stripe empty-text="暂无收货记录"
       ><el-table-column label="收货单号 / 日期" min-width="240"
         ><template #default="{ row }"
-          ><el-button link type="primary" @click="detail = row.id">{{ row.id }}</el-button>
+          ><DataLink @click="detail = row.id">{{ row.id }}</DataLink>
           <div class="cell-sub">{{ row.date }}</div></template
         ></el-table-column
       ><el-table-column prop="purchase" label="来源采购单" min-width="220" /><el-table-column

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataLink from "./DataLink.vue";
 import ElDialog from "./CachedDialog.vue";
 import ElDrawer from "./CachedDrawer.vue";
 import { computed, ref, watch } from "vue";
@@ -114,7 +115,7 @@ function actions(row: Requisition) {
     <el-table :data="paged" stripe empty-text="暂无匹配请购单"
       ><el-table-column label="请购单号 / 日期" min-width="230"
         ><template #default="{ row }"
-          ><el-button link type="primary" @click="detail = row.id">{{ row.id }}</el-button>
+          ><DataLink @click="detail = row.id">{{ row.id }}</DataLink>
           <div class="cell-sub">{{ row.date }}</div></template
         ></el-table-column
       ><el-table-column prop="applicant" label="请购人" min-width="150" /><el-table-column
