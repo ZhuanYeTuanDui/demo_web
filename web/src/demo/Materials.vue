@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import ElDialog from "./CachedDialog.vue";
 import DataLink from "./DataLink.vue";
 import FaManagementList from "./FaManagementList.vue";
-import { computed, reactive, ref, watch } from "vue";
-import type { FormInstance, FormRules } from "element-plus";
+import FaTableActions from "./FaTableActions.vue";
+import { computed, onActivated, reactive, ref, watch } from "vue";
+import { ElMessageBox, type FormInstance, type FormRules } from "element-plus";
+import { materialIsActive, type Material } from "./model";
 import { ArrowLeft, Edit, Check, Search, Box } from "@element-plus/icons-vue";
 import { state, commit, warehouseName } from "./store";
 import {
@@ -12,6 +15,9 @@ import {
   materialCategory,
   categoryName,
   saveMaterial,
+  createMaterial,
+  setMaterialInactive,
+  deleteMaterial,
   type Field,
   type Value,
 } from "./material-profile";
@@ -20,6 +26,18 @@ const props = defineProps<{ materialId?: string }>();
 const emit = defineEmits<{ navigate: [page: string] }>();
 const selected = computed(() => state.value.materials.find((m) => m.id === props.materialId));
 const editing = ref(false);
+const saving = ref(false);
+const createDialog = ref(false);
+const createRef = ref<FormInstance>();
+const newId = ref("");
+const createIdError = ref("");
+const newForm = reactive<Record<string, Value>>({});
+let createSnapshot = "";
+const createRules: FormRules = {
+  name: [{ required: true, whitespace: true, message: "请填写品名", trigger: "blur" }],
+  unit: [{ required: true, whitespace: true, message: "请填写库存单位", trigger: "blur" }],
+  category: [{ required: true, message: "请选择商品分类", trigger: "change" }],
+};
 const tab = ref("basic");
 const formRef = ref<FormInstance>();
 const form = reactive<Record<string, Value>>({});
@@ -69,14 +87,85 @@ function startEditing() {
   tab.value = "basic";
   editing.value = true;
 }
-function cancel() {
+async function cancel() {
+  if (JSON.stringify(form) !== JSON.stringify(snapshot.value)) {
+    try { await ElMessageBox.confirm("放弃尚未保存的物料修改？", "取消编辑", { type: "warning" }); }
+    catch { return; }
+  }
   editing.value = false;
   formRef.value?.clearValidate();
 }
 async function save() {
-  if (!(await formRef.value?.validate().catch(() => false))) return;
+  if (saving.value || !(await formRef.value?.validate().catch(() => false))) return;
+  saving.value = true;
   if (commit((s) => saveMaterial(s, props.materialId!, form), "物料基本信息已保存"))
     editing.value = false;
+  saving.value = false;
+}
+function openCreate() {
+  newId.value = "";
+  createIdError.value = "";
+  Object.assign(newForm, materialDraft({ id: "", name: "", spec: "", unit: "", price: 0 }),
+    { category: category.value || "Y" });
+  createSnapshot = JSON.stringify({ id: newId.value, form: newForm });
+  createDialog.value = true;
+}
+async function closeCreate(done?: () => void) {
+  if (saving.value) return;
+  if (JSON.stringify({ id: newId.value, form: newForm }) !== createSnapshot) {
+    try { await ElMessageBox.confirm("放弃尚未保存的新物料？", "取消新增", { type: "warning" }); }
+    catch { return; }
+  }
+  if (done) done();
+  else createDialog.value = false;
+}
+async function create() {
+  createIdError.value = newId.value.trim() ? "" : "请填写品号";
+  if (createIdError.value) return;
+  if (saving.value || !(await createRef.value?.validate().catch(() => false))) return;
+  saving.value = true;
+  const ok = commit((s) => createMaterial(s, newId.value, newForm), "物料已新增");
+  saving.value = false;
+  if (ok) {
+    createDialog.value = false;
+    keyword.value = newId.value.trim();
+    category.value = "";
+    page.value = 1;
+  }
+}
+function requestEdit(id: string) {
+  sessionStorage.setItem("wsn-edit-material", id);
+  emit("navigate", `materials/${id}`);
+}
+function consumeEditRequest() {
+  if (selected.value && sessionStorage.getItem("wsn-edit-material") === selected.value.id) {
+    sessionStorage.removeItem("wsn-edit-material");
+    startEditing();
+  }
+}
+watch(selected, consumeEditRequest, { immediate: true });
+onActivated(consumeEditRequest);
+async function toggleInactive(item: Material) {
+  const inactive = materialIsActive(item);
+  try {
+    await ElMessageBox.confirm(inactive ? `停用“${item.name}”后不能用于新业务，历史记录仍可查看。` : `恢复使用“${item.name}”？`,
+      inactive ? "停用物料" : "恢复物料", { type: "warning" });
+  } catch { return; }
+  commit((s) => setMaterialInactive(s, item.id, inactive), inactive ? "物料已停用" : "物料已恢复");
+}
+async function removeMaterial(item: Material) {
+  try { await ElMessageBox.confirm(`确认删除“${item.name}”？有库存或被业务引用的物料不能删除。`, "删除物料", { type: "warning" }); }
+  catch { return; }
+  if (commit((s) => deleteMaterial(s, item.id), "物料已删除") && props.materialId)
+    emit("navigate", "materials");
+}
+function actions(item: Material) {
+  return [
+    { label: "查看详情", action: () => emit("navigate", `materials/${item.id}`) },
+    { label: "编辑", action: () => requestEdit(item.id) },
+    { label: materialIsActive(item) ? "停用" : "恢复", action: () => { void toggleInactive(item); } },
+    { label: "删除", danger: true, action: () => { void removeMaterial(item); } },
+  ];
 }
 function setValue(key: string, value: Value | undefined) {
   form[key] = value ?? null;
@@ -168,6 +257,7 @@ watch(() => filtered.value.length, (total) => { page.value = Math.min(page.value
         </template>
         <template #toolbar
           ><div class="panel-heading">
+            <el-button type="primary" @click="openCreate">新增物料</el-button>
             <h2>
               {{ category ? categoryName(category) : "全部物料" }}
               <span class="count-badge">{{ filtered.length }}</span>
@@ -193,16 +283,14 @@ watch(() => filtered.value.length, (total) => { page.value = Math.min(page.value
             ><template #default="{ row }">{{
               categoryName(materialCategory(row))
             }}</template></el-table-column
-          ><el-table-column prop="unit" label="库存单位" width="100" /><el-table-column
-            label="操作"
-            width="110"
-            fixed="right"
-            ><template #default="{ row }"
-              ><el-button link type="primary" @click="emit('navigate', `materials/${row.id}`)"
-                >查看详情</el-button
-              ></template
-            ></el-table-column
-          ></el-table
+          ><el-table-column prop="unit" label="库存单位" width="100" />
+          <el-table-column label="状态" width="90"><template #default="{ row }">
+            <el-tag :type="materialIsActive(row) ? 'success' : 'info'">{{ materialIsActive(row) ? '启用' : '停用' }}</el-tag>
+          </template></el-table-column>
+          <el-table-column label="操作" width="200" fixed="right"><template #default="{ row }">
+            <FaTableActions :actions="actions(row)" />
+          </template></el-table-column>
+          </el-table
         >
         <div class="pagination">
           <span>共 {{ filtered.length }} 条记录</span
@@ -227,8 +315,10 @@ watch(() => filtered.value.length, (total) => { page.value = Math.min(page.value
         <div class="material-actions">
           <template v-if="editing"
             ><el-button @click="cancel">取消编辑</el-button
-            ><el-button type="primary" :icon="Check" @click="save">保存修改</el-button></template
-          ><el-button v-else type="primary" :icon="Edit" @click="startEditing">编辑资料</el-button>
+            ><el-button type="primary" :icon="Check" :loading="saving" @click="save">保存修改</el-button></template
+          ><template v-else><el-button type="primary" :icon="Edit" @click="startEditing">编辑资料</el-button>
+            <el-button @click="toggleInactive(selected)">{{ materialIsActive(selected) ? '停用物料' : '恢复物料' }}</el-button>
+            <el-button type="danger" plain @click="removeMaterial(selected)">删除物料</el-button></template>
         </div>
       </div>
       <section class="panel material-profile">
@@ -243,6 +333,7 @@ watch(() => filtered.value.length, (total) => { page.value = Math.min(page.value
           </p>
         </div>
         <el-tag effect="plain">{{ categoryName(materialCategory(selected)) }}</el-tag>
+        <el-tag :type="materialIsActive(selected) ? 'success' : 'info'">{{ materialIsActive(selected) ? '启用' : '停用' }}</el-tag>
       </section>
       <section class="panel material-tabs">
         <el-tabs v-model="tab"
@@ -261,7 +352,7 @@ watch(() => filtered.value.length, (total) => { page.value = Math.min(page.value
       <template v-if="tab === 'basic'"
         ><el-alert
           v-if="editing"
-          title="品号保持不变；补货、核算和状态属性目前仅作档案维护。"
+          title="品号保持不变；停用后不能用于新业务，历史单据仍可查看。"
           type="info"
           :closable="false"
           class="material-note"
@@ -345,7 +436,7 @@ watch(() => filtered.value.length, (total) => { page.value = Math.min(page.value
           </section>
           <div v-if="editing" class="material-save-bar">
             <el-button @click="cancel">取消编辑</el-button
-            ><el-button type="primary" :icon="Check" native-type="submit">保存修改</el-button>
+            ><el-button type="primary" :icon="Check" :loading="saving" native-type="submit">保存修改</el-button>
           </div></el-form
         ></template
       >
@@ -361,9 +452,32 @@ watch(() => filtered.value.length, (total) => { page.value = Math.min(page.value
       >
     </section>
   </div>
+  <el-dialog v-model="createDialog" title="新增物料" width="min(680px, 94vw)" :close-on-click-modal="false"
+    :before-close="closeCreate">
+    <el-form ref="createRef" :model="newForm" :rules="createRules" label-position="top" @submit.prevent="create">
+      <div class="new-material-grid">
+        <el-form-item label="品号" required :error="createIdError"><el-input v-model="newId" aria-label="新增物料品号" maxlength="80" /></el-form-item>
+        <el-form-item label="品名" prop="name"><el-input :model-value="String(newForm.name || '')" @update:model-value="newForm.name = $event" aria-label="新增物料品名" maxlength="80" /></el-form-item>
+        <el-form-item label="规格"><el-input :model-value="String(newForm.spec || '')" @update:model-value="newForm.spec = $event" aria-label="新增物料规格" maxlength="120" /></el-form-item>
+        <el-form-item label="库存单位" prop="unit"><el-input :model-value="String(newForm.unit || '')" @update:model-value="newForm.unit = $event" aria-label="新增物料单位" maxlength="20" /></el-form-item>
+        <el-form-item label="商品分类" prop="category"><el-select :model-value="String(newForm.category || '')" @update:model-value="newForm.category = $event" aria-label="新增物料分类">
+          <el-option v-for="item in categories" :key="item.id" :value="item.id" :label="item.name" />
+        </el-select></el-form-item>
+        <el-form-item label="图号"><el-input :model-value="String(newForm.drawingNo || '')" @update:model-value="newForm.drawingNo = $event" maxlength="120" /></el-form-item>
+      </div>
+      <p class="muted">更多档案字段可在新增后通过“编辑资料”补充。</p>
+    </el-form>
+    <template #footer><el-button :disabled="saving" @click="closeCreate()">取消</el-button>
+      <el-button type="primary" :loading="saving" @click="create">保存物料</el-button></template>
+  </el-dialog>
 </template>
 
 <style scoped>
+.new-material-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
 .materials-layout {
   display: grid;
   grid-template-columns: 225px minmax(0, 1fr);
@@ -506,6 +620,7 @@ watch(() => filtered.value.length, (total) => { page.value = Math.min(page.value
   }
 }
 @media (max-width: 760px) {
+  .new-material-grid { grid-template-columns: minmax(0, 1fr); }
   .materials-layout {
     grid-template-columns: minmax(0, 1fr);
   }

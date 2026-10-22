@@ -6,6 +6,7 @@ import { Plus } from "@element-plus/icons-vue";
 import { ElMessageBox } from "element-plus";
 import FaManagementList from "./FaManagementList.vue";
 import FaTableActions from "./FaTableActions.vue";
+import DataLink from "./DataLink.vue";
 import { state, material, warehouseName, commit } from "./store";
 import { usePageActivation } from "./page-cache";
 import { createIssue, auditIssue, unauditIssue, requirements, stockKey, type Issue } from "./model";
@@ -17,6 +18,8 @@ const dialog = ref(false);
 const detail = ref("");
 const saving = ref(false);
 const error = ref("");
+const materialKeyword = ref("");
+const detailKeyword = ref("");
 const form = reactive({
   plan: "",
   lines: [] as { warehouse: string; material: string; qty: number }[],
@@ -25,6 +28,17 @@ const plans = computed(() =>
   state.value.plans.filter((plan) => (plan.auditStatus || "已审核") === "已审核")
 );
 const warehouses = computed(() => state.value.warehouses.filter((w) => !w.inactive));
+const stockedWarehouses = (materialId: string) => warehouses.value.filter(warehouse =>
+  (state.value.stocks[stockKey(warehouse.id, materialId)] || 0) > 0
+);
+function matchesMaterial(materialId: string, query: string) {
+  const item = material(materialId);
+  return `${materialId} ${item?.name || ""} ${item?.spec || ""} ${item?.details?.drawingNo || ""}`
+    .toLowerCase().includes(query.trim().toLowerCase());
+}
+// 搜索只影响展示；提交仍包含其他搜索条件下已填写的有库存物料。
+const stockedLines = computed(() => form.lines.filter(line => stockedWarehouses(line.material).length > 0));
+const visibleLines = computed(() => stockedLines.value.filter(line => matchesMaterial(line.material, materialKeyword.value)));
 const rows = computed(() =>
   state.value.issues.filter((row) =>
     `${row.id}${row.plan}${state.value.plans.find((p) => p.id === row.plan)?.name || ""}`.includes(
@@ -36,6 +50,8 @@ const paged = computed(() =>
   rows.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
 );
 const selected = computed(() => state.value.issues.find((row) => row.id === detail.value));
+const detailLines = computed(() => selected.value?.lines.filter(line => matchesMaterial(line.material, detailKeyword.value)) || []);
+watch(detail, () => { detailKeyword.value = ""; });
 watch([keyword, pageSize], () => {
   page.value = 1;
 });
@@ -50,10 +66,12 @@ watch(
   (planId) => {
     const plan = state.value.plans.find((p) => p.id === planId);
     error.value = "";
+    materialKeyword.value = "";
     form.lines = [];
     if (!plan) return;
     // 按实际仓库库存拆分建议领料行，用户仍需确认出库仓库。
     for (const line of requirements(plan)) {
+      if (material(line.material)?.details?.inactive) continue;
       let remaining = line.qty;
       for (const warehouse of warehouses.value) {
         const qty = Math.min(
@@ -63,8 +81,6 @@ watch(
         if (qty > 0) form.lines.push({ ...line, warehouse: warehouse.id, qty });
         remaining -= qty;
       }
-      if (remaining > 0)
-        form.lines.push({ ...line, warehouse: warehouses.value[0]?.id || "", qty: remaining });
     }
   }
 );
@@ -72,6 +88,7 @@ function open() {
   form.plan = "";
   form.lines = [];
   error.value = "";
+  materialKeyword.value = "";
   dialog.value = true;
 }
 usePageActivation(() => {
@@ -85,12 +102,12 @@ usePageActivation(() => {
 async function create() {
   if (saving.value) return;
   error.value = "";
-  if (!form.plan || !form.lines.length) {
+  if (!form.plan || !stockedLines.value.length) {
     error.value = "请选择生产计划并保留至少一条领用物料";
     return;
   }
   if (
-    form.lines.some((line) => !line.warehouse || !Number.isSafeInteger(line.qty) || line.qty <= 0)
+    stockedLines.value.some((line) => !line.warehouse || !Number.isSafeInteger(line.qty) || line.qty <= 0)
   ) {
     error.value = "请为全部物料选择仓库并填写正整数数量";
     return;
@@ -111,7 +128,7 @@ async function create() {
       createIssue(
         s,
         form.plan,
-        form.lines.map((line) => ({ ...line }))
+        stockedLines.value.map((line) => ({ ...line }))
       );
     }, "领料单已创建，库存已扣减并生成出库记录")
   )
@@ -155,6 +172,10 @@ function actions(row: Issue) {
       },
     },
   ];
+}
+function removeLine(line: (typeof form.lines)[number]) {
+  const index = form.lines.indexOf(line);
+  if (index >= 0) form.lines.splice(index, 1);
 }
 </script>
 <template>
@@ -216,17 +237,18 @@ function actions(row: Issue) {
             :label="`${plan.name}（${plan.id}）`"
             :value="plan.id" /></el-select
       ></el-form-item>
-      <el-table :data="form.lines" max-height="420" empty-text="选择计划后带出 BOM 需求"
+      <el-form-item label="搜索物料"><el-input v-model="materialKeyword" clearable placeholder="名称、编码、规格型号" /></el-form-item>
+      <el-table :data="visibleLines" max-height="420" :empty-text="form.plan ? '暂无符合条件的有库存 BOM 物料' : '选择计划后带出有库存的 BOM 物料'"
         ><el-table-column label="物料" min-width="200"
           ><template #default="{ row }"
-            >{{ material(row.material)?.name || row.material }}
-            <div class="cell-sub">{{ row.material }}</div></template
+            ><DataLink :href="`#materials/${row.material}`" @click="emit('navigate', `materials/${row.material}`)">{{ material(row.material)?.name || row.material }}</DataLink>
+            <div class="cell-sub">{{ row.material }} · {{ material(row.material)?.spec || '—' }}</div></template
           ></el-table-column
         ><el-table-column label="出库仓库" min-width="180"
           ><template #default="{ row }"
             ><el-select v-model="row.warehouse" aria-label="出库仓库"
               ><el-option
-                v-for="w in warehouses"
+                v-for="w in stockedWarehouses(row.material)"
                 :key="w.id"
                 :label="w.name"
                 :value="w.id" /></el-select></template></el-table-column
@@ -245,15 +267,15 @@ function actions(row: Issue) {
               :aria-label="`${material(row.material)?.name}领用数量`"
               style="width: 140px" /></template></el-table-column
         ><el-table-column label="操作" width="90" fixed="right"
-          ><template #default="{ $index }"
-            ><el-button link type="danger" @click="form.lines.splice($index, 1)"
+          ><template #default="{ row }"
+            ><el-button link type="danger" @click="removeLine(row)"
               >移除</el-button
             ></template
           ></el-table-column
         ></el-table
       >
       <p class="muted">
-        可移除本次不领用的物料，同一计划允许多次领料。只按所选仓库实际库存出库，不扣除需求分析占用，不计算
+        仅展示有实际库存的 BOM 物料，可移除本次不领用的物料，同一计划允许多次领料。只按所选仓库实际库存出库，不扣除需求分析占用，不计算
         BOM 剩余量。
       </p>
       <el-alert v-if="error" :title="error" type="error" :closable="false" /> </el-form
@@ -283,11 +305,10 @@ function actions(row: Issue) {
         }}</el-descriptions-item></el-descriptions
       >
       <h3>出库物料</h3>
-      <el-table :data="selected.lines"
+      <el-form label-position="top"><el-form-item label="搜索物料"><el-input v-model="detailKeyword" clearable placeholder="名称、编码、规格型号" /></el-form-item></el-form>
+      <el-table :data="detailLines" max-height="420" empty-text="暂无匹配物料"
         ><el-table-column label="物料" min-width="200"
-          ><template #default="{ row }">{{
-            material(row.material)?.name || row.material
-          }}</template></el-table-column
+          ><template #default="{ row }"><DataLink :href="`#materials/${row.material}`" @click="emit('navigate', `materials/${row.material}`)">{{ material(row.material)?.name || row.material }}</DataLink><div class="cell-sub">{{ row.material }} · {{ material(row.material)?.spec || '—' }}</div></template></el-table-column
         ><el-table-column label="仓库" min-width="140"
           ><template #default="{ row }">{{
             warehouseName(row.warehouse)

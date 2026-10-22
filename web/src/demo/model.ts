@@ -158,6 +158,14 @@ export interface Shipment {
   warehouse: string;
   lines: Line[];
 }
+export interface FinishedInbound {
+  id: string;
+  workOrder: string;
+  warehouse: string;
+  date: string;
+  remark: string;
+  lines: Line[];
+}
 export interface State {
   version: 1;
   warehouses: Warehouse[];
@@ -173,6 +181,8 @@ export interface State {
   issues: Issue[];
   workOrders: WorkOrder[];
   shipments: Shipment[];
+  finishedInbounds?: FinishedInbound[];
+  deletedMaterialIds?: string[];
 }
 export const products = [
   {
@@ -263,6 +273,8 @@ export function seed(): State {
     inbounds: [],
     issues: [],
     shipments: [],
+    finishedInbounds: [],
+    deletedMaterialIds: [],
     workOrders: [
       {
         id: "WO202610001",
@@ -337,12 +349,24 @@ function positive(qty: number) {
   if (!Number.isSafeInteger(qty) || qty <= 0 || qty > 100000)
     throw new Error("数量须为 1～100000 的整数");
 }
-export function validateLines(state: State, lines: Line[]) {
+export function materialIsActive(material: Material) {
+  return material.details?.inactive !== true;
+}
+export function finishedProducts(state: State) {
+  return state.materials.filter(
+    (material) =>
+      materialIsActive(material) &&
+      (material.details?.category || (material.id.startsWith("FG") ? "D" : "Y")) === "D"
+  );
+}
+export function validateLines(state: State, lines: Line[], allowInactive = false) {
   if (!lines.length) throw new Error("请至少添加一条商品明细");
   const seen = new Set<string>();
   for (const line of lines) {
     positive(line.qty);
-    if (!state.materials.some((m) => m.id === line.material)) throw new Error("请选择有效商品");
+    const material = state.materials.find((m) => m.id === line.material);
+    if (!material) throw new Error("请选择有效商品");
+    if (!allowInactive && !materialIsActive(material)) throw new Error("停用物料不能用于新业务");
     if (seen.has(line.material)) throw new Error("同一单据的商品不能重复，请合并数量");
     seen.add(line.material);
   }
@@ -549,10 +573,27 @@ export function updatePlan(
   if (plan.status === "已完工") throw new Error("已完工计划不可修改执行资料");
   if (!input.name.trim() || !input.date) throw new Error("请填写计划名称和日期");
   if (!state.materials.some((m) => m.id === input.product)) throw new Error("计划产品不存在");
+  if (
+    input.product !== plan.product &&
+    !materialIsActive(state.materials.find((m) => m.id === input.product)!)
+  )
+    throw new Error("不能选择停用产品");
   if (input.workOrder && !state.workOrders.some((w) => w.id === input.workOrder))
     throw new Error("关联工单不存在");
   const updated = { ...plan, ...input, name: input.name.trim() };
   positive(updated.qty);
+  if (updated.importSource?.basis === "total" && updated.qty !== 1)
+    throw new Error("总需求模式下计划数量须为 1");
+  const lines = planBom(updated);
+  validateLines(state, lines, true);
+  const existing = new Set(planBom(plan).map((line) => line.material));
+  for (const line of lines) {
+    const material = state.materials.find((m) => m.id === line.material)!;
+    if (!existing.has(line.material) && !materialIsActive(material))
+      throw new Error("不能添加停用物料");
+  }
+  // 计划持有独立明细，编辑不得改变共享产品 BOM 或调用方临时表单。
+  updated.bom = lines.map((line) => ({ material: line.material, qty: line.qty }));
   requirements(updated);
   Object.assign(plan, updated);
   return plan;
@@ -671,6 +712,12 @@ export function convertDraft(state: State, draftId: string, buyer: string, suppl
 
 // 将旧 demo 自动生成的计划请购迁为底稿；缺失历史计算快照时明确留空。
 export function migrateDrafts(state: State) {
+  if (state.finishedInbounds !== undefined && !Array.isArray(state.finishedInbounds))
+    throw new Error("成品入库单数据格式错误");
+  if (state.deletedMaterialIds !== undefined && !Array.isArray(state.deletedMaterialIds))
+    throw new Error("物料删除记录格式错误");
+  state.finishedInbounds ??= [];
+  state.deletedMaterialIds ??= [];
   if (state.drafts !== undefined && !Array.isArray(state.drafts))
     throw new Error("采购底稿数据格式错误");
   state.drafts ??= [];
@@ -870,9 +917,10 @@ export function move(
   line: Line,
   type: Movement["type"],
   source: string,
-  reason: string
+  reason: string,
+  allowInactive = false
 ) {
-  validateLines(state, [line]);
+  validateLines(state, [line], allowInactive);
   if (!state.warehouses.some((w) => w.id === warehouse && !w.inactive))
     throw new Error("仓库不存在或已失效，请选择正常使用的仓库");
   const key = stockKey(warehouse, line.material);
@@ -1306,7 +1354,7 @@ export function confirmReceipt(
     const source = order.lines.find((l) => l.id === row.lineId);
     if (!planned || !source || row.qty > planned.qty || row.qty > source.qty - source.received)
       throw new Error("实收数量不能超过本单安排数量及剩余应收量");
-    if (row.qty) validateLines(state, [{ material: planned.material, qty: row.qty }]);
+    if (row.qty) validateLines(state, [{ material: planned.material, qty: row.qty }], true);
     return { lineId: row.lineId, material: planned.material, qty: row.qty };
   });
   if (!lines.some((l) => l.qty > 0)) throw new Error("实收数量至少有一条大于零");
@@ -1325,7 +1373,8 @@ export function confirmReceipt(
       line,
       "入库",
       inbound.id,
-      `采购收货 ${order.id} / ${receipt.id}`
+      `采购收货 ${order.id} / ${receipt.id}`,
+      true
     );
     order.lines.find((l) => l.id === line.lineId)!.received += line.qty;
   }
@@ -1402,6 +1451,9 @@ export function createIssue(state: State, planId: string, input?: IssueLine[]) {
           (w) => !w.inactive && (state.stocks[stockKey(w.id, line.material)] || 0) >= line.qty
         )?.id || "BZ01",
     }));
+  const bomMaterials = new Set(planBom(plan).map((line) => line.material));
+  if (lines.some((line) => !bomMaterials.has(line.material)))
+    throw new Error("只能领用所选计划 BOM 中的物料");
   validateIssueLines(state, lines);
   const issue: Issue = { id: id("IS"), plan: plan.id, date: today(), lines, auditStatus: "已审核" };
   for (const line of lines)
@@ -1457,7 +1509,8 @@ export function createWorkOrder(
 ) {
   if (!input.name.trim()) throw new Error("请填写工单名称");
   positive(input.qty);
-  if (!products.some((p) => p.id === input.product)) throw new Error("请选择有效成品");
+  if (!finishedProducts(state).some((p) => p.id === input.product))
+    throw new Error("请选择有效且启用的成品");
   const order: WorkOrder = {
     id: id("WO"),
     name: input.name.trim(),
@@ -1479,6 +1532,90 @@ export function setWorkOrderStatus(state: State, orderId: string, status: WorkOr
   order.status = status;
 }
 export const updateWorkOrderStatus = setWorkOrderStatus;
+
+export interface FinishedInboundInput {
+  id?: string;
+  workOrder: string;
+  warehouse: string;
+  lines: Line[];
+  date?: string;
+  remark?: string;
+}
+export function createFinishedInbound(state: State, input: FinishedInboundInput) {
+  const documentId = input.id?.trim() || id("FI");
+  if (
+    (state.finishedInbounds || []).some((document) => document.id === documentId) ||
+    state.movements.some((movement) => movement.source === documentId)
+  )
+    throw new Error("入库单已保存，不能重复入库");
+  const workOrder = state.workOrders.find((order) => order.id === input.workOrder);
+  if (!workOrder || workOrder.status === "已发货") throw new Error("请选择未发货的有效工单");
+  if (
+    !state.warehouses.some((warehouse) => warehouse.id === input.warehouse && !warehouse.inactive)
+  )
+    throw new Error("请选择正常使用的入库仓库");
+  validateLines(state, input.lines);
+  const products = new Set(finishedProducts(state).map((material) => material.id));
+  if (input.lines.some((line) => !products.has(line.material)))
+    throw new Error("成品入库只能选择成品分类的物料");
+  if (input.date !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(input.date))
+    throw new Error("请填写有效入库日期");
+  // 全部行先校验，避免后续行失败时留下部分库存和流水。
+  for (const line of input.lines) {
+    const stock = state.stocks[stockKey(input.warehouse, line.material)] || 0;
+    if (!Number.isSafeInteger(stock) || !Number.isSafeInteger(stock + line.qty))
+      throw new Error("入库后库存超出支持范围");
+  }
+  const document: FinishedInbound = {
+    id: documentId,
+    workOrder: workOrder.id,
+    warehouse: input.warehouse,
+    date: input.date || today(),
+    remark: input.remark?.trim() || "",
+    lines: input.lines.map((line) => ({ material: line.material, qty: line.qty })),
+  };
+  for (const line of document.lines) {
+    move(state, document.warehouse, line, "入库", document.id, `成品入库 ${workOrder.id}`);
+    state.movements[0]!.date = document.date;
+  }
+  (state.finishedInbounds ??= []).unshift(document);
+  return document;
+}
+
+// 发货仍以计划需求汇总为准；没有计划的工单使用自身产品和数量。
+export function workOrderShipmentLines(state: State, workOrderId: string): Line[] {
+  const order = state.workOrders.find((workOrder) => workOrder.id === workOrderId);
+  if (!order) throw new Error("工单不存在");
+  const plans = state.plans.filter((plan) => plan.workOrder === order.id);
+  const quantities = new Map<string, number>();
+  const source = plans.length
+    ? plans.map((plan) => ({ material: plan.product, qty: plan.qty }))
+    : [{ material: order.product, qty: order.qty }];
+  for (const line of source)
+    quantities.set(line.material, (quantities.get(line.material) || 0) + line.qty);
+  const lines = [...quantities].map(([material, qty]) => ({ material, qty }));
+  validateLines(state, lines, true);
+  return lines;
+}
+export function assertWorkOrderReadyToShip(state: State, workOrderId: string) {
+  const order = state.workOrders.find((workOrder) => workOrder.id === workOrderId);
+  if (!order || order.status !== "待出货") throw new Error("仅待出货工单允许发货");
+  const lines = workOrderShipmentLines(state, workOrderId);
+  const coverage = new Map<string, number>();
+  // 兼容过去按计划完工的入库；新入库仅补足未完工计划需求，不重复推导计划状态。
+  for (const plan of state.plans.filter(
+    (plan) => plan.workOrder === order.id && plan.status === "已完工"
+  ))
+    coverage.set(plan.product, (coverage.get(plan.product) || 0) + plan.qty);
+  for (const document of (state.finishedInbounds || []).filter(
+    (document) => document.workOrder === order.id
+  ))
+    for (const line of document.lines)
+      coverage.set(line.material, (coverage.get(line.material) || 0) + line.qty);
+  if (lines.some((line) => (coverage.get(line.material) || 0) < line.qty))
+    throw new Error("工单成品尚未足量入库，不能发货");
+  return lines;
+}
 export function shipWorkOrder(
   state: State,
   workOrderId: string,
@@ -1487,13 +1624,7 @@ export function shipWorkOrder(
   const order = state.workOrders.find((w) => w.id === workOrderId);
   if (!order || order.status !== "待出货") throw new Error("仅待出货工单允许发货");
   if (!input.carrier.trim() || !input.tracking.trim()) throw new Error("请填写物流公司和物流单号");
-  const plans = state.plans.filter((p) => p.workOrder === order.id);
-  if (!plans.length || plans.some((p) => p.status !== "已完工"))
-    throw new Error("工单全部关联计划须先完工入库");
-  const quantities = new Map<string, number>();
-  plans.forEach((p) => quantities.set(p.product, (quantities.get(p.product) || 0) + p.qty));
-  const lines = [...quantities].map(([material, qty]) => ({ material, qty }));
-  validateLines(state, lines);
+  const lines = assertWorkOrderReadyToShip(state, order.id);
   const warehouse = input.warehouse || "CP01";
   if (!state.warehouses.some((w) => w.id === warehouse && !w.inactive && w.id === "CP01"))
     throw new Error("请选择有效成品仓库");
@@ -1508,7 +1639,9 @@ export function shipWorkOrder(
     warehouse,
     lines,
   };
-  lines.forEach((l) => move(state, warehouse, l, "出库", shipment.id, `成品发货 ${order.id}`));
+  lines.forEach((l) =>
+    move(state, warehouse, l, "出库", shipment.id, `成品发货 ${order.id}`, true)
+  );
   state.shipments.unshift(shipment);
   order.status = "已发货";
   return shipment;

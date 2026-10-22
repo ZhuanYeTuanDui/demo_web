@@ -8,7 +8,7 @@ import FaManagementList from "./FaManagementList.vue";
 import FaTableActions from "./FaTableActions.vue";
 import { state, material, commit } from "./store";
 import { usePageActivation } from "./page-cache";
-import { createWorkOrder, setWorkOrderStatus, products, today, type WorkOrder } from "./model";
+import { createWorkOrder, setWorkOrderStatus, finishedProducts, today, type WorkOrder } from "./model";
 const ProductionImport = defineAsyncComponent(() => import("./ProductionImport.vue"));
 const scheduling = ref<WorkOrder>();
 const importing = ref(false);
@@ -30,6 +30,7 @@ usePageActivation(() => {
 const error = ref("");
 const saving = ref(false);
 const statuses = ["立项中", "采购中", "装配中", "待出货"] as const;
+const products = computed(() => finishedProducts(state.value));
 const form = reactive({
   name: "",
   customer: "",
@@ -228,7 +229,7 @@ function viewPlan(planId: string) {
           ><el-input v-model="form.customer" maxlength="60"
         /></el-form-item>
         <el-form-item label="产品" required
-          ><el-select v-model="form.product"
+          ><el-select v-model="form.product" filterable
             ><el-option
               v-for="p in products"
               :key="p.id"

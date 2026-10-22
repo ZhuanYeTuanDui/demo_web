@@ -31,6 +31,7 @@ import WorkOrders from "./WorkOrders.vue";
 import Issues from "./Issues.vue";
 import Shipments from "./Shipments.vue";
 import FinishedStock from "./FinishedStock.vue";
+import FinishedInbounds from "./FinishedInbounds.vue";
 import { reset, storageError } from "./store";
 
 const menu = [
@@ -44,6 +45,7 @@ const menu = [
       { key: "materials", label: "物料档案", icon: Box },
       { key: "movements", label: "出入库记录", icon: List },
       { key: "issues", label: "领料单", icon: Tickets },
+      { key: "finished-inbounds", label: "成品入库单", icon: Tickets },
       { key: "finished-stock", label: "成品库存", icon: Box },
     ],
   },
@@ -117,6 +119,7 @@ const pageComponents: Record<string, Component> = {
   issues: Issues,
   shipments: Shipments,
   "finished-stock": FinishedStock,
+  "finished-inbounds": FinishedInbounds,
   plans: Production,
 };
 const pageComponent = computed(() => pageComponents[page.value]!);

@@ -1,4 +1,4 @@
-import type { Material, State } from "./model";
+import { products, type Material, type State } from "./model";
 
 export type Value = string | number | boolean | null;
 export type Draft = Record<string, Value>;
@@ -188,4 +188,62 @@ export function saveMaterial(state: State, materialId: string, draft: Draft) {
   delete details.spec;
   delete details.unit;
   m.details = details;
+}
+
+export function createMaterial(state: State, materialId: string, draft: Draft) {
+  const materialIdValue = materialId.trim();
+  if (!materialIdValue || /[\s:/\\]/.test(materialIdValue))
+    throw new Error("请填写有效品号，不能包含空白、冒号或斜杠");
+  if (state.materials.some((material) => material.id === materialIdValue))
+    throw new Error("品号已存在");
+  const material: Material = { id: materialIdValue, name: "", spec: "", unit: "", price: 0 };
+  // 复用档案校验，在临时集合中完成后才发布，失败不留下半条物料。
+  saveMaterial({ ...state, materials: [material] }, materialIdValue, draft);
+  state.materials.push(material);
+  state.deletedMaterialIds = (state.deletedMaterialIds || []).filter(
+    (id) => id !== materialIdValue
+  );
+  return materialIdValue;
+}
+
+export function setMaterialInactive(state: State, materialId: string, inactive: boolean) {
+  const material = state.materials.find((material) => material.id === materialId);
+  if (!material) throw new Error("物料不存在");
+  material.details = { ...material.details, inactive };
+}
+
+export function deleteMaterial(state: State, materialId: string) {
+  if (!state.materials.some((material) => material.id === materialId))
+    throw new Error("物料不存在");
+  if (
+    Object.entries(state.stocks).some(([key, qty]) => key.endsWith(`:${materialId}`) && qty !== 0)
+  )
+    throw new Error("物料有库存，不能删除，请先停用");
+  const contains = (lines: { material: string }[]) =>
+    lines.some((line) => line.material === materialId);
+  if (
+    products.some((product) => contains(product.bom)) ||
+    state.plans.some(
+      (plan) =>
+        plan.product === materialId ||
+        contains(plan.bom || []) ||
+        (plan.importSource?.rows || []).some((row) => row.material === materialId)
+    ) ||
+    state.workOrders.some((order) => order.product === materialId) ||
+    state.requests.some((request) => contains(request.lines)) ||
+    state.drafts.some((draft) => draft.product === materialId || contains(draft.lines)) ||
+    state.purchases.some((purchase) => contains(purchase.lines)) ||
+    state.receipts.some((receipt) => contains(receipt.lines)) ||
+    state.inbounds.some((inbound) => contains(inbound.lines)) ||
+    state.issues.some((issue) => contains(issue.lines)) ||
+    state.shipments.some((shipment) => contains(shipment.lines)) ||
+    (state.finishedInbounds || []).some((document) => contains(document.lines)) ||
+    state.movements.some((movement) => movement.material === materialId)
+  )
+    throw new Error("物料已被单据或 BOM 引用，不能删除，请先停用");
+  state.materials = state.materials.filter((material) => material.id !== materialId);
+  for (const key of Object.keys(state.stocks))
+    if (key.endsWith(`:${materialId}`)) delete state.stocks[key];
+  // 记录显式删除，避免旧版源表追加迁移在刷新时恢复已删除档案。
+  state.deletedMaterialIds = [...new Set([...(state.deletedMaterialIds || []), materialId])];
 }

@@ -122,11 +122,15 @@ describe("请购及采购选料", () => {
     await flushPromises();
     const editor = wrapper;
     expect(editor.text()).toContain("共 0 条明细");
+    await editor.findAll("button").find((button) => button.text() === "取单")!.trigger("click");
+    await flushPromises();
     for (const draft of [first, second]) {
       await editor
         .get(`[aria-label="选择底稿物料 ${draft.id} ${draft.lines[0]!.id}"] input`)
         .setValue(true);
     }
+    await editor.findAll("button").find((button) => button.text().startsWith("确认取单"))!.trigger("click");
+    await flushPromises();
     const inputs = editor.findAll(".purchase-fields input");
     await inputs[0]!.setValue("测试采购人");
     await inputs[1]!.setValue("测试供应商");
@@ -166,6 +170,8 @@ describe("请购及采购选料", () => {
         stubs: { teleport: true, ElSelect: true, ElOption: true, ElDropdown: true },
       },
     });
+    await flushPromises();
+    await wrapper.findAll("button").find((button) => button.text() === "取单")!.trigger("click");
     await flushPromises();
     expect(
       wrapper

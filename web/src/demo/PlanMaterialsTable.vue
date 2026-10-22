@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { computed, h, ref, watch } from "vue";
-import { ElAutoResizer, ElTableV2, type Column } from "element-plus";
+import { ElAutoResizer, ElButton, ElInputNumber, ElTableV2, type Column } from "element-plus";
 import DataLink from "./DataLink.vue";
 import { material } from "./store";
 import { planBom, type Plan } from "./model";
 
-const props = defineProps<{ plan: Plan }>();
-const emit = defineEmits<{ navigate: [page: string] }>();
+const props = defineProps<{ plan: Plan; editable?: boolean; disabled?: boolean }>();
+const emit = defineEmits<{
+  navigate: [page: string];
+  quantity: [materialId: string, qty: number | undefined];
+  remove: [materialId: string];
+}>();
 const page = ref(1);
 const pageSize = ref(100);
-const lines = computed(() => planBom(props.plan));
+const lines = computed(() => props.editable ? props.plan.bom || [] : planBom(props.plan));
 const paged = computed(() =>
   lines.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
 );
@@ -82,9 +86,33 @@ const columns = computed<Column[]>(() => [
     key: "qty",
     dataKey: "qty",
     title: props.plan.importSource?.basis === "total" ? "需求量" : "单台用量",
-    width: 100,
+    width: props.editable ? 180 : 100,
     align: "right",
+    ...(props.editable ? {
+      cellRenderer: ({ rowData }: { rowData: { material: string; qty: number } }) => h(ElInputNumber, {
+        modelValue: rowData.qty,
+        min: 1,
+        max: 100000,
+        precision: 0,
+        controlsPosition: "right",
+        disabled: props.disabled,
+        "aria-label": `${material(rowData.material)?.name || rowData.material}${props.plan.importSource?.basis === "total" ? "需求量" : "单台用量"}`,
+        "onUpdate:modelValue": (qty: number | undefined) => emit("quantity", rowData.material, qty),
+      }),
+    } : {}),
   },
+  ...(props.editable ? [{
+    key: "actions",
+    title: "操作",
+    width: 80,
+    cellRenderer: ({ rowData }: { rowData: { material: string } }) => h(ElButton, {
+      link: true,
+      type: "danger",
+      disabled: props.disabled,
+      "aria-label": `移除${material(rowData.material)?.name || rowData.material}`,
+      onClick: () => emit("remove", rowData.material),
+    }, () => "移除"),
+  }] : []),
 ]);
 </script>
 

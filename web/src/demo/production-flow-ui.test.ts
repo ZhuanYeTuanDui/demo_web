@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount, flushPromises, type VueWrapper } from "@vue/test-utils";
 import { nextTick } from "vue";
-import ElementPlus, { ElSelect } from "element-plus";
+import ElementPlus, { ElMessageBox, ElSelect } from "element-plus";
 import WorkOrders from "./WorkOrders.vue";
 import Production from "./Production.vue";
 import Issues from "./Issues.vue";
@@ -32,6 +32,7 @@ const click = async (label: string) => {
 
 describe("生产单据页面闭环", () => {
   it("未审核计划编辑支持取消和保存，审核后在已审核页签显示", async () => {
+    vi.spyOn(ElMessageBox, "confirm").mockResolvedValue("confirm" as never);
     const plan = state.value.plans[0]!;
     plan.auditStatus = "未审核";
     const originalName = plan.name;
@@ -168,7 +169,7 @@ describe("生产单据页面闭环", () => {
     expect((keyword.element as HTMLInputElement).value).toBe("成型机");
   });
 
-  it("生产计划不再提供领料入口，已审核计划保留完工操作", async () => {
+  it("生产计划不再提供领料和完工入库入口", async () => {
     wrapper = mount(Production, { global: { plugins: [ElementPlus] } });
     await flushPromises();
     await wrapper
@@ -178,6 +179,7 @@ describe("生产单据页面闭环", () => {
     expect(wrapper.findAll("button").some((button) => button.text() === "生产领料")).toBe(false);
     expect(wrapper.text()).toContain("分析缺料");
     expect(wrapper.text()).toContain("返审");
+    expect(wrapper.text()).not.toContain("完工入库");
     expect(state.value.issues).toHaveLength(0);
   });
 

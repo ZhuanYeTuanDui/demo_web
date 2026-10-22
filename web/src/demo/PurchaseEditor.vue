@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { computed, reactive, ref } from "vue";
 import { state, material, commit } from "./store";
 import {
   createPurchase,
@@ -10,6 +10,7 @@ import {
   type PurchaseLine,
 } from "./model";
 import MaterialPicker from "./MaterialPicker.vue";
+import PurchaseSourcePicker, { type PurchaseSourceSelection } from "./PurchaseSourcePicker.vue";
 const props = defineProps<{ order?: Purchase; draftIds?: string[] }>();
 const emit = defineEmits<{ saved: []; cancel: [] }>();
 type EditRow = PurchaseLine & { key: string; existing?: boolean; requestIndex?: number };
@@ -20,39 +21,21 @@ const purchaseRows = ref<EditRow[]>(
 );
 const picker = ref(false);
 const saving = ref(false);
-const sourceKeyword = ref("");
-const tab = ref(props.draftIds?.length ? "drafts" : "manual");
-const activeDraft = ref("");
+const sourcePicker = ref(false);
 const totalAmount = computed(() =>
   purchaseTotal(purchaseRows.value.map((row) => ({ amount: purchaseLineAmount(row) })))
 );
-const pendingDrafts = computed(() =>
-  state.value.drafts.filter(
-    (d) =>
-      d.auditStatus === "已审核" &&
-      (!props.draftIds?.length || props.draftIds.includes(d.id)) &&
-      `${d.id}${d.plan}${d.lines.map((l) => `${l.material}${material(l.material)?.name}${material(l.material)?.spec}`).join("")}`.includes(
-        sourceKeyword.value
-      )
-  )
-);
-const requestRows = computed(() =>
-  state.value.requests.flatMap((request) =>
-    request.lines.map((line, lineIndex) => ({
-      ...line,
-      request: request.id,
-      applicant: request.applicant,
-      lineIndex,
-    }))
-  )
-);
-watch(
-  () => pendingDrafts.value.map((d) => d.id),
-  (ids) => {
-    if (!ids.includes(activeDraft.value)) activeDraft.value = ids[0] || "";
-  },
-  { immediate: true }
-);
+const sourceKeys = computed(() => purchaseRows.value.flatMap((row) =>
+  row.draft ? [`draft:${row.draft}:${row.draftLine}`] :
+    row.request ? [`request:${row.request}:${row.requestIndex ?? row.requestLine}`] : []
+));
+function addSources(sources: PurchaseSourceSelection[]) {
+  for (const source of sources) {
+    if (source.kind === "draft") toggleDraftLine(source.draftId, source.lineId, true);
+    else toggleRequestLine(source.requestId, source.lineIndex, true);
+  }
+  sourcePicker.value = false;
+}
 function draftLineSelected(draftId: string, lineId: string) {
   return purchaseRows.value.some((row) => row.draft === draftId && row.draftLine === lineId);
 }
@@ -195,82 +178,11 @@ function save() {
       <el-form-item label="采购人" required><el-input v-model="form.buyer" /></el-form-item>
       <el-form-item label="供应商" required><el-input v-model="form.supplier" /></el-form-item>
     </div>
-    <el-tabs v-model="tab">
-      <el-tab-pane label="手动添加物料" name="manual"
-        ><el-button @click="picker = true">选择物料</el-button></el-tab-pane
-      >
-      <el-tab-pane label="采购底稿" name="drafts">
-        <el-input v-model="sourceKeyword" placeholder="搜索底稿、计划或物料" clearable />
-        <p class="muted">
-          只展示已审核底稿。逐行取料后可修改采购数量，来源要求量保持不变，后续采购单仍可再次取用。
-        </p>
-        <el-tabs
-          v-if="pendingDrafts.length"
-          v-model="activeDraft"
-          type="card"
-          class="draft-switcher"
-          aria-label="切换采购底稿"
-        >
-          <el-tab-pane
-            v-for="draft in pendingDrafts"
-            :key="draft.id"
-            :name="draft.id"
-            :label="draft.id"
-            class="draft-source-group"
-          >
-            <p class="muted">来源计划：{{ draft.plan }}</p>
-            <el-table :data="draft.lines" row-key="id" max-height="280" empty-text="暂无物料">
-              <el-table-column label="选择" width="65"
-                ><template #default="{ row }"
-                  ><el-checkbox
-                    :model-value="draftLineSelected(draft.id, row.id)"
-                    :aria-label="`选择底稿物料 ${draft.id} ${row.id}`"
-                    @change="
-                      (checked: string | number | boolean) =>
-                        toggleDraftLine(draft.id, row.id, !!checked)
-                    " /></template
-              ></el-table-column>
-              <el-table-column label="品号 / 名称 / 规格" min-width="240"
-                ><template #default="{ row }"
-                  >{{ material(row.material)?.name }}
-                  <div class="cell-sub">
-                    {{ row.material }} · {{ material(row.material)?.spec }}
-                  </div></template
-                ></el-table-column
-              >
-              <el-table-column prop="qty" label="来源要求量" width="120" />
-            </el-table>
-          </el-tab-pane> </el-tabs
-        ><el-empty v-else description="暂无已审核底稿" />
-      </el-tab-pane>
-      <el-tab-pane label="请购单" name="requests">
-        <p class="muted">逐行选择需要采购的物料，已被使用的来源仍可再次选择。</p>
-        <el-table :data="requestRows" max-height="280" empty-text="暂无请购物料">
-          <el-table-column label="选择" width="65"
-            ><template #default="{ row }"
-              ><el-checkbox
-                :model-value="requestLineSelected(row.request, row.lineIndex)"
-                :aria-label="`选择请购物料 ${row.request} ${row.lineIndex}`"
-                @change="
-                  (checked: string | number | boolean) =>
-                    toggleRequestLine(row.request, row.lineIndex, !!checked)
-                " /></template
-          ></el-table-column>
-          <el-table-column prop="request" label="请购单号" min-width="210" /><el-table-column
-            prop="applicant"
-            label="请购人"
-            width="100"
-          />
-          <el-table-column label="物料" min-width="200"
-            ><template #default="{ row }"
-              >{{ material(row.material)?.name }}
-              <div class="cell-sub">{{ row.material }}</div></template
-            ></el-table-column
-          >
-          <el-table-column prop="qty" label="来源要求量" width="120" />
-        </el-table>
-      </el-tab-pane>
-    </el-tabs>
+    <div class="purchase-source-actions">
+      <el-button @click="picker = true">选择物料</el-button>
+      <el-button type="primary" plain @click="sourcePicker = true">取单</el-button>
+      <span class="muted">从采购底稿或请购单选取物料。</span>
+    </div>
     <h3>采购明细</h3>
     <el-table :data="purchaseRows" max-height="380" empty-text="请先选择采购物料" row-key="key">
       <el-table-column label="品号 / 品名 / 规格" min-width="220"
@@ -370,6 +282,8 @@ function save() {
       ><el-button type="primary" :loading="saving" native-type="submit">保存采购单</el-button>
     </div>
   </el-form>
+  <PurchaseSourcePicker v-if="sourcePicker" :excluded-keys="sourceKeys" :draft-ids="draftIds"
+    @confirm="addSources" @cancel="sourcePicker = false" />
   <MaterialPicker
     v-if="picker"
     :excluded-ids="
@@ -380,14 +294,14 @@ function save() {
   />
 </template>
 <style scoped>
-.draft-switcher :deep(.el-tabs__header) {
-  margin-bottom: 0;
+.purchase-source-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
-.draft-switcher :deep(.el-tabs__item) {
-  max-width: 340px;
-}
-.draft-source-group {
-  min-width: 0;
+.purchase-source-actions .el-button + .el-button {
+  margin-left: 0;
 }
 .purchase-fields {
   display: grid;

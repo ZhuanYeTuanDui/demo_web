@@ -103,7 +103,7 @@ const sections = computed(() => [
           0
         ),
         unit: "台",
-        note: "完工入库后可办理发货",
+        note: "成品入库后可办理发货",
         route: "finished-stock",
       },
     ],
@@ -143,7 +143,7 @@ const sections = computed(() => [
     title: "生产概览",
     icon: Calendar,
     route: "plans",
-    description: "从生产计划展开 BOM，分析库存缺料，再跟进领料与完工。",
+    description: "从生产计划展开 BOM，分析库存缺料，再跟进生产领料。",
     metrics: [
       {
         label: "生产计划",
@@ -163,7 +163,7 @@ const sections = computed(() => [
         label: "已完工",
         value: state.value.plans.filter((p) => p.status === "已完工").length,
         unit: "个",
-        note: "成品入库自动留存记录",
+        note: "保留历史计划完工记录",
         route: "plans",
       },
     ],
@@ -237,7 +237,7 @@ const flow = [
   { label: "采购下单", route: "orders" },
   { label: "收货入库", route: "receipts" },
   { label: "生产领料", route: "issues" },
-  { label: "完工入库", route: "plans" },
+  { label: "成品入库", route: "finished-inbounds" },
   { label: "成品发货", route: "shipments" },
 ];
 </script>

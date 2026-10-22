@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue";
 import FaManagementList from "./FaManagementList.vue";
 import { state, material, warehouseName } from "./store";
 import { stockKey } from "./model";
+import { materialCategory } from "./material-profile";
 const emit = defineEmits<{ navigate: [page: string] }>();
 const keyword = ref("");
 const warehouse = ref("");
@@ -11,7 +12,7 @@ const page = ref(1);
 const pageSize = ref(50);
 const warehouses = computed(() => state.value.warehouses.filter((w) => w.id === "CP01"));
 const rows = computed(() => {
-  const products = new Set(state.value.plans.map((plan) => plan.product));
+  const products = new Set(state.value.materials.filter(m => materialCategory(m) === "D").map(m => m.id));
   return warehouses.value
     .flatMap((w) =>
       [...products].map((product) => ({
@@ -62,11 +63,11 @@ watch(
             :label="w.name"
             :value="w.id" /></el-select></el-form-item></template
     ><template #toolbar
-      ><el-button type="primary" @click="emit('navigate', 'shipments')"
+      ><el-button type="primary" @click="emit('navigate', 'finished-inbounds')">新增成品入库单</el-button><el-button @click="emit('navigate', 'shipments')"
         >成品发货</el-button
       ></template
     >
-    <el-table :data="paged" empty-text="暂无成品库存，请先完成生产计划入库"
+    <el-table :data="paged" empty-text="暂无成品库存，请先办理成品入库单"
       ><el-table-column prop="product" label="成品品号" min-width="160" /><el-table-column
         label="成品名称"
         min-width="230"

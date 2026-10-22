@@ -4,7 +4,7 @@ import { computed, ref, watch } from "vue";
 import { Search } from "@element-plus/icons-vue";
 import { state } from "./store";
 import { categories, categoryName, materialCategory } from "./material-profile";
-import type { Material } from "./model";
+import { materialIsActive, type Material } from "./model";
 
 const props = defineProps<{ excludedIds: string[] }>();
 const emit = defineEmits<{ confirm: [ids: string[]]; cancel: [] }>();
@@ -15,7 +15,7 @@ const selection = ref<Material[]>([]);
 const excluded = computed(() => new Set(props.excludedIds));
 const filtered = computed(() => state.value.materials.filter((m) => {
   const query = keyword.value.trim().toLowerCase();
-  return !m.details?.inactive && (!category.value || materialCategory(m) === category.value) &&
+  return materialIsActive(m) && (!category.value || materialCategory(m) === category.value) &&
     `${m.id} ${m.name} ${m.spec} ${m.details?.drawingNo || ""} ${m.details?.brand || ""}`.toLowerCase().includes(query);
 }));
 const paged = computed(() => filtered.value.slice((page.value - 1) * 10, page.value * 10));
@@ -50,7 +50,7 @@ const selectable = (m: Material) => !excluded.value.has(m.id);
     </div>
     <template #footer>
       <el-button @click="emit('cancel')">取消</el-button>
-      <el-button type="primary" :disabled="!selection.length" @click="emit('confirm', selection.map(m => m.id))">添加选中物料（{{ selection.length }}）</el-button>
+      <el-button type="primary" :disabled="!selection.length" @click="emit('confirm', selection.filter(m => state.materials.some(item => item.id === m.id && materialIsActive(item))).map(m => m.id))">添加选中物料（{{ selection.length }}）</el-button>
     </template>
   </el-dialog>
 </template>

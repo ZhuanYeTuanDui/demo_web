@@ -7,7 +7,7 @@ import { ElMessageBox } from "element-plus";
 import FaManagementList from "./FaManagementList.vue";
 import FaTableActions from "./FaTableActions.vue";
 import { state, material, warehouseName, commit } from "./store";
-import { shipWorkOrder, stockKey } from "./model";
+import { shipWorkOrder, stockKey, workOrderShipmentLines, assertWorkOrderReadyToShip } from "./model";
 const emit = defineEmits<{ navigate: [page: string] }>();
 const keyword = ref("");
 const page = ref(1);
@@ -21,11 +21,7 @@ const pending = computed(() => state.value.workOrders.filter((row) => row.status
 const order = computed(() => state.value.workOrders.find((row) => row.id === form.workOrder));
 const plans = computed(() => state.value.plans.filter((plan) => plan.workOrder === form.workOrder));
 const lines = computed(() => {
-  const totals = new Map<string, number>();
-  plans.value.forEach((plan) =>
-    totals.set(plan.product, (totals.get(plan.product) || 0) + plan.qty)
-  );
-  return [...totals].map(([material, qty]) => ({ material, qty }));
+  return form.workOrder && order.value ? workOrderShipmentLines(state.value, form.workOrder) : [];
 });
 const rows = computed(() =>
   state.value.shipments.filter((row) =>
@@ -60,8 +56,10 @@ async function create() {
     error.value = "请选择待出货工单、成品仓库并填写物流公司和物流单号";
     return;
   }
-  if (!plans.value.length || plans.value.some((plan) => plan.status !== "已完工")) {
-    error.value = "关联生产计划必须全部完工入库后才能发货";
+  try {
+    assertWorkOrderReadyToShip(state.value, form.workOrder);
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "请检查工单成品入库情况";
     return;
   }
   saving.value = true;
@@ -186,7 +184,7 @@ async function create() {
           }}</template></el-table-column
         ></el-table
       ><el-alert v-if="error" :title="error" type="error" :closable="false" />
-      <p class="muted">按工单关联生产计划整单发货；发货单创建后不可修改。</p> </el-form
+      <p class="muted">按关联计划汇总成品，未关联计划时按工单产品及数量整单发货；须足量办理成品入库，发货单创建后不可修改。</p> </el-form
     ><template #footer
       ><el-button @click="dialog = false">取消</el-button
       ><el-button type="primary" :loading="saving" @click="create"

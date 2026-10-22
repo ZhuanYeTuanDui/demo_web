@@ -12,5 +12,8 @@ export const productBomLines = data.bomLines;
 // 旧浏览器数据只追加缺少的档案，不覆盖用户编辑，也不修改库存、计划和采购单。
 export function migrateProductMaterials(state: State) {
   const existing = new Set(state.materials.map((m) => m.id));
-  state.materials.push(...productMaterials().filter((m) => !existing.has(m.id)));
+  const deleted = new Set(state.deletedMaterialIds || []);
+  state.materials.push(
+    ...productMaterials().filter((m) => !existing.has(m.id) && !deleted.has(m.id))
+  );
 }

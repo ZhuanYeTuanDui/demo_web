@@ -52,7 +52,7 @@ function generate() {
           </h2>
           <span class="muted">需购 = BOM 需求 − 可分配库存 − 本计划待转底稿 / 在途</span>
         </div>
-        <el-table :data="analysisRows" stripe
+        <el-table :data="analysisRows" height="min(52vh, 560px)" stripe class="analysis-table" aria-label="物料需求分析明细"
           ><el-table-column label="物料信息" min-width="220"
             ><template #default="{ row }"
               ><div class="cell-title">{{ material(row.material).name }}</div>
@@ -137,5 +137,20 @@ function generate() {
 .panel {
   border: 0;
   margin: 0;
+}
+.analysis-table {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+}
+.analysis-actions {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.analysis-action-buttons {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.analysis-action-buttons :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 </style>
