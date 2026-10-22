@@ -166,6 +166,9 @@ export interface FinishedInbound {
   remark: string;
   lines: Line[];
 }
+export interface FinishedOutbound extends FinishedInbound {
+  shipment: string;
+}
 export interface State {
   version: 1;
   warehouses: Warehouse[];
@@ -182,6 +185,7 @@ export interface State {
   workOrders: WorkOrder[];
   shipments: Shipment[];
   finishedInbounds?: FinishedInbound[];
+  finishedOutbounds?: FinishedOutbound[];
   deletedMaterialIds?: string[];
 }
 export const products = [
@@ -274,6 +278,7 @@ export function seed(): State {
     issues: [],
     shipments: [],
     finishedInbounds: [],
+    finishedOutbounds: [],
     deletedMaterialIds: [],
     workOrders: [
       {
@@ -712,6 +717,9 @@ export function convertDraft(state: State, draftId: string, buyer: string, suppl
 
 // 将旧 demo 自动生成的计划请购迁为底稿；缺失历史计算快照时明确留空。
 export function migrateDrafts(state: State) {
+  if (state.finishedOutbounds !== undefined && !Array.isArray(state.finishedOutbounds))
+    throw new Error("成品出库单数据格式错误");
+  state.finishedOutbounds ??= [];
   if (state.finishedInbounds !== undefined && !Array.isArray(state.finishedInbounds))
     throw new Error("成品入库单数据格式错误");
   if (state.deletedMaterialIds !== undefined && !Array.isArray(state.deletedMaterialIds))
@@ -824,6 +832,10 @@ export function migrateDrafts(state: State) {
   state.inbounds ??= [];
   state.issues ??= [];
   state.shipments ??= [];
+  // 旧发货已扣过库存，仅补执行凭证；重复迁移不重复建单或生成流水。
+  for (const shipment of state.shipments)
+    if (!state.finishedOutbounds.some(document => document.shipment === shipment.id))
+      state.finishedOutbounds.push(finishedOutboundFromShipment(shipment));
   state.workOrders ??= [];
   for (const purchase of state.purchases) {
     const oldStatus = purchase.status as string;
@@ -1616,6 +1628,17 @@ export function assertWorkOrderReadyToShip(state: State, workOrderId: string) {
     throw new Error("工单成品尚未足量入库，不能发货");
   return lines;
 }
+function finishedOutboundFromShipment(shipment: Shipment): FinishedOutbound {
+  return {
+    id: `FO-${shipment.id}`,
+    shipment: shipment.id,
+    workOrder: shipment.workOrder,
+    warehouse: shipment.warehouse,
+    date: shipment.date,
+    remark: "成品发货自动生成",
+    lines: shipment.lines.map(line => ({ ...line })),
+  };
+}
 export function shipWorkOrder(
   state: State,
   workOrderId: string,
@@ -1643,6 +1666,8 @@ export function shipWorkOrder(
     move(state, warehouse, l, "出库", shipment.id, `成品发货 ${order.id}`, true)
   );
   state.shipments.unshift(shipment);
+  // 出库单与发货使用同一次提交，仅保存凭证，库存仍由上方发货流水扣减一次。
+  (state.finishedOutbounds ??= []).unshift(finishedOutboundFromShipment(shipment));
   order.status = "已发货";
   return shipment;
 }

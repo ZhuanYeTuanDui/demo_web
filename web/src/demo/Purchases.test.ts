@@ -24,8 +24,11 @@ const selectRequest = async (index: number) => {
   await wrapper!.findAll("button").find((button) => button.text() === "取单")!.trigger("click");
   await flushPromises();
   await wrapper!.findAll('[role="tab"]').find((tab) => tab.text() === "请购单")!.trigger("click");
-  await wrapper!.get(`[aria-label="选择请购物料 PR202610001 ${index}"] input`).setValue(true);
+  await wrapper!.get('[aria-label="选择请购单 PR202610001"] input').setValue(true);
   await wrapper!.findAll("button").find((button) => button.text().startsWith("确认取单"))!.trigger("click");
+  await flushPromises();
+  expect(wrapper!.text()).toContain("共 0 条明细");
+  await wrapper!.get(`[aria-label="选择请购物料 PR202610001 ${index}"] input`).setValue(true);
   await flushPromises();
 };
 const inputNumber = async (label: string, value: string) => {
@@ -84,7 +87,7 @@ describe("采购来源编辑与审核", () => {
     await wrapper.findAll("button").find((button) => button.text() === "取单")!.trigger("click");
     await flushPromises();
     expect(
-      wrapper.find(`[aria-label="选择底稿物料 ${draft.id} ${draft.lines[0]!.id}"]`).exists()
+      wrapper.find(`[aria-label="选择底稿 ${draft.id}"]`).exists()
     ).toBe(false);
     auditDraft(state.value, draft.id);
     await flushPromises();
@@ -95,8 +98,10 @@ describe("采购来源编辑与审核", () => {
       draftLines: [{ draftId: draft.id, lineId: line.id }],
     });
     await flushPromises();
-    await wrapper.get(`[aria-label="选择底稿物料 ${draft.id} ${line.id}"] input`).setValue(true);
+    await wrapper.get(`[aria-label="选择底稿 ${draft.id}"] input`).setValue(true);
     await wrapper.findAll("button").find((button) => button.text().startsWith("确认取单"))!.trigger("click");
+    await flushPromises();
+    await wrapper.get(`[aria-label="选择底稿物料 ${draft.id} ${line.id}"] input`).setValue(true);
     await flushPromises();
     expect(wrapper.text()).toContain("共 1 条明细");
     expect(draft.lines[0]!.qty).toBe(line.qty);

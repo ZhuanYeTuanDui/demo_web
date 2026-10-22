@@ -63,7 +63,7 @@ watch(
             :label="w.name"
             :value="w.id" /></el-select></el-form-item></template
     ><template #toolbar
-      ><el-button type="primary" @click="emit('navigate', 'finished-inbounds')">新增成品入库单</el-button><el-button @click="emit('navigate', 'shipments')"
+      ><el-button type="primary" @click="emit('navigate', 'finished-inbounds')">成品出入库</el-button><el-button @click="emit('navigate', 'shipments')"
         >成品发货</el-button
       ></template
     >

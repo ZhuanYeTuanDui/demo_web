@@ -3,13 +3,14 @@ import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import ElementPlus, { ElMessageBox } from "element-plus";
 import FinishedInbounds from "./FinishedInbounds.vue";
 import { state } from "./store";
-import { seed, stockKey } from "./model";
+import { seed, stockKey, createFinishedInbound, shipWorkOrder, workOrderShipmentLines } from "./model";
 
 let wrapper: VueWrapper | undefined;
 afterEach(() => {
   wrapper?.unmount();
   document.body.innerHTML = "";
   localStorage.clear();
+  sessionStorage.clear();
   vi.restoreAllMocks();
 });
 function setup() {
@@ -40,6 +41,27 @@ async function selectOrder() {
   return order;
 }
 describe("工单成品入库页面", () => {
+  it("统一显示成品入库与自动出库，按类型筛选并追溯来源发货单", async () => {
+    setup();
+    const order = state.value.workOrders[0]!;
+    order.status = "待出货";
+    createFinishedInbound(state.value, { workOrder: order.id, warehouse: "CP01", lines: workOrderShipmentLines(state.value, order.id) });
+    const shipment = shipWorkOrder(state.value, order.id, { carrier: "物流", tracking: "TEST-OUT" });
+    await flushPromises();
+    expect(wrapper!.getComponent({ name: "ElTable" }).props("data")).toHaveLength(2);
+    wrapper!.findAllComponents({ name: "ElSelect" }).find(c => c.attributes("placeholder") === "全部类型")!.vm.$emit("update:modelValue", "出库");
+    await flushPromises();
+    const documents = wrapper!.getComponent({ name: "ElTable" }).props("data");
+    expect(documents).toHaveLength(1);
+    expect(documents[0]).toMatchObject({ type: "出库", shipment: shipment.id });
+    await click(documents[0].id);
+    expect(wrapper!.text()).toContain("成品出库单详情");
+    expect(wrapper!.text()).toContain("来源发货单");
+    const sourceLinks = wrapper!.findAll("button").filter(b => b.text() === shipment.id);
+    await sourceLinks.at(-1)!.trigger("click");
+    expect(sessionStorage.getItem("wsn-shipment-detail")).toBe(shipment.id);
+    expect(wrapper!.emitted("navigate")!.at(-1)).toEqual(["shipments"]);
+  });
   it("关联工单带出成品，取消确认不入库，确认后单据与库存流水仅保存一次", async () => {
     setup();
     await click("新增成品入库单");

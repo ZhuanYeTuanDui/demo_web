@@ -6,6 +6,7 @@ import { Plus } from "@element-plus/icons-vue";
 import { ElMessageBox } from "element-plus";
 import FaManagementList from "./FaManagementList.vue";
 import FaTableActions from "./FaTableActions.vue";
+import { usePageActivation } from "./page-cache";
 import { state, material, warehouseName, commit } from "./store";
 import { shipWorkOrder, stockKey, workOrderShipmentLines, assertWorkOrderReadyToShip } from "./model";
 const emit = defineEmits<{ navigate: [page: string] }>();
@@ -14,6 +15,18 @@ const page = ref(1);
 const pageSize = ref(50);
 const dialog = ref(false);
 const detail = ref("");
+usePageActivation(() => {
+  const shipmentId = sessionStorage.getItem("wsn-shipment-detail");
+  if (!shipmentId) return;
+  detail.value = shipmentId;
+  sessionStorage.removeItem("wsn-shipment-detail");
+});
+function viewOutbound(shipmentId: string) {
+  const document = state.value.finishedOutbounds?.find(row => row.shipment === shipmentId);
+  if (!document) return;
+  sessionStorage.setItem("wsn-finished-document-detail", document.id);
+  emit("navigate", "finished-inbounds");
+}
 const saving = ref(false);
 const error = ref("");
 const form = reactive({ workOrder: "", carrier: "", tracking: "", warehouse: "CP01" });
@@ -80,7 +93,7 @@ async function create() {
         tracking: form.tracking,
         warehouse: form.warehouse,
       });
-    }, "发货单已创建，工单已发货")
+    }, "发货单及成品出库单已创建，工单已发货")
   )
     dialog.value = false;
   saving.value = false;
@@ -217,7 +230,7 @@ async function create() {
         ><el-table-column prop="qty" label="数量" width="100" align="right"
       /></el-table>
       <div class="dialog-actions">
-        <el-button @click="emit('navigate', 'movements')">查看出入库记录</el-button>
+        <el-button v-if="state.finishedOutbounds?.some(row => row.shipment === selected?.id)" @click="viewOutbound(selected.id)">查看成品出库单</el-button>
       </div></template
     ></el-drawer
   >

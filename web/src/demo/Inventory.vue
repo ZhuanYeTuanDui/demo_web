@@ -127,7 +127,7 @@ function exportCsv() {
   const url = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }));
   const link = document.createElement("a");
   link.href = url;
-  link.download = props.page === "movements" ? "出入库记录.csv" : "库存记录.csv";
+  link.download = props.page === "movements" ? "物料出入库.csv" : "库存记录.csv";
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -264,7 +264,7 @@ watch(() => list.value.length, (total) => { currentPage.value = Math.min(current
           }}</template></el-table-column
         ></el-table
       >
-      <el-table v-else :data="pagedRecords" stripe empty-text="暂无匹配的出入库记录"
+      <el-table v-else :data="pagedRecords" stripe empty-text="暂无匹配的物料出入库记录"
         ><el-table-column prop="date" label="日期" width="115" /><el-table-column
           label="方向"
           width="85"

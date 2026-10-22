@@ -316,7 +316,7 @@ function removeLine(line: (typeof form.lines)[number]) {
         ><el-table-column prop="qty" label="出库数量" width="100" align="right"
       /></el-table>
       <div class="dialog-actions">
-        <el-button @click="emit('navigate', 'movements')">查看出入库记录</el-button>
+        <el-button @click="emit('navigate', 'movements')">查看物料出入库</el-button>
       </div></template
     ></el-drawer
   >

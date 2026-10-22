@@ -238,6 +238,7 @@ export function deleteMaterial(state: State, materialId: string) {
     state.issues.some((issue) => contains(issue.lines)) ||
     state.shipments.some((shipment) => contains(shipment.lines)) ||
     (state.finishedInbounds || []).some((document) => contains(document.lines)) ||
+    (state.finishedOutbounds || []).some((document) => contains(document.lines)) ||
     state.movements.some((movement) => movement.material === materialId)
   )
     throw new Error("物料已被单据或 BOM 引用，不能删除，请先停用");

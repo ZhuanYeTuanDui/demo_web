@@ -184,10 +184,10 @@ describe("首页工作台与导航", () => {
     expect(procurement.find('a[href="#receipts"]').exists()).toBe(false);
     expect(production.find('a[href="#shipments"]').exists()).toBe(false);
     const heading = production.get('button[aria-label="生产管理"]');
-    await heading.trigger("click");
     expect(heading.attributes("aria-expanded")).toBe("false");
     expect(production.get('a[href="#plans"]').isVisible()).toBe(false);
     await heading.trigger("click");
+    expect(heading.attributes("aria-expanded")).toBe("true");
     await production.get('a[href="#plans"]').trigger("click");
     expect(document.title).toBe("生产计划 · WSN ERP");
     await wrapper.get('button[aria-label="收起导航"]').trigger("click");

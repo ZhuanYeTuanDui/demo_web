@@ -43,11 +43,21 @@ const menu = [
       { key: "stock", label: "库存记录", icon: Collection },
       { key: "warehouses", label: "仓库管理", icon: OfficeBuilding },
       { key: "materials", label: "物料档案", icon: Box },
-      { key: "movements", label: "出入库记录", icon: List },
-      { key: "issues", label: "领料单", icon: Tickets },
-      { key: "finished-inbounds", label: "成品入库单", icon: Tickets },
       { key: "finished-stock", label: "成品库存", icon: Box },
     ],
+  },
+  {
+    label: "出入库管理",
+    icon: List,
+    items: [
+      { key: "movements", label: "物料出入库", icon: List },
+      { key: "finished-inbounds", label: "成品出入库", icon: Tickets },
+    ],
+  },
+  {
+    label: "领料管理",
+    icon: Tickets,
+    items: [{ key: "issues", label: "领料单", icon: Tickets }],
   },
   {
     label: "采购管理",
@@ -146,7 +156,9 @@ watch(
   { flush: "pre" }
 );
 const collapsed = ref(false);
-const closedGroups = ref<string[]>([]);
+const closedGroups = ref<string[]>(
+  menu.filter(group => group.items[0]?.key !== "home").map(group => group.label)
+);
 const activeGroup = computed(() => menu.find((m) => m.items.some((i) => i.key === page.value))!);
 const title = computed(() =>
   materialId.value

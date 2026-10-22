@@ -8,10 +8,12 @@ import FaManagementList from "./FaManagementList.vue";
 import FaTableActions from "./FaTableActions.vue";
 import DataLink from "./DataLink.vue";
 import { state, material, warehouseName, commit } from "./store";
-import { createFinishedInbound, finishedProducts, id, today, type Line } from "./model";
+import { createFinishedInbound, finishedProducts, id, today, type Line, type FinishedInbound } from "./model";
+import { usePageActivation } from "./page-cache";
 
 const emit = defineEmits<{ navigate: [page: string] }>();
 const keyword = ref("");
+const direction = ref("");
 const page = ref(1);
 const pageSize = ref(50);
 const dialog = ref(false);
@@ -32,9 +34,14 @@ const workOrders = computed(() => state.value.workOrders.filter((w) => w.status 
 const warehouses = computed(() =>
   state.value.warehouses.filter((w) => w.id === "CP01" && !w.inactive)
 );
+type FinishedRecord = FinishedInbound & { type: "入库" | "出库"; shipment?: string };
+const documents = computed<FinishedRecord[]>(() => [
+  ...(state.value.finishedInbounds || []).map(row => ({ ...row, type: "入库" as const })),
+  ...(state.value.finishedOutbounds || []).map(row => ({ ...row, type: "出库" as const })),
+].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)));
 const rows = computed(() =>
-  (state.value.finishedInbounds || []).filter((row) =>
-    `${row.id} ${row.workOrder} ${orderName(row.workOrder)} ${row.remark || ""}`
+  documents.value.filter((row) => (!direction.value || row.type === direction.value) &&
+    `${row.id} ${row.workOrder} ${orderName(row.workOrder)} ${row.shipment || ""} ${row.remark || ""}`
       .toLowerCase()
       .includes(keyword.value.trim().toLowerCase())
   )
@@ -43,9 +50,15 @@ const paged = computed(() =>
   rows.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
 );
 const selected = computed(() =>
-  (state.value.finishedInbounds || []).find((row) => row.id === detail.value)
+  documents.value.find((row) => row.id === detail.value)
 );
-watch([keyword, pageSize], () => {
+usePageActivation(() => {
+  const documentId = sessionStorage.getItem("wsn-finished-document-detail");
+  if (!documentId) return;
+  detail.value = documentId;
+  sessionStorage.removeItem("wsn-finished-document-detail");
+});
+watch([keyword, direction, pageSize], () => {
   page.value = 1;
 });
 watch(
@@ -60,6 +73,10 @@ function orderName(orderId: string) {
 function viewOrder(orderId: string) {
   sessionStorage.setItem("wsn-work-order-detail", orderId);
   emit("navigate", "work-orders");
+}
+function viewShipment(shipmentId: string) {
+  sessionStorage.setItem("wsn-shipment-detail", shipmentId);
+  emit("navigate", "shipments");
 }
 function open() {
   Object.assign(form, {
@@ -143,22 +160,25 @@ async function create() {
     @search="page = 1"
     @reset="
       keyword = '';
+      direction = '';
       page = 1;
     "
   >
     <template #filters
       ><el-form-item label="关键词"
-        ><el-input v-model="keyword" clearable placeholder="入库单号、工单或备注" /></el-form-item
+        ><el-input v-model="keyword" clearable placeholder="单据号、工单、发货单或备注" /></el-form-item
+      ><el-form-item label="单据类型"><el-select v-model="direction" clearable placeholder="全部类型"><el-option label="入库" value="入库" /><el-option label="出库" value="出库" /></el-select></el-form-item
     ></template>
     <template #toolbar
-      ><el-button type="primary" :icon="Plus" @click="open">新增成品入库单</el-button></template
+      ><el-button type="primary" :icon="Plus" @click="open">新增成品入库单</el-button><el-button @click="emit('navigate', 'shipments')">成品发货</el-button><span class="muted">出库单由成品发货自动生成</span></template
     >
-    <el-table :data="paged" empty-text="暂无成品入库单">
-      <el-table-column label="入库单号" min-width="210"
+    <el-table :data="paged" empty-text="暂无成品出入库单据">
+      <el-table-column label="单据号" min-width="210"
         ><template #default="{ row }"
           ><DataLink @click="detail = row.id">{{ row.id }}</DataLink></template
         ></el-table-column
       >
+      <el-table-column label="单据类型" width="100"><template #default="{ row }"><el-tag :type="row.type === '入库' ? 'success' : 'warning'">{{ row.type }}</el-tag></template></el-table-column>
       <el-table-column label="关联工单" min-width="220"
         ><template #default="{ row }"
           ><DataLink @click="viewOrder(row.workOrder)">{{ orderName(row.workOrder) }}</DataLink>
@@ -168,7 +188,8 @@ async function create() {
       <el-table-column label="仓库" min-width="140"
         ><template #default="{ row }">{{ warehouseName(row.warehouse) }}</template></el-table-column
       >
-      <el-table-column prop="date" label="入库日期" width="120" />
+      <el-table-column prop="date" label="出入库日期" width="120" />
+      <el-table-column label="来源" min-width="210"><template #default="{ row }"><DataLink v-if="row.shipment" @click="viewShipment(row.shipment)">{{ row.shipment }}</DataLink><span v-else>手工入库</span></template></el-table-column>
       <el-table-column label="物料行数" width="100" align="right"
         ><template #default="{ row }">{{ row.lines.length }}</template></el-table-column
       >
@@ -287,13 +308,15 @@ async function create() {
   </el-dialog>
   <el-drawer
     :model-value="!!selected"
-    title="成品入库单详情"
+    :title="selected?.type === '出库' ? '成品出库单详情' : '成品入库单详情'"
     size="min(860px, 96vw)"
     @close="detail = ''"
   >
     <template v-if="selected">
       <el-descriptions :column="1" border
-        ><el-descriptions-item label="入库单号">{{ selected.id }}</el-descriptions-item
+        ><el-descriptions-item label="单据号">{{ selected.id }}</el-descriptions-item
+        ><el-descriptions-item label="单据类型">{{ selected.type }}</el-descriptions-item
+        ><el-descriptions-item v-if="selected.shipment" label="来源发货单"><DataLink @click="viewShipment(selected.shipment)">{{ selected.shipment }}</DataLink></el-descriptions-item
         ><el-descriptions-item label="关联工单"
           ><DataLink @click="viewOrder(selected.workOrder)">{{
             orderName(selected.workOrder)
@@ -301,12 +324,12 @@ async function create() {
         ><el-descriptions-item label="仓库">{{
           warehouseName(selected.warehouse)
         }}</el-descriptions-item
-        ><el-descriptions-item label="入库日期">{{ selected.date }}</el-descriptions-item
+        ><el-descriptions-item label="出入库日期">{{ selected.date }}</el-descriptions-item
         ><el-descriptions-item label="备注">{{
           selected.remark || "—"
         }}</el-descriptions-item></el-descriptions
       >
-      <h3>入库明细</h3>
+      <h3>{{ selected.type }}明细</h3>
       <el-table :data="selected.lines"
         ><el-table-column label="成品" min-width="200"
           ><template #default="{ row }"
