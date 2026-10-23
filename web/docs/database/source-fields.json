@@ -1,0 +1,5680 @@
+[
+  {
+    "number": 1,
+    "name": "工单概览统计",
+    "fields": [
+      {
+        "number": "1",
+        "label": "工单总数",
+        "control": "统计卡片",
+        "required": "—",
+        "source": "计算：count(工单)",
+        "rule": "全量工单，含已发货与已关闭；无数据时显示 0"
+      },
+      {
+        "number": "2",
+        "label": "完成数",
+        "control": "统计卡片",
+        "required": "—",
+        "source": "计算：count(状态=已发货)",
+        "rule": "“完成”唯一口径为已发货，不是完工入库，也不是待出货"
+      },
+      {
+        "number": "3",
+        "label": "进行中",
+        "control": "统计卡片",
+        "required": "—",
+        "source": "计算：count(状态≠已发货)",
+        "rule": "= 立项中 + 采购中 + 装配中 + 待出货 四态之和"
+      },
+      {
+        "number": "4",
+        "label": "完成率",
+        "control": "百分比卡片",
+        "required": "—",
+        "source": "计算：完成数 / 工单总数",
+        "rule": "分母为 0 时显示 0%；建议保留 1 位小数；不四舍五入为整数以免长期显示 0%"
+      }
+    ]
+  },
+  {
+    "number": 2,
+    "name": "工单进度面板",
+    "fields": [
+      {
+        "number": "1",
+        "label": "工单切换器",
+        "control": "组合控件（上一/下一/下拉）",
+        "required": "是",
+        "source": "用户选择",
+        "rule": "下拉支持按工单号、名称、客户模糊搜索；仅列出未发货工单"
+      },
+      {
+        "number": "2",
+        "label": "工单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "取自工单主档",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "工单名称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "取自工单主档",
+        "rule": "—"
+      },
+      {
+        "number": "4",
+        "label": "客户",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "取自工单主档",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "产品",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "取自工单主档",
+        "rule": "成品品号 + 品名"
+      },
+      {
+        "number": "6",
+        "label": "计划数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "取自工单主档",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "阶段进度条",
+        "control": "步骤条（5 段）",
+        "required": "—",
+        "source": "计算 + 人工切换",
+        "rule": "五段建议为：立项 → 采购 → 装配 → 待出货 → 已发货。前四段对应工单状态，末段发货后自动点亮"
+      },
+      {
+        "number": "8",
+        "label": "关联计划数",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：count(生产计划 where 工单=当前)",
+        "rule": "点击可跳转生产计划列表并带出筛选"
+      },
+      {
+        "number": "9",
+        "label": "采购底稿行数",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：count(底稿明细 where 来源计划属于当前工单)",
+        "rule": "—"
+      },
+      {
+        "number": "10",
+        "label": "采购单数",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：count(采购单 where 关联底稿属于当前工单)",
+        "rule": "—"
+      },
+      {
+        "number": "11",
+        "label": "领料数量",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：sum(领料单明细.领用数量)",
+        "rule": "按子件数量汇总，不做单位换算；跨单位时需标明单位（待确认）"
+      },
+      {
+        "number": "12",
+        "label": "发货数量",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：sum(发货单明细.数量)",
+        "rule": "—"
+      }
+    ]
+  },
+  {
+    "number": 3,
+    "name": "业务概览（物料到料情况）",
+    "fields": [
+      {
+        "number": "1",
+        "label": "待收货采购单数",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：count(采购单 where 已审核 and 未收齐)",
+        "rule": "点击跳转采购单列表并带“未收齐”筛选"
+      },
+      {
+        "number": "2",
+        "label": "在途行数 / 在途数量",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：sum(采购明细.未交数量)",
+        "rule": "在途 = 已下单未收货；两个数分开显示更有用"
+      },
+      {
+        "number": "3",
+        "label": "逾期未到行数",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：count(行 where 预交期 ＜ 今天 and 未收齐)",
+        "rule": "最该盯的数字：承诺今天到却还没到的行；红色标记并排最前"
+      },
+      {
+        "number": "4",
+        "label": "今日到货行数 / 数量",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：sum(收货单明细 where 日期=今天)",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "近 7 天到货趋势",
+        "control": "迷你柱图",
+        "required": "—",
+        "source": "计算：按日汇总到货数量",
+        "rule": "可选，用来看供应是否稳定；不做也不影响主流程"
+      },
+      {
+        "number": "6",
+        "label": "【按物料】品号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "【按物料】品名 / 规格",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "【按物料】需求量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "汇总：采购底稿 / 采购单需求量",
+        "rule": "—"
+      },
+      {
+        "number": "9",
+        "label": "【按物料】已到数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "汇总：收货数量",
+        "rule": "—"
+      },
+      {
+        "number": "10",
+        "label": "【按物料】未到数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：需求量 - 已到",
+        "rule": "核心列"
+      },
+      {
+        "number": "11",
+        "label": "【按物料】最近预计到货日",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "采购明细预交期的最小值",
+        "rule": "—"
+      },
+      {
+        "number": "12",
+        "label": "【按物料】到料状态",
+        "control": "标签",
+        "required": "—",
+        "source": "计算",
+        "rule": "已到齐 / 部分到货 / 未到货 / 逾期"
+      },
+      {
+        "number": "13",
+        "label": "快捷入口",
+        "control": "按钮组",
+        "required": "—",
+        "source": "—",
+        "rule": "收货单 / 采购单 / 缺料分析"
+      }
+    ]
+  },
+  {
+    "number": 4,
+    "name": "库存记录表（库存汇总表）",
+    "fields": [
+      {
+        "number": "1",
+        "label": "【视图】汇总 / 矩阵切换",
+        "control": "页签或单选",
+        "required": "—",
+        "source": "用户选择",
+        "rule": "汇总视图 = 老系统口径：一行一物料，数量是全部仓的合计；矩阵视图 = 清单口径：行 = 物料、列 = 仓库、格子 = 该物料在该仓的数量、末列合计。两个视图共用同一套检索条件"
+      },
+      {
+        "number": "2",
+        "label": "【检索】全局搜索框",
+        "control": "文本（带清除）",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "一站式匹配 品号 / 品名 / 规格 / 商品分类编号；防抖 300ms，回车立即执行；支持空格分词，多个关键词为 AND 关系（如“PLC 60MR”）。这是本次明确要求新增的能力"
+      },
+      {
+        "number": "3",
+        "label": "【检索】品号区间",
+        "control": "区间输入（起~止）",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "沿用老系统“品号：~”的区间口径；与全局搜索同时存在时，全局搜索优先作为模糊条件叠加"
+      },
+      {
+        "number": "4",
+        "label": "【检索】信息日期",
+        "control": "日期",
+        "required": "是",
+        "source": "默认今天",
+        "rule": "库存快照的截止日期，对应老系统“信息日期 2026/10/19”；决定统计到哪一天为止"
+      },
+      {
+        "number": "5",
+        "label": "【检索】仓库性质",
+        "control": "多选复选",
+        "required": "是",
+        "source": "枚举",
+        "rule": "存货仓 / 现场仓 / 委外仓，默认全选；老系统表头即以此三个口径限定统计范围"
+      },
+      {
+        "number": "6",
+        "label": "【检索】商品分类",
+        "control": "树形选择（三级）",
+        "required": "否",
+        "source": "商品分类字典",
+        "rule": "选中父节点自动包含其下所有子节点；支持多选"
+      },
+      {
+        "number": "7",
+        "label": "【检索】会计分类",
+        "control": "下拉多选",
+        "required": "否",
+        "source": "会计分类字典",
+        "rule": "如 0001 原材料；财务视角筛选"
+      },
+      {
+        "number": "8",
+        "label": "【检索】数量区间",
+        "control": "数字区间",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "填 0 可快速筛出零库存物料"
+      },
+      {
+        "number": "9",
+        "label": "【检索】成本区间",
+        "control": "金额区间",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "按库存金额筛选，可与数量条件组合找“高价值呆滞料”"
+      },
+      {
+        "number": "10",
+        "label": "【检索】仅显示有库存",
+        "control": "开关",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "默认开启；关闭后才显示数量为 0 的行（用于排查呆滞、断货）"
+      },
+      {
+        "number": "11",
+        "label": "【检索】重置条件",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "一键清空全部检索条件，回到默认视图"
+      },
+      {
+        "number": "12",
+        "label": "【检索】查询",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "条件即时生效时可不设，保留按钮便于复杂条件一次性提交"
+      },
+      {
+        "number": "13",
+        "label": "商品分类",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品分类",
+        "rule": "如 控制类"
+      },
+      {
+        "number": "14",
+        "label": "商品分类编号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品分类",
+        "rule": "如 Y01001"
+      },
+      {
+        "number": "15",
+        "label": "品号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "如 Y0100100002；老系统该列头带排序三角，说明支持按品号排序"
+      },
+      {
+        "number": "16",
+        "label": "品名",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "如 PLC"
+      },
+      {
+        "number": "17",
+        "label": "规格",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "如 FPXHC60T-F"
+      },
+      {
+        "number": "18",
+        "label": "库存单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "如 PCS"
+      },
+      {
+        "number": "19",
+        "label": "数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "库存台账：按仓库性质范围内汇总",
+        "rule": "老系统保留 3 位小数，如 14.000"
+      },
+      {
+        "number": "20",
+        "label": "成本",
+        "control": "金额（只读）",
+        "required": "—",
+        "source": "计算：Σ(数量 × 单位成本)",
+        "rule": "库存金额，不是单价；可据此反算单价 = 成本 / 数量（数量为 0 时不可算）"
+      },
+      {
+        "number": "21",
+        "label": "会计分类",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "会计分类字典",
+        "rule": "如 0001"
+      },
+      {
+        "number": "22",
+        "label": "会计分类名称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "会计分类字典",
+        "rule": "如 原材料"
+      },
+      {
+        "number": "23",
+        "label": "【汇总】表尾合计",
+        "control": "数字 + 金额",
+        "required": "—",
+        "source": "计算：sum(数量) / sum(成本)",
+        "rule": "老系统报表有合计行，新系统须在筛选结果上同步合计"
+      },
+      {
+        "number": "24",
+        "label": "【汇总】命中反馈",
+        "control": "文本",
+        "required": "—",
+        "source": "计算",
+        "rule": "显示“命中 N 条，合计数量 X，合计成本 Y”，随条件实时刷新"
+      },
+      {
+        "number": "25",
+        "label": "【操作】导出 CSV",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "导出的是当前筛选结果，不是全表；列与页面一致"
+      },
+      {
+        "number": "26",
+        "label": "【操作】打印",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "保留老系统原有的打印能力，打印时带上条件摘要与信息日期"
+      }
+    ]
+  },
+  {
+    "number": 5,
+    "name": "仓库列表",
+    "fields": [
+      {
+        "number": "1",
+        "label": "页签栏",
+        "control": "页签",
+        "required": "—",
+        "source": "—",
+        "rule": "详细信息 / 浏览信息；前者是字段表格，后者是系统级字段浏览视图，重构后“浏览信息”可省略"
+      },
+      {
+        "number": "2",
+        "label": "仓库编号（列头为“仓库”）",
+        "control": "文本（只读，可排序）",
+        "required": "—",
+        "source": "仓库主档（主键）",
+        "rule": "如 BJ01；列头带排序三角，说明原系统支持按编号排序"
+      },
+      {
+        "number": "3",
+        "label": "仓库性质",
+        "control": "标签",
+        "required": "—",
+        "source": "枚举",
+        "rule": "存货仓 / 现场仓 / 委外仓；只有这三类，没有“原料仓/成品仓”这种库别"
+      },
+      {
+        "number": "4",
+        "label": "仓库名称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "如 钣金仓库、标准件仓库、成品仓库"
+      },
+      {
+        "number": "5",
+        "label": "纳入可用量计算",
+        "control": "复选框（可就地编辑）",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "勾选 = 该仓库存计入 MRP 可用量；现场仓、委外仓、不良仓通常不勾"
+      },
+      {
+        "number": "6",
+        "label": "电话",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "传真",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "邮编",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "列表有此列，但详情表单未提供录入项（见待确认）　【已确认删除该字段 — Q017】"
+      },
+      {
+        "number": "9",
+        "label": "地址",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "—"
+      },
+      {
+        "number": "10",
+        "label": "失效",
+        "control": "复选框（只读）",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "勾选 = 该仓停用；注意老系统用“失效”而非“停用”"
+      },
+      {
+        "number": "11",
+        "label": "备注",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "—"
+      }
+    ]
+  },
+  {
+    "number": 6,
+    "name": "新建仓库表单",
+    "fields": [
+      {
+        "number": "1",
+        "label": "仓库编号",
+        "control": "文本",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "唯一；现行规则为“名称拼音首字母 2 位 + 流水号”，如 BJ01（钣金）、BZ01（标准件）、CP01（成品）；保存后不可修改"
+      },
+      {
+        "number": "2",
+        "label": "仓库名称",
+        "control": "文本",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "如 钣金仓库；建议加“仓库”后缀以统一风格，但不强制"
+      },
+      {
+        "number": "3",
+        "label": "仓库性质",
+        "control": "下拉",
+        "required": "是",
+        "source": "字典",
+        "rule": "存货仓 / 现场仓 / 委外仓；决定该仓在库存汇总表中被归入哪一类"
+      },
+      {
+        "number": "4",
+        "label": "纳入可用量计算",
+        "control": "复选框",
+        "required": "是",
+        "source": "用户选择",
+        "rule": "默认勾选；现场仓与委外仓建议默认不勾"
+      },
+      {
+        "number": "5",
+        "label": "失效",
+        "control": "复选框",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "新建时默认不勾；老系统用“失效”表达停用"
+      },
+      {
+        "number": "6",
+        "label": "电话",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "传真",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "地址",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "老系统为空，可填仓库物理位置"
+      },
+      {
+        "number": "9",
+        "label": "备注",
+        "control": "多行文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      }
+    ]
+  },
+  {
+    "number": 7,
+    "name": "仓库档案表单",
+    "fields": [
+      {
+        "number": "1",
+        "label": "仓库编号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "只读展示，不可编辑"
+      },
+      {
+        "number": "2",
+        "label": "仓库名称",
+        "control": "文本",
+        "required": "是",
+        "source": "用户编辑",
+        "rule": "如 钣金仓库"
+      },
+      {
+        "number": "3",
+        "label": "仓库性质",
+        "control": "下拉",
+        "required": "是",
+        "source": "用户编辑",
+        "rule": "存货仓 / 现场仓 / 委外仓；变更会影响库存汇总表的归类与可用量口径，建议二次确认"
+      },
+      {
+        "number": "4",
+        "label": "纳入可用量计算",
+        "control": "复选框",
+        "required": "是",
+        "source": "用户编辑",
+        "rule": "关闭后该仓库存立即退出 MRP 可用量，须提示影响范围（涉及多少物料、多少金额）"
+      },
+      {
+        "number": "5",
+        "label": "失效",
+        "control": "复选框",
+        "required": "是",
+        "source": "用户编辑",
+        "rule": "勾选 = 停用；停用后不可再发生出入库业务"
+      },
+      {
+        "number": "6",
+        "label": "电话",
+        "control": "文本",
+        "required": "否",
+        "source": "用户编辑",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "传真",
+        "control": "文本",
+        "required": "否",
+        "source": "用户编辑",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "地址",
+        "control": "文本",
+        "required": "否",
+        "source": "用户编辑",
+        "rule": "—"
+      },
+      {
+        "number": "9",
+        "label": "备注",
+        "control": "多行文本",
+        "required": "否",
+        "source": "用户编辑",
+        "rule": "—"
+      }
+    ]
+  },
+  {
+    "number": 8,
+    "name": "物料列表",
+    "fields": [
+      {
+        "number": "1",
+        "label": "分类树",
+        "control": "树形（三级）",
+        "required": "—",
+        "source": "商品分类字典",
+        "rule": "一级如 Y1 原材料 / G 工具 / D 成品 / B 半成品 / M 模具 / YM 模具零配件 / YL 零件 / U 夹具 / YJ 夹具零配件 / L 零件 BOM；二级如 Y01 电器件、Y02 标准件、Y03 客订件、Y04 钣金件、Y05 机加件；三级如 Y01001 控制类、Y01002 驱动类 …… Y01999 其他类"
+      },
+      {
+        "number": "2",
+        "label": "分类名称检索",
+        "control": "搜索框",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "老系统左上角为“输入分类编号或分类名称”，只过滤左侧分类树，不过滤右侧列表——这是极易被误实现的一点"
+      },
+      {
+        "number": "3",
+        "label": "品号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品（物料）主档",
+        "rule": "主键，如 Y0100100185"
+      },
+      {
+        "number": "4",
+        "label": "品名",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "如 触摸屏"
+      },
+      {
+        "number": "5",
+        "label": "规格",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "如 PI3102i"
+      },
+      {
+        "number": "6",
+        "label": "快捷键",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "老系统专有，如 CMP / PLC / PCS，用于快速录入；新系统可保留为检索别名"
+      },
+      {
+        "number": "7",
+        "label": "条码编号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "库存单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "如 PCS / 台 / 米"
+      },
+      {
+        "number": "9",
+        "label": "商品分类",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品分类",
+        "rule": "三级编码，如 Y01001 控制类"
+      },
+      {
+        "number": "10",
+        "label": "会计分类",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "会计分类字典",
+        "rule": "如 0001 原材料；与商品分类是两套独立口径，财务记账用"
+      },
+      {
+        "number": "11",
+        "label": "主要仓库",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "如 BZ01"
+      },
+      {
+        "number": "12",
+        "label": "仓库名称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "如 标准件仓库；由主要仓库带出，不单独维护"
+      },
+      {
+        "number": "13",
+        "label": "主要来源",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "枚举",
+        "rule": "如 采购件 / 自制件 / 委外件；决定该物料走采购还是生产环节"
+      },
+      {
+        "number": "14",
+        "label": "指定主供应商",
+        "control": "复选框（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "勾选表示必须从主供应商采购"
+      },
+      {
+        "number": "15",
+        "label": "主供应商",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "供应商主档",
+        "rule": "如 A0001"
+      },
+      {
+        "number": "16",
+        "label": "供应商简称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "供应商主档",
+        "rule": "带出，不单独维护"
+      },
+      {
+        "number": "17",
+        "label": "采购单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "可与库存单位不同"
+      },
+      {
+        "number": "18",
+        "label": "税率",
+        "control": "百分比（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "如 3.00% / 13.00%"
+      },
+      {
+        "number": "19",
+        "label": "循环盘点码",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "用于循环盘点分组"
+      },
+      {
+        "number": "20",
+        "label": "存放位置",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "货架 / 库位描述"
+      },
+      {
+        "number": "21",
+        "label": "生产部门 / 生产部门名称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "部门字典",
+        "rule": "自制件的默认生产部门"
+      },
+      {
+        "number": "22",
+        "label": "失效",
+        "control": "复选框（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "勾选后相当于停用，不可再被单据选中"
+      },
+      {
+        "number": "23",
+        "label": "按需求补货",
+        "control": "复选框（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "勾选 = 由 MRP / 需求驱动补货"
+      },
+      {
+        "number": "24",
+        "label": "前置天数",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "采购或生产提前期（天）"
+      },
+      {
+        "number": "25",
+        "label": "安全存量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "商品主档",
+        "rule": "低于此值预警"
+      },
+      {
+        "number": "26",
+        "label": "分页器",
+        "control": "分页控件",
+        "required": "—",
+        "source": "—",
+        "rule": "默认条数需与采购单列表统一（采购单为 50 条/页）"
+      }
+    ]
+  },
+  {
+    "number": 9,
+    "name": "物料档案表单",
+    "fields": [
+      {
+        "number": "1",
+        "label": "【基本信息】品号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成或按规则编码",
+        "rule": "如 Y0100100185；编码疑似为“三级分类码 + 流水号”，需确认规则"
+      },
+      {
+        "number": "2",
+        "label": "【基本信息】品名",
+        "control": "文本",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "如 触摸屏"
+      },
+      {
+        "number": "3",
+        "label": "【基本信息】规格",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "如 PI3102i"
+      },
+      {
+        "number": "4",
+        "label": "【基本信息】库存单位",
+        "control": "文本 / 下拉",
+        "required": "是",
+        "source": "计量单位字典",
+        "rule": "如 PCS / 台 / 米；改动会影响历史单据的显示口径，建议锁死"
+      },
+      {
+        "number": "5",
+        "label": "【基本信息】快捷键",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "老系统专有，如 CMP / PLC / PCS；用于采购录入时快速带出物料"
+      },
+      {
+        "number": "6",
+        "label": "【基本信息】条码编号",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入 / 扫码",
+        "rule": "唯一；与“条码格式编号”配合生成"
+      },
+      {
+        "number": "7",
+        "label": "【基本信息】品牌",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "【基本信息】材质",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      },
+      {
+        "number": "9",
+        "label": "【基本信息】照片 / 描述",
+        "control": "附件 + 富文本",
+        "required": "否",
+        "source": "用户上传",
+        "rule": "老系统为独立页签，用于放产品图与长描述"
+      },
+      {
+        "number": "10",
+        "label": "【分类属性】商品分类",
+        "control": "树形选择",
+        "required": "是",
+        "source": "商品分类字典",
+        "rule": "三级编码，如 Y01001 控制类；决定报表归类与默认参数"
+      },
+      {
+        "number": "11",
+        "label": "【分类属性】会计分类",
+        "control": "下拉",
+        "required": "是",
+        "source": "会计分类字典",
+        "rule": "如 0001 原材料；财务记账口径，与商品分类完全独立"
+      },
+      {
+        "number": "12",
+        "label": "【分类属性】物料属性",
+        "control": "下拉",
+        "required": "是",
+        "source": "枚举",
+        "rule": "成品 / 半成品 / 原材料 / 辅料（新系统清单口径）"
+      },
+      {
+        "number": "13",
+        "label": "【分类属性】主要来源",
+        "control": "下拉",
+        "required": "是",
+        "source": "枚举",
+        "rule": "采购件 / 自制件 / 委外件；决定该物料进入采购环节还是生产环节，是 MRP 分流的依据"
+      },
+      {
+        "number": "14",
+        "label": "【分类属性】ABC 分类",
+        "control": "下拉",
+        "required": "否",
+        "source": "枚举",
+        "rule": "A / B / C，用于盘点与备货策略"
+      },
+      {
+        "number": "15",
+        "label": "【仓储】主要仓库",
+        "control": "选择器",
+        "required": "否",
+        "source": "仓库主档",
+        "rule": "如 BZ01；领料 / 入库时的默认仓"
+      },
+      {
+        "number": "16",
+        "label": "【仓储】仓库名称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "由主要仓库带出，如 标准件仓库"
+      },
+      {
+        "number": "17",
+        "label": "【仓储】循环盘点码",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "用于循环盘点分组"
+      },
+      {
+        "number": "18",
+        "label": "【仓储】存放位置",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "货架 / 库位描述"
+      },
+      {
+        "number": "19",
+        "label": "【仓储】条码格式编号",
+        "control": "文本",
+        "required": "否",
+        "source": "条码规则字典",
+        "rule": "决定条码生成规则"
+      },
+      {
+        "number": "20",
+        "label": "【仓储】低阶码",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：BOM 展开层级",
+        "rule": "系统自动计算的最低层级码，用于 MRP 逐层展开；人工不可改"
+      },
+      {
+        "number": "21",
+        "label": "【仓储】安全存量",
+        "control": "数字",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "低于此值触发低位预警"
+      },
+      {
+        "number": "22",
+        "label": "【仓储】最高库存",
+        "control": "数字",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "超储预警阈值（新系统扩展字段）"
+      },
+      {
+        "number": "23",
+        "label": "【仓储】补货点",
+        "control": "数字",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "ROP 补货触发点（新系统扩展字段）"
+      },
+      {
+        "number": "24",
+        "label": "【仓储】批号管理",
+        "control": "开关",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "老系统为复选；开启后该物料出入库必须录批号"
+      },
+      {
+        "number": "25",
+        "label": "【采购生产】采购单位",
+        "control": "文本 / 下拉",
+        "required": "否",
+        "source": "单位字典",
+        "rule": "可与库存单位不同，不同即需换算率"
+      },
+      {
+        "number": "26",
+        "label": "【采购生产】销售单位",
+        "control": "文本 / 下拉",
+        "required": "否",
+        "source": "单位字典",
+        "rule": "老系统有该字段；新系统清单未列出，是否保留待确认"
+      },
+      {
+        "number": "27",
+        "label": "【采购生产】换算分子 / 分母",
+        "control": "数字 ×2",
+        "required": "条件",
+        "source": "用户输入",
+        "rule": "采购或销售单位 ≠ 库存单位时必填；方向存在歧义，见待确认　【已确认取消：系统不做单位换算，一律按 1:1 — Q004】"
+      },
+      {
+        "number": "28",
+        "label": "【采购生产】税率",
+        "control": "百分比",
+        "required": "是",
+        "source": "用户输入 / 分类默认",
+        "rule": "如 3.00% / 13.00%；默认带入采购明细"
+      },
+      {
+        "number": "29",
+        "label": "【采购生产】前置天数",
+        "control": "数字",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "采购或生产提前期（天），用于预交期倒推"
+      },
+      {
+        "number": "30",
+        "label": "【采购生产】主供应商",
+        "control": "选择器",
+        "required": "否",
+        "source": "供应商主档",
+        "rule": "如 A0001"
+      },
+      {
+        "number": "31",
+        "label": "【采购生产】指定主供应商",
+        "control": "复选",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "勾选 = 该物料必须从主供应商采购，缺料分析“带出主供应商”依赖此标记"
+      },
+      {
+        "number": "32",
+        "label": "【采购生产】最低补量",
+        "control": "数字",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "最小采购 / 补货数量"
+      },
+      {
+        "number": "33",
+        "label": "【采购生产】补货倍量",
+        "control": "数字",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "采购数量按此倍数取整"
+      },
+      {
+        "number": "34",
+        "label": "【采购生产】领料倍量",
+        "control": "数字",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "领料数量按此倍数取整"
+      },
+      {
+        "number": "35",
+        "label": "【采购生产】指定 BOM",
+        "control": "选择器",
+        "required": "否",
+        "source": "BOM 主档",
+        "rule": "指定固定 BOM，替代默认版本；成品 / 半成品适用"
+      },
+      {
+        "number": "36",
+        "label": "【采购生产】工艺路线编号",
+        "control": "文本",
+        "required": "否",
+        "source": "工艺路线主档",
+        "rule": "自制件适用"
+      },
+      {
+        "number": "37",
+        "label": "【采购生产】BOM 版本",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "新系统清单扩展字段"
+      },
+      {
+        "number": "38",
+        "label": "【采购生产】生产部门",
+        "control": "选择器",
+        "required": "否",
+        "source": "部门字典",
+        "rule": "自制件的默认生产部门"
+      },
+      {
+        "number": "39",
+        "label": "【补货控制】按需求补货",
+        "control": "复选",
+        "required": "是",
+        "source": "用户选择",
+        "rule": "勾选 = 由 MRP / 需求驱动补货；不勾 = 按补货点补货（与“补货方式”语义重叠，需合并）"
+      },
+      {
+        "number": "40",
+        "label": "【补货控制】补货方式",
+        "control": "下拉",
+        "required": "否",
+        "source": "枚举",
+        "rule": "MRP / ROP / 人工"
+      },
+      {
+        "number": "41",
+        "label": "【补货控制】经济批量",
+        "control": "数字",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      },
+      {
+        "number": "42",
+        "label": "【补货控制】允许负库存",
+        "control": "开关",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "开启后出库不受可用量限制，需谨慎"
+      },
+      {
+        "number": "43",
+        "label": "【核算】成本计价方式",
+        "control": "下拉",
+        "required": "是",
+        "source": "枚举",
+        "rule": "老系统实际值：月加权平均；另可能有先进先出 / 移动平均"
+      },
+      {
+        "number": "44",
+        "label": "【核算】参考单价",
+        "control": "金额（只读）",
+        "required": "—",
+        "source": "系统维护",
+        "rule": "只读，不参与记账"
+      },
+      {
+        "number": "45",
+        "label": "【核算】存货核算",
+        "control": "复选",
+        "required": "是",
+        "source": "用户选择",
+        "rule": "勾选 = 参与存货核算并生成凭证"
+      },
+      {
+        "number": "46",
+        "label": "【核算】人工分摊权数",
+        "control": "数字",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "默认 0.0；用于人工费用分摊"
+      },
+      {
+        "number": "47",
+        "label": "【核算】制费分摊权数",
+        "control": "数字",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "默认 0.0；用于制造费用分摊"
+      },
+      {
+        "number": "48",
+        "label": "【管理状态】部门",
+        "control": "选择器",
+        "required": "否",
+        "source": "部门字典",
+        "rule": "归属部门"
+      },
+      {
+        "number": "49",
+        "label": "【管理状态】失效",
+        "control": "复选",
+        "required": "是",
+        "source": "用户选择",
+        "rule": "软停用；勾选后不可被新单据选中"
+      },
+      {
+        "number": "50",
+        "label": "【管理状态】启用 / 停用",
+        "control": "开关",
+        "required": "是",
+        "source": "用户选择",
+        "rule": "新系统口径；与“失效”语义重复，建议只保留一个"
+      },
+      {
+        "number": "51",
+        "label": "【管理状态】参与 MRP",
+        "control": "开关",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "关闭后缺料分析忽略该物料"
+      },
+      {
+        "number": "52",
+        "label": "【管理状态】序列号管理",
+        "control": "开关",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "—"
+      },
+      {
+        "number": "53",
+        "label": "【管理状态】备注",
+        "control": "多行文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      }
+    ]
+  },
+  {
+    "number": 10,
+    "name": "出入库流水列表",
+    "fields": [
+      {
+        "number": "1",
+        "label": "单据号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "来源单据",
+        "rule": "采购收货 / 领料 / 完工入库 / 发货 / 手工登记"
+      },
+      {
+        "number": "2",
+        "label": "日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "业务发生时间",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "方向",
+        "control": "标签（只读）",
+        "required": "—",
+        "source": "枚举",
+        "rule": "入库 / 出库"
+      },
+      {
+        "number": "4",
+        "label": "业务类型",
+        "control": "标签（只读）",
+        "required": "—",
+        "source": "枚举",
+        "rule": "建议：采购入库 / 生产领料 / 完工入库 / 销售出库 / 手工调整 / 盘盈亏"
+      },
+      {
+        "number": "5",
+        "label": "仓库",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "品号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "品名",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "规格",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "9",
+        "label": "数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "来源单据",
+        "rule": "入库为正、出库为正（方向计），不采用负数记账（需统一）"
+      },
+      {
+        "number": "10",
+        "label": "单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "11",
+        "label": "关联单据",
+        "control": "链接（只读）",
+        "required": "—",
+        "source": "来源单据号",
+        "rule": "可跳转到对应单据详情"
+      },
+      {
+        "number": "12",
+        "label": "原因",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "手工登记时填写",
+        "rule": "系统自动单据显示为“系统生成”"
+      },
+      {
+        "number": "13",
+        "label": "操作人",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "当前登录用户",
+        "rule": "—"
+      },
+      {
+        "number": "14",
+        "label": "备注",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "来源单据",
+        "rule": "—"
+      }
+    ]
+  },
+  {
+    "number": 11,
+    "name": "其他入库单（手工登记入库）",
+    "fields": [
+      {
+        "number": "1",
+        "label": "单号",
+        "control": "文本（只读）",
+        "required": "是",
+        "source": "系统生成",
+        "rule": "如 202610049；按单据类别独立流水"
+      },
+      {
+        "number": "2",
+        "label": "性质",
+        "control": "文本",
+        "required": "否",
+        "source": "字典",
+        "rule": "单据性质，与编号体系共用"
+      },
+      {
+        "number": "3",
+        "label": "日期",
+        "control": "日期",
+        "required": "是",
+        "source": "默认今天",
+        "rule": "业务发生日期"
+      },
+      {
+        "number": "4",
+        "label": "单据类别",
+        "control": "下拉",
+        "required": "是",
+        "source": "系统参数维护",
+        "rule": "如 C1；选项在系统中统一维护，不允许录单时临时新增"
+      },
+      {
+        "number": "5",
+        "label": "单据类别名称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "带出",
+        "rule": "如“车间材料入”；选择类别后自动带出，只读"
+      },
+      {
+        "number": "6",
+        "label": "凭证",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统",
+        "rule": "如“未生成”；财务凭证状态"
+      },
+      {
+        "number": "7",
+        "label": "经办人",
+        "control": "选择器",
+        "required": "是",
+        "source": "用户",
+        "rule": "如 0010 标准件仓库"
+      },
+      {
+        "number": "8",
+        "label": "部门",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "用户所属部门",
+        "rule": "如 008"
+      },
+      {
+        "number": "9",
+        "label": "仓库（表头）",
+        "control": "下拉",
+        "required": "否",
+        "source": "仓库主档",
+        "rule": "作为明细行的默认仓库，可空；行级仍可单独指定"
+      },
+      {
+        "number": "10",
+        "label": "项目",
+        "control": "选择器",
+        "required": "否",
+        "source": "项目字典",
+        "rule": "—"
+      },
+      {
+        "number": "11",
+        "label": "备注",
+        "control": "多行文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      },
+      {
+        "number": "12",
+        "label": "审核人",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "用户",
+        "rule": "审核后写入，如 0010 标准件仓库"
+      },
+      {
+        "number": "13",
+        "label": "制单人 / 制单日期",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统",
+        "rule": "—"
+      },
+      {
+        "number": "14",
+        "label": "审核状态",
+        "control": "标签",
+        "required": "—",
+        "source": "枚举",
+        "rule": "未审核 / 已审核；审核后单据不可修改"
+      },
+      {
+        "number": "15",
+        "label": "审核时间",
+        "control": "日期时间（只读）",
+        "required": "—",
+        "source": "系统",
+        "rule": "如 2026-10-22 12:12:14"
+      },
+      {
+        "number": "16",
+        "label": "来源",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "手工登记时可注明实物来源，如车间退料、盘点盈余"
+      },
+      {
+        "number": "17",
+        "label": "凭证类别 / 凭证类别名称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "财务",
+        "rule": "如 008 / 008"
+      },
+      {
+        "number": "18",
+        "label": "签核码",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统",
+        "rule": "审核签核标识"
+      },
+      {
+        "number": "19",
+        "label": "【明细】序号",
+        "control": "数字",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "—"
+      },
+      {
+        "number": "20",
+        "label": "【明细】品号",
+        "control": "选择器",
+        "required": "是",
+        "source": "物料主档（必须已存在）",
+        "rule": "如 Y0100110032。只能选已建档物料；手输不存在的品号不允许保存"
+      },
+      {
+        "number": "21",
+        "label": "【明细】品名",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "如 发热管；选品号后带出"
+      },
+      {
+        "number": "22",
+        "label": "【明细】规格",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "如 9寸2015 900W"
+      },
+      {
+        "number": "23",
+        "label": "【明细】交易单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "如 条 / PCS"
+      },
+      {
+        "number": "24",
+        "label": "【明细】仓库",
+        "control": "下拉",
+        "required": "是",
+        "source": "仓库主档",
+        "rule": "如 BZ01；行级指定，默认取表头仓库"
+      },
+      {
+        "number": "25",
+        "label": "【明细】仓库名称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "如 标准件仓库；带出"
+      },
+      {
+        "number": "26",
+        "label": "【明细】交易数量",
+        "control": "数字",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "如 5.0；必须 ＞ 0"
+      },
+      {
+        "number": "27",
+        "label": "【明细】批号",
+        "control": "文本",
+        "required": "条件",
+        "source": "用户输入",
+        "rule": "启用了批号管理的物料必填"
+      },
+      {
+        "number": "28",
+        "label": "【明细】批号说明",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      },
+      {
+        "number": "29",
+        "label": "【明细】换算分子 / 换算分母",
+        "control": "数字 ×2",
+        "required": "条件",
+        "source": "物料主档",
+        "rule": "交易单位 ≠ 库存单位时使用，默认 1/1　【已确认取消：系统不做单位换算，一律按 1:1 — Q004】"
+      },
+      {
+        "number": "30",
+        "label": "【明细】库存单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "如 PCS"
+      },
+      {
+        "number": "31",
+        "label": "【明细】库存单位数量",
+        "control": "数字（计算）",
+        "required": "—",
+        "source": "交易数量 × 换算率",
+        "rule": "如 5.0"
+      },
+      {
+        "number": "32",
+        "label": "【明细】生产日期",
+        "control": "日期",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "批次属性"
+      },
+      {
+        "number": "33",
+        "label": "【明细】有效日期",
+        "control": "日期",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "批次属性"
+      },
+      {
+        "number": "34",
+        "label": "【明细】存放位置",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "货架 / 库位"
+      }
+    ]
+  },
+  {
+    "number": 12,
+    "name": "领料单列表",
+    "fields": [
+      {
+        "number": "1",
+        "label": "领料单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "格式参考老系统 LL+日期+流水（如 LL20261019001）"
+      },
+      {
+        "number": "2",
+        "label": "日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "业务日期",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "关联计划号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "生产计划",
+        "rule": "可跳转"
+      },
+      {
+        "number": "4",
+        "label": "工单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "工单",
+        "rule": "可跳转"
+      },
+      {
+        "number": "5",
+        "label": "单据状态",
+        "control": "标签",
+        "required": "—",
+        "source": "枚举",
+        "rule": "待备料 / 已领料 / 已作废"
+      },
+      {
+        "number": "6",
+        "label": "物料行数",
+        "control": "数字",
+        "required": "—",
+        "source": "计算",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "领料总数量",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：sum(明细.领用数量)",
+        "rule": "跨单位不做合计，或标注单位"
+      },
+      {
+        "number": "8",
+        "label": "制单人",
+        "control": "文本",
+        "required": "—",
+        "source": "当前用户",
+        "rule": "—"
+      },
+      {
+        "number": "9",
+        "label": "审核状态",
+        "control": "标签",
+        "required": "—",
+        "source": "枚举",
+        "rule": "未审核 / 已审核（老系统为“审核码”）"
+      },
+      {
+        "number": "10",
+        "label": "操作",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "查看详情"
+      }
+    ]
+  },
+  {
+    "number": 13,
+    "name": "创建领料单表单",
+    "fields": [
+      {
+        "number": "1",
+        "label": "【取单】前置单据类型",
+        "control": "单选",
+        "required": "是",
+        "source": "用户选择",
+        "rule": "工单 / 委工单（老系统为两个单选按钮）"
+      },
+      {
+        "number": "2",
+        "label": "【取单】单号区间",
+        "control": "区间输入",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "起 ~ 止，支持模糊"
+      },
+      {
+        "number": "3",
+        "label": "【取单】开单日期区间",
+        "control": "日期区间",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "起 ~ 止"
+      },
+      {
+        "number": "4",
+        "label": "【取单】部门",
+        "control": "下拉",
+        "required": "否",
+        "source": "部门字典",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "【取单】主件品号",
+        "control": "选择器",
+        "required": "否",
+        "source": "物料主档",
+        "rule": "按主件筛选待领工单"
+      },
+      {
+        "number": "6",
+        "label": "【取单】现场仓",
+        "control": "下拉",
+        "required": "是",
+        "source": "仓库主档",
+        "rule": "老系统默认 XC01；决定可用量核算口径"
+      },
+      {
+        "number": "7",
+        "label": "【取单】指定领料仓",
+        "control": "下拉",
+        "required": "否",
+        "source": "仓库主档",
+        "rule": "不指定时按物料默认仓自动拆分"
+      },
+      {
+        "number": "8",
+        "label": "【取单】只显示未领完工单",
+        "control": "复选",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "默认勾选"
+      },
+      {
+        "number": "9",
+        "label": "【取单】按主件领料",
+        "control": "复选",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "—"
+      },
+      {
+        "number": "10",
+        "label": "【取单】只显示未领的子件",
+        "control": "复选",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "—"
+      },
+      {
+        "number": "11",
+        "label": "【明细】序号",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "—"
+      },
+      {
+        "number": "12",
+        "label": "【明细】子件品号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "BOM 展开",
+        "rule": "—"
+      },
+      {
+        "number": "13",
+        "label": "【明细】品名",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "14",
+        "label": "【明细】规格",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "15",
+        "label": "【明细】单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "库存单位"
+      },
+      {
+        "number": "16",
+        "label": "【明细】BOM 需求量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：单台用量 × 计划数量",
+        "rule": "—"
+      },
+      {
+        "number": "17",
+        "label": "【明细】已领数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "历史领料汇总",
+        "rule": "—"
+      },
+      {
+        "number": "18",
+        "label": "【明细】本次领用",
+        "control": "数字（可编辑）",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "按仓拆分后可逐行调整"
+      },
+      {
+        "number": "19",
+        "label": "【明细】领用仓库",
+        "control": "下拉（行级）",
+        "required": "是",
+        "source": "仓库主档",
+        "rule": "自动按可用库存拆分，可手工改仓"
+      },
+      {
+        "number": "20",
+        "label": "【明细】可用库存",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "库存台账",
+        "rule": "超出时应即时标红"
+      },
+      {
+        "number": "21",
+        "label": "【明细】行状态",
+        "control": "标签",
+        "required": "—",
+        "source": "计算",
+        "rule": "满足 / 仓库不足 / 已领齐"
+      },
+      {
+        "number": "22",
+        "label": "【汇总】领料合计",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：sum(本次领用)",
+        "rule": "须等于 BOM 需求 - 已领，否则不允许提交"
+      }
+    ]
+  },
+  {
+    "number": 14,
+    "name": "领料单详情（含打印）",
+    "fields": [
+      {
+        "number": "1",
+        "label": "领料单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "领料单主表",
+        "rule": "—"
+      },
+      {
+        "number": "2",
+        "label": "日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "领料单主表",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "关联计划号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "生产计划",
+        "rule": "可跳转"
+      },
+      {
+        "number": "4",
+        "label": "工单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "工单",
+        "rule": "可跳转"
+      },
+      {
+        "number": "5",
+        "label": "现场仓",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "领料单主表",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "单据状态",
+        "control": "标签",
+        "required": "—",
+        "source": "枚举",
+        "rule": "待备料 / 已领料"
+      },
+      {
+        "number": "7",
+        "label": "制单人",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "领料单主表",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "备注",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "领料单主表",
+        "rule": "—"
+      },
+      {
+        "number": "9",
+        "label": "【明细】序号",
+        "control": "数字",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "—"
+      },
+      {
+        "number": "10",
+        "label": "【明细】子件品号",
+        "control": "文本",
+        "required": "—",
+        "source": "领料单明细",
+        "rule": "—"
+      },
+      {
+        "number": "11",
+        "label": "【明细】品名",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "12",
+        "label": "【明细】规格",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "13",
+        "label": "【明细】单位",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "14",
+        "label": "【明细】领用数量",
+        "control": "数字",
+        "required": "—",
+        "source": "领料单明细",
+        "rule": "打印件上显示为“预计用量”或“数量”，随模板而定"
+      },
+      {
+        "number": "15",
+        "label": "【明细】出库仓库",
+        "control": "文本",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "按仓拆分会生成多行；简化版模板可不显示此列"
+      },
+      {
+        "number": "16",
+        "label": "【明细】库存变动",
+        "control": "文本",
+        "required": "—",
+        "source": "流水前后值",
+        "rule": "如 120 → 96，便于对账"
+      },
+      {
+        "number": "17",
+        "label": "【明细】生产来源",
+        "control": "文本",
+        "required": "—",
+        "source": "追溯",
+        "rule": "老系统为“来源类别 + 来源单号 + 来源序号”，指向计划/工单"
+      },
+      {
+        "number": "18",
+        "label": "【明细】批号",
+        "control": "文本",
+        "required": "—",
+        "source": "批次管理开启时",
+        "rule": "—"
+      },
+      {
+        "number": "19",
+        "label": "【打印】打印入口",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "打开“领料单打印”弹窗；单张从详情页进入，批量从列表页勾选后进入"
+      },
+      {
+        "number": "20",
+        "label": "【打印】领料单号区间",
+        "control": "区间输入（起~止）",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "默认带当前单号；支持一次打印多张连续单号"
+      },
+      {
+        "number": "21",
+        "label": "【打印】领料日期区间",
+        "control": "日期区间",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "按领料日期筛选批量打印范围"
+      },
+      {
+        "number": "22",
+        "label": "【打印】审核状态",
+        "control": "下拉",
+        "required": "否",
+        "source": "枚举",
+        "rule": "全部 / 已审核 / 未审核；默认“全部”"
+      },
+      {
+        "number": "23",
+        "label": "【打印】同品号合并显示",
+        "control": "复选框",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "勾选后同一品号的多行合并为一行、数量相加；用于给仓库或供应商的汇总备料单"
+      },
+      {
+        "number": "24",
+        "label": "【打印】分仓打印",
+        "control": "复选框",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "勾选后按领料仓拆分，每仓一份，便于分头备料"
+      },
+      {
+        "number": "25",
+        "label": "【打印】格式名称",
+        "control": "下拉（多模板）",
+        "required": "是",
+        "source": "模板库",
+        "rule": "如“标准-有框线半页”“标准-无框线全页”“标准-全页有线框含二维码”“自订-领料单2”；标准为系统预置，自订为用户自建"
+      },
+      {
+        "number": "26",
+        "label": "【打印】页签",
+        "control": "页签",
+        "required": "—",
+        "source": "—",
+        "rule": "选项条件 / 签核页脚；后者配置签字栏与页脚文字"
+      },
+      {
+        "number": "27",
+        "label": "【打印】预览与翻页",
+        "control": "按钮组",
+        "required": "—",
+        "source": "—",
+        "rule": "上页 / 下页 / 首页 / 末页 / 放大 / 缩小 / 全打 / 单页 / 关闭；页次显示如 1/2"
+      },
+      {
+        "number": "28",
+        "label": "【打印】子件合计",
+        "control": "数字（自动）",
+        "required": "—",
+        "source": "计算：sum(明细.用量)",
+        "rule": "页脚处显示；跨单位时需按单位分组小计"
+      },
+      {
+        "number": "29",
+        "label": "【打印】发料人 / 收料人 / 日期",
+        "control": "文本 + 签字位",
+        "required": "否",
+        "source": "打印时填写或留空手签",
+        "rule": "纸质流转用；老系统模板底部有这三项"
+      },
+      {
+        "number": "30",
+        "label": "【打印】转 Word / 转 Excel",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "老系统支持导出 Word、Excel，便于二次编辑或邮件发送"
+      },
+      {
+        "number": "31",
+        "label": "【打印】设计入口",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "跳转“报表格式设计”修改当前模板（需权限）"
+      }
+    ]
+  },
+  {
+    "number": 15,
+    "name": "成品库存表",
+    "fields": [
+      {
+        "number": "1",
+        "label": "仓库",
+        "control": "文本（固定）",
+        "required": "—",
+        "source": "固定 CP01",
+        "rule": "清单明确为成品仓；建议改为按“仓别=成品仓”识别，避免硬编码"
+      },
+      {
+        "number": "2",
+        "label": "品号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "品名",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "4",
+        "label": "规格",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "库存数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "库存台账",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "可用数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：库存 - 占用",
+        "rule": "发货时可发上限"
+      },
+      {
+        "number": "8",
+        "label": "占用数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算",
+        "rule": "已生成未发货的发货单占用"
+      },
+      {
+        "number": "9",
+        "label": "最近入库日",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "流水",
+        "rule": "最近一次完工入库日期"
+      },
+      {
+        "number": "10",
+        "label": "操作",
+        "control": "按钮组",
+        "required": "—",
+        "source": "—",
+        "rule": "跳转物料档案 / 发起成品发货"
+      }
+    ]
+  },
+  {
+    "number": 16,
+    "name": "采购底稿列表",
+    "fields": [
+      {
+        "number": "1",
+        "label": "底稿号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "格式 DG + 日期 + 流水，如 DG202610210002"
+      },
+      {
+        "number": "2",
+        "label": "日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "业务日期",
+        "rule": "如 2026/10/21"
+      },
+      {
+        "number": "3",
+        "label": "性质",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "枚举/字典",
+        "rule": "如“需求”；标识底稿的业务来源性质"
+      },
+      {
+        "number": "4",
+        "label": "机种名称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "计算：取来源计划的机种",
+        "rule": "如 C0252二封切折烫封装机电气半品D；一个底稿通常对应一个机种"
+      },
+      {
+        "number": "5",
+        "label": "来源单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "需求计算/生产计划",
+        "rule": "如 JH2026102…；可跳转来源"
+      },
+      {
+        "number": "6",
+        "label": "采购人",
+        "control": "选择器（只读）",
+        "required": "—",
+        "source": "用户",
+        "rule": "如 0007 工程文员"
+      },
+      {
+        "number": "7",
+        "label": "部门",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "部门字典",
+        "rule": "如 004 工程部"
+      },
+      {
+        "number": "8",
+        "label": "审核状态",
+        "control": "标签",
+        "required": "—",
+        "source": "枚举",
+        "rule": "仅两种：未审核 / 已审核；截图中右上角为红色“审核”印章位"
+      },
+      {
+        "number": "9",
+        "label": "审核人",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "用户",
+        "rule": "如 0005 梁丽；审核后写入"
+      },
+      {
+        "number": "10",
+        "label": "明细行数",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：count(明细)",
+        "rule": "—"
+      },
+      {
+        "number": "11",
+        "label": "已结束行数",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：count(明细 where 已结束)",
+        "rule": "行状态为“已结束”的条数"
+      },
+      {
+        "number": "12",
+        "label": "未结束行数",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：count(明细 where 未结束)",
+        "rule": "行状态为“未结束”的条数；这是仓管/采购实际要盯的数字"
+      },
+      {
+        "number": "13",
+        "label": "税前金额合计",
+        "control": "金额（只读）",
+        "required": "—",
+        "source": "计算：sum(明细.金额)",
+        "rule": "截图列名“税前金额合计(1)”，初始为 0.00"
+      },
+      {
+        "number": "14",
+        "label": "价税金额合计",
+        "control": "金额（只读）",
+        "required": "—",
+        "source": "计算：sum(明细.价税合计)",
+        "rule": "截图列名“价税金额合计(2)”，初始为 0.00"
+      },
+      {
+        "number": "15",
+        "label": "备注",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "如“由物料需求计算生成”，标明底稿来源"
+      },
+      {
+        "number": "16",
+        "label": "操作",
+        "control": "按钮组",
+        "required": "—",
+        "source": "—",
+        "rule": "查看详情 / 审核 / 批量转采购（跳转新建采购单并预带入勾选行，不是后台直接生成单据）"
+      },
+      {
+        "number": "17",
+        "label": "跨页勾选",
+        "control": "复选框",
+        "required": "—",
+        "source": "—",
+        "rule": "选中集合需跨分页保持，翻页不丢失"
+      }
+    ]
+  },
+  {
+    "number": 17,
+    "name": "底稿详情",
+    "fields": [
+      {
+        "number": "1",
+        "label": "底稿号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "底稿主表",
+        "rule": "DG202610210002"
+      },
+      {
+        "number": "2",
+        "label": "性质",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "底稿主表",
+        "rule": "需求"
+      },
+      {
+        "number": "3",
+        "label": "日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "底稿主表",
+        "rule": "2026/10/21"
+      },
+      {
+        "number": "4",
+        "label": "审核人",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "底稿主表",
+        "rule": "0005 梁丽"
+      },
+      {
+        "number": "5",
+        "label": "采购人",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "底稿主表",
+        "rule": "0007 工程文员"
+      },
+      {
+        "number": "6",
+        "label": "部门",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "底稿主表",
+        "rule": "004 工程部"
+      },
+      {
+        "number": "7",
+        "label": "机种名称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "底稿主表",
+        "rule": "C0252二封切折烫封装机电气半品D"
+      },
+      {
+        "number": "8",
+        "label": "税前金额合计(1)",
+        "control": "金额（只读）",
+        "required": "—",
+        "source": "计算",
+        "rule": "0.00"
+      },
+      {
+        "number": "9",
+        "label": "价税金额合计(2)",
+        "control": "金额（只读）",
+        "required": "—",
+        "source": "计算",
+        "rule": "0.00"
+      },
+      {
+        "number": "10",
+        "label": "送货地址",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "客户/系统参数",
+        "rule": "东莞市 黎步镇洪梅新庄横巷1号（维萨娜）"
+      },
+      {
+        "number": "11",
+        "label": "备注",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "由物料需求计算生成"
+      },
+      {
+        "number": "12",
+        "label": "【明细】序号",
+        "control": "数字",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "—"
+      },
+      {
+        "number": "13",
+        "label": "【明细】结束状态",
+        "control": "标签",
+        "required": "—",
+        "source": "计算/人工",
+        "rule": "已结束 / 未结束。自动结束条件：已采购量 ≥ 需求量；人工结束时必须填“指定结束原因”"
+      },
+      {
+        "number": "14",
+        "label": "【明细】结束代码",
+        "control": "文本",
+        "required": "—",
+        "source": "系统",
+        "rule": "截图中结束列左侧另有一组代码（032/033/034/04）。既然结束原因已确认为自由文本，该代码应另属一类标识（行序号/BOM 序号），需确认"
+      },
+      {
+        "number": "15",
+        "label": "【明细】机种名称",
+        "control": "文本",
+        "required": "—",
+        "source": "来源计划",
+        "rule": "—"
+      },
+      {
+        "number": "16",
+        "label": "【明细】品号",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "如 Y0100100908"
+      },
+      {
+        "number": "17",
+        "label": "【明细】品名",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "如 开关电源"
+      },
+      {
+        "number": "18",
+        "label": "【明细】交易数量",
+        "control": "数字",
+        "required": "—",
+        "source": "需求计算",
+        "rule": "即该行需求量；判断是否采购完毕的基准"
+      },
+      {
+        "number": "19",
+        "label": "【明细】BOM 用量",
+        "control": "数字",
+        "required": "—",
+        "source": "BOM 展开",
+        "rule": "单台用量，可与交易数量不等（考虑损耗/备品）"
+      },
+      {
+        "number": "20",
+        "label": "【明细】品名(3)",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "截图中为补充描述，如“10寸 黑胶”“9寸 白”"
+      },
+      {
+        "number": "21",
+        "label": "【明细】规格",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "如 HS-500"
+      },
+      {
+        "number": "22",
+        "label": "【明细】预交货日期",
+        "control": "日期",
+        "required": "—",
+        "source": "计划/需求",
+        "rule": "2026/10/21；转采购时作为默认预交期"
+      },
+      {
+        "number": "23",
+        "label": "【明细】前置单据",
+        "control": "链接",
+        "required": "—",
+        "source": "来源单据",
+        "rule": "如“需求JH2026…”可跳转"
+      },
+      {
+        "number": "24",
+        "label": "【明细】批次",
+        "control": "文本",
+        "required": "—",
+        "source": "用户输入",
+        "rule": "启用批次管理时使用"
+      },
+      {
+        "number": "25",
+        "label": "【明细】交易单位",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "如 PCS / 台 / 套 / 米 / 张"
+      },
+      {
+        "number": "26",
+        "label": "【明细】含税",
+        "control": "复选框",
+        "required": "—",
+        "source": "物料/供应商",
+        "rule": "是否含税价"
+      },
+      {
+        "number": "27",
+        "label": "【明细】含税单价",
+        "control": "金额",
+        "required": "—",
+        "source": "供应商报价/手工",
+        "rule": "如 85.0000"
+      },
+      {
+        "number": "28",
+        "label": "【明细】单价",
+        "control": "金额",
+        "required": "—",
+        "source": "计算",
+        "rule": "不含税单价；含税时按税率折算"
+      },
+      {
+        "number": "29",
+        "label": "【明细】换算分子 / 换算分母",
+        "control": "数字 ×2",
+        "required": "条件",
+        "source": "物料主档",
+        "rule": "交易单位 ≠ 库存单位时使用　【已确认取消：系统不做单位换算，一律按 1:1 — Q004】"
+      },
+      {
+        "number": "30",
+        "label": "【明细】子件需求量",
+        "control": "数字",
+        "required": "—",
+        "source": "计算",
+        "rule": "半成品/组件的下层需求量，成品采购件通常为 0.0"
+      },
+      {
+        "number": "31",
+        "label": "【明细】已采购量",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：sum(采购单明细.数量)",
+        "rule": "核心字段；≥ 交易数量即自动“已结束”"
+      },
+      {
+        "number": "32",
+        "label": "【明细】指定结束原因",
+        "control": "自由文本（多行）",
+        "required": "条件",
+        "source": "用户输入",
+        "rule": "人工提前结束该行时必填，已确认为自由文本而非枚举；自动结束时为空。建议录入框提供常用短语快捷填入（如“需求取消”“供应商停产”“改由其他料号替代”），底层仍存自由文本"
+      },
+      {
+        "number": "33",
+        "label": "【明细】前置单据序号",
+        "control": "文本",
+        "required": "—",
+        "source": "来源行",
+        "rule": "如 001，用于行级追溯"
+      },
+      {
+        "number": "34",
+        "label": "【明细】前置单据类型",
+        "control": "文本",
+        "required": "—",
+        "source": "来源单据",
+        "rule": "如 需求计划"
+      },
+      {
+        "number": "35",
+        "label": "【明细】前置单号",
+        "control": "文本",
+        "required": "—",
+        "source": "来源单据",
+        "rule": "如 JH2026102…"
+      },
+      {
+        "number": "36",
+        "label": "【明细】库存单位 / 库存单位数量",
+        "control": "文本 / 数字",
+        "required": "—",
+        "source": "物料主档 / 计算",
+        "rule": "按换算率折算后的库存单位数量"
+      },
+      {
+        "number": "37",
+        "label": "【明细】材质",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "品类扩展属性"
+      }
+    ]
+  },
+  {
+    "number": 18,
+    "name": "请购单列表",
+    "fields": [
+      {
+        "number": "1",
+        "label": "请购单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "—"
+      },
+      {
+        "number": "2",
+        "label": "申请日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "业务日期",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "申请人",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "用户选择",
+        "rule": "—"
+      },
+      {
+        "number": "4",
+        "label": "部门",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "部门字典",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "明细行数",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "请购总数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：sum(数量)",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "审核状态",
+        "control": "标签",
+        "required": "—",
+        "source": "枚举",
+        "rule": "仅两种：未审核 / 已审核，与采购底稿完全一致"
+      },
+      {
+        "number": "8",
+        "label": "审核人",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "用户",
+        "rule": "审核后写入"
+      },
+      {
+        "number": "9",
+        "label": "审核时间",
+        "control": "日期时间（只读）",
+        "required": "—",
+        "source": "系统",
+        "rule": "审核动作的时间戳"
+      },
+      {
+        "number": "10",
+        "label": "明细行数",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：count(明细)",
+        "rule": "—"
+      },
+      {
+        "number": "11",
+        "label": "已结束行数",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：count(明细 where 已结束)",
+        "rule": "—"
+      },
+      {
+        "number": "12",
+        "label": "未结束行数",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：count(明细 where 未结束)",
+        "rule": "采购员实际要盯的数字：还有多少需求没转采购完"
+      },
+      {
+        "number": "13",
+        "label": "操作",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "查看 / 审核；不提供“生成采购单”按钮——要转采购必须到采购单页面新建后取单"
+      }
+    ]
+  },
+  {
+    "number": 19,
+    "name": "新建请购单表单",
+    "fields": [
+      {
+        "number": "1",
+        "label": "请购单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "保存后生成"
+      },
+      {
+        "number": "2",
+        "label": "申请人",
+        "control": "文本/选择器",
+        "required": "是",
+        "source": "当前用户或代填",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "部门",
+        "control": "下拉",
+        "required": "否",
+        "source": "部门字典",
+        "rule": "默认取申请人所属部门"
+      },
+      {
+        "number": "4",
+        "label": "申请日期",
+        "control": "日期",
+        "required": "是",
+        "source": "默认今天",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "备注",
+        "control": "多行文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "【明细】物料",
+        "control": "选择器",
+        "required": "是",
+        "source": "物料选择器（第 36 条）",
+        "rule": "选择后自动带出品名、规格、单位"
+      },
+      {
+        "number": "7",
+        "label": "【明细】品号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "【明细】品名",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "9",
+        "label": "【明细】规格",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "10",
+        "label": "【明细】单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "11",
+        "label": "【明细】数量",
+        "control": "数字",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "＞ 0；即请购需求量"
+      },
+      {
+        "number": "12",
+        "label": "【明细】已转采购量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：sum(该行已生成的采购单数量)",
+        "rule": "与底稿同一口径：需求量不因已转采购而递减，请购单仍显示原数量，进度只看此字段"
+      },
+      {
+        "number": "13",
+        "label": "【明细】结束状态",
+        "control": "标签",
+        "required": "—",
+        "source": "计算/人工",
+        "rule": "已结束 / 未结束；已转采购量 ≥ 数量 时自动结束，或人工提前结束"
+      },
+      {
+        "number": "14",
+        "label": "【明细】指定结束原因",
+        "control": "自由文本（多行）",
+        "required": "条件",
+        "source": "用户输入",
+        "rule": "人工提前结束该行时必填，自由文本；自动结束时为空"
+      },
+      {
+        "number": "15",
+        "label": "【明细】需求日期",
+        "control": "日期",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "用于采购交期排序"
+      },
+      {
+        "number": "16",
+        "label": "【明细】备注",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "老系统对应“明细单备注”"
+      },
+      {
+        "number": "17",
+        "label": "【明细】删除",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "行级删除"
+      }
+    ]
+  },
+  {
+    "number": 20,
+    "name": "采购单列表",
+    "fields": [
+      {
+        "number": "1",
+        "label": "采购单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "老系统格式 VS+日期+流水"
+      },
+      {
+        "number": "2",
+        "label": "下单日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "业务日期",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "供应商",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "供应商主档",
+        "rule": "—"
+      },
+      {
+        "number": "4",
+        "label": "采购员",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "用户",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "部门",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "部门字典",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "明细行数",
+        "control": "数字",
+        "required": "—",
+        "source": "计算",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "采购数量",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：sum(明细.数量)",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "已收数量",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：sum(收货明细)",
+        "rule": "—"
+      },
+      {
+        "number": "9",
+        "label": "收货进度",
+        "control": "百分比",
+        "required": "—",
+        "source": "计算：已收 / 采购数量",
+        "rule": "进度条 + 百分比，便于判断能否关单"
+      },
+      {
+        "number": "10",
+        "label": "价税合计",
+        "control": "金额",
+        "required": "—",
+        "source": "计算：sum(明细.金额)",
+        "rule": "含税金额"
+      },
+      {
+        "number": "11",
+        "label": "币种",
+        "control": "文本",
+        "required": "—",
+        "source": "采购单",
+        "rule": "默认 RMB"
+      },
+      {
+        "number": "12",
+        "label": "审核状态",
+        "control": "标签",
+        "required": "—",
+        "source": "枚举",
+        "rule": "未审核 / 已审核 / 已关结"
+      },
+      {
+        "number": "13",
+        "label": "操作",
+        "control": "按钮组",
+        "required": "—",
+        "source": "—",
+        "rule": "详情 / 合并所选 / 打印预览"
+      },
+      {
+        "number": "14",
+        "label": "分页",
+        "control": "分页控件",
+        "required": "—",
+        "source": "—",
+        "rule": "默认 50 条/页"
+      }
+    ]
+  },
+  {
+    "number": 21,
+    "name": "采购单编辑表单",
+    "fields": [
+      {
+        "number": "1",
+        "label": "采购单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "保存后生成"
+      },
+      {
+        "number": "2",
+        "label": "下单日期",
+        "control": "日期",
+        "required": "是",
+        "source": "默认今天",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "供应商",
+        "control": "选择器",
+        "required": "是",
+        "source": "供应商主档",
+        "rule": "选择后带出全称、默认币种、默认地址"
+      },
+      {
+        "number": "4",
+        "label": "供应商全称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "供应商主档",
+        "rule": "老系统独立字段“供应商全称”"
+      },
+      {
+        "number": "5",
+        "label": "采购员",
+        "control": "选择器",
+        "required": "是",
+        "source": "用户",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "采购员电话",
+        "control": "文本",
+        "required": "否",
+        "source": "用户/供应商",
+        "rule": "老系统有此字段"
+      },
+      {
+        "number": "7",
+        "label": "部门",
+        "control": "下拉",
+        "required": "是",
+        "source": "部门字典",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "币种",
+        "control": "下拉",
+        "required": "是",
+        "source": "币种字典",
+        "rule": "默认 RMB"
+      },
+      {
+        "number": "9",
+        "label": "汇率",
+        "control": "数字",
+        "required": "条件",
+        "source": "币种 ≠ 本币时必填",
+        "rule": "影响本币金额计算"
+      },
+      {
+        "number": "10",
+        "label": "性质",
+        "control": "下拉",
+        "required": "否",
+        "source": "枚举",
+        "rule": "一般采购 / 先备采购 / 委外（老系统有“性质”字段）"
+      },
+      {
+        "number": "11",
+        "label": "预交货日",
+        "control": "日期",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "可批量带入明细"
+      },
+      {
+        "number": "12",
+        "label": "交货地址",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "默认取供应商地址"
+      },
+      {
+        "number": "13",
+        "label": "项目",
+        "control": "文本/选择器",
+        "required": "否",
+        "source": "项目字典",
+        "rule": "—"
+      },
+      {
+        "number": "14",
+        "label": "备注",
+        "control": "多行文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      },
+      {
+        "number": "15",
+        "label": "【来源】底稿页签",
+        "control": "页签 + 行级勾选",
+        "required": "—",
+        "source": "采购底稿",
+        "rule": "取单方式之一：勾选底稿的“未结束”行带入明细；带入后累计已采购量增加，但底稿需求量不变"
+      },
+      {
+        "number": "16",
+        "label": "【来源】请购单页签",
+        "control": "页签 + 行级勾选",
+        "required": "—",
+        "source": "请购单",
+        "rule": "取单方式之二：与底稿取数逻辑完全一致，只列该请购单中“未结束”的行"
+      },
+      {
+        "number": "17",
+        "label": "【来源】手工录入",
+        "control": "页签",
+        "required": "—",
+        "source": "物料选择器",
+        "rule": "取单方式之三：无来源单据，直接选物料；此类行不参与“数量与来源比对”的审核提示"
+      },
+      {
+        "number": "18",
+        "label": "【明细】序号",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "—"
+      },
+      {
+        "number": "19",
+        "label": "【明细】品号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "来源带入/选择",
+        "rule": "—"
+      },
+      {
+        "number": "20",
+        "label": "【明细】品名",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "21",
+        "label": "【明细】规格",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "22",
+        "label": "【明细】单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "采购单位；与库存单位不同时按换算率折算"
+      },
+      {
+        "number": "23",
+        "label": "【明细】数量",
+        "control": "数字",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "＞ 0；不得低于最小采购量（若配置）。可与来源需求量不一致（多或少都允许），但会触发审核提示"
+      },
+      {
+        "number": "24",
+        "label": "【明细】来源需求量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "底稿/请购单带入",
+        "rule": "来源行（底稿明细或请购单明细）的原始需求数量。注意：不是“剩余待采量”——底稿需求 10、已采购 5 时再次取数仍带出 10"
+      },
+      {
+        "number": "25",
+        "label": "【明细】来源已采购量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "来源行累计已采购量",
+        "rule": "显示该来源行此前已被采购多少，帮助采购员判断本次买多少；与来源需求量、本单数量三者并排显示"
+      },
+      {
+        "number": "26",
+        "label": "【明细】数量差异",
+        "control": "数字（计算）",
+        "required": "—",
+        "source": "本单数量 - 来源需求量",
+        "rule": "0 表示一致；正数=超采、负数=欠采。非 0 时明细行标黄，并作为审核提示的依据"
+      },
+      {
+        "number": "27",
+        "label": "【明细】含税单价",
+        "control": "金额",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "—"
+      },
+      {
+        "number": "28",
+        "label": "【明细】税率",
+        "control": "百分比",
+        "required": "是",
+        "source": "物料/用户",
+        "rule": "默认取物料档案税率"
+      },
+      {
+        "number": "29",
+        "label": "【明细】含税金额",
+        "control": "金额（计算）",
+        "required": "—",
+        "source": "数量 × 含税单价",
+        "rule": "—"
+      },
+      {
+        "number": "30",
+        "label": "【明细】税前金额",
+        "control": "金额（计算）",
+        "required": "—",
+        "source": "含税金额 / (1 + 税率)",
+        "rule": "—"
+      },
+      {
+        "number": "31",
+        "label": "【明细】税额",
+        "control": "金额（计算）",
+        "required": "—",
+        "source": "含税金额 - 税前金额",
+        "rule": "—"
+      },
+      {
+        "number": "32",
+        "label": "【明细】预交期",
+        "control": "日期",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "行级，可不同于表头"
+      },
+      {
+        "number": "33",
+        "label": "【明细】来源单据",
+        "control": "链接",
+        "required": "—",
+        "source": "底稿/请购单",
+        "rule": "可跳转；手工录入显示“手工”"
+      },
+      {
+        "number": "34",
+        "label": "【明细】行备注",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "老系统“明细单备注”"
+      },
+      {
+        "number": "35",
+        "label": "【合计】税前金额合计",
+        "control": "金额（计算）",
+        "required": "—",
+        "source": "sum(明细.税前金额)",
+        "rule": "—"
+      },
+      {
+        "number": "36",
+        "label": "【合计】税额合计",
+        "control": "金额（计算）",
+        "required": "—",
+        "source": "sum(明细.税额)",
+        "rule": "—"
+      },
+      {
+        "number": "37",
+        "label": "【合计】价税合计",
+        "control": "金额（计算）",
+        "required": "—",
+        "source": "sum(明细.含税金额)",
+        "rule": "打印合同取此值"
+      }
+    ]
+  },
+  {
+    "number": 22,
+    "name": "采购单详情",
+    "fields": [
+      {
+        "number": "1",
+        "label": "采购单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "采购单",
+        "rule": "—"
+      },
+      {
+        "number": "2",
+        "label": "下单日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "采购单",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "供应商",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "供应商主档",
+        "rule": "—"
+      },
+      {
+        "number": "4",
+        "label": "采购员",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "采购单",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "币种 / 汇率",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "采购单",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "预交货日",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "采购单",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "交货地址",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "采购单",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "审核状态",
+        "control": "标签",
+        "required": "—",
+        "source": "枚举",
+        "rule": "未审核 / 已审核 / 已关结"
+      },
+      {
+        "number": "9",
+        "label": "收货进度",
+        "control": "百分比",
+        "required": "—",
+        "source": "计算",
+        "rule": "—"
+      },
+      {
+        "number": "10",
+        "label": "【明细】品号 / 品名 / 规格 / 单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "采购明细",
+        "rule": "—"
+      },
+      {
+        "number": "11",
+        "label": "【明细】数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "采购明细",
+        "rule": "—"
+      },
+      {
+        "number": "12",
+        "label": "【明细】已收",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "收货汇总",
+        "rule": "—"
+      },
+      {
+        "number": "13",
+        "label": "【明细】剩余",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：数量 - 已收",
+        "rule": "收货单默认带出此值"
+      },
+      {
+        "number": "14",
+        "label": "【明细】行金额",
+        "control": "金额（只读）",
+        "required": "—",
+        "source": "计算",
+        "rule": "含税金额"
+      },
+      {
+        "number": "15",
+        "label": "【明细】来源单据",
+        "control": "链接（只读）",
+        "required": "—",
+        "source": "底稿/请购单",
+        "rule": "可跳转"
+      },
+      {
+        "number": "16",
+        "label": "操作：审核",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "未审核 → 已审核；审核后方可收货"
+      },
+      {
+        "number": "17",
+        "label": "操作：反审核",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "已收数量 ＞ 0 时禁止反审核"
+      },
+      {
+        "number": "18",
+        "label": "操作：办理收货",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "跳转创建收货单并带入本单"
+      }
+    ]
+  },
+  {
+    "number": 23,
+    "name": "采购合同打印（模板可配置 + 格式设计器）",
+    "fields": [
+      {
+        "number": "1",
+        "label": "【模板管理】模板名称",
+        "control": "文本",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "如“标准采购合同-A4”；同一单据类型可有多套模板"
+      },
+      {
+        "number": "2",
+        "label": "【模板管理】适用单据类型",
+        "control": "下拉",
+        "required": "是",
+        "source": "枚举",
+        "rule": "采购合同 / 采购订单 / 领料单 / 工单 …；决定该模板能被哪类单据选用"
+      },
+      {
+        "number": "3",
+        "label": "【模板管理】适用范围",
+        "control": "下拉 + 多选",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "全部供应商 / 指定供应商 / 指定物料品类；不同供应商可能要不同条款"
+      },
+      {
+        "number": "4",
+        "label": "【模板管理】设为默认",
+        "control": "开关",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "同类型只有一个默认模板，打印时未指定则用它"
+      },
+      {
+        "number": "5",
+        "label": "【模板管理】版本号",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "系统自动递增",
+        "rule": "每次保存生成新版本；打印记录存版本号，保证历史合同可复现"
+      },
+      {
+        "number": "6",
+        "label": "【抬头区】LOGO",
+        "control": "图片上传",
+        "required": "否",
+        "source": "用户上传",
+        "rule": "建议透明 PNG，宽度自动按比例缩放，不拉伸变形"
+      },
+      {
+        "number": "7",
+        "label": "【抬头区】公司名称",
+        "control": "文本 + 变量",
+        "required": "是",
+        "source": "系统参数",
+        "rule": "如“维萨娜智能装备（广东）有限公司”；支持 {{company.name}} 变量"
+      },
+      {
+        "number": "8",
+        "label": "【抬头区】Slogan / 副标题",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "如“让制造，更智能、更简单！”；可空"
+      },
+      {
+        "number": "9",
+        "label": "【抬头区】单据标题",
+        "control": "文本",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "如“采购合同”“采购订单”；决定大字标题"
+      },
+      {
+        "number": "10",
+        "label": "【抬头区】抬头排布",
+        "control": "单选",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "LOGO 左 + 名称居中 / 全部居中 / 全部左对齐"
+      },
+      {
+        "number": "11",
+        "label": "【双方信息】甲方字段组",
+        "control": "多选开关",
+        "required": "是",
+        "source": "系统参数",
+        "rule": "名称 / 地址 / 联系人 / 电话 / 传真 / 税号 / 开户行 / 账号，逐项可开关"
+      },
+      {
+        "number": "12",
+        "label": "【双方信息】乙方字段组",
+        "control": "多选开关",
+        "required": "是",
+        "source": "供应商主档",
+        "rule": "同上；数据来自采购单的供应商，不手工填"
+      },
+      {
+        "number": "13",
+        "label": "【双方信息】称谓自定义",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "甲方/乙方 或 需方/供方 或 买方/卖方；不同行业叫法不同"
+      },
+      {
+        "number": "14",
+        "label": "【双方信息】排布方式",
+        "control": "单选",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "两栏并排（截图样式）/ 上下排列（字段多时用）"
+      },
+      {
+        "number": "15",
+        "label": "【双方信息】单据元信息",
+        "control": "多选开关",
+        "required": "是",
+        "source": "系统带出",
+        "rule": "合同编号 / 打印日期 / 项目号 / 页码（第X页 共Y页），逐项可开关"
+      },
+      {
+        "number": "16",
+        "label": "【明细表】列配置",
+        "control": "列配置器",
+        "required": "是",
+        "source": "用户选择",
+        "rule": "可启用/排序/设宽度/设对齐的列：序号、品号、品名、规格图号、项目号、品牌材质、数量、单位、含税单价、税率、税额、价税合计、交期、备注"
+      },
+      {
+        "number": "17",
+        "label": "【明细表】表头样式",
+        "control": "样式配置",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "字号、加粗、底色、边框粗细"
+      },
+      {
+        "number": "18",
+        "label": "【明细表】正文字号 / 行高",
+        "control": "数字",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "行多时自动压缩，但不得小于可读下限"
+      },
+      {
+        "number": "19",
+        "label": "【明细表】金额小数位",
+        "control": "数字",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "单价 4 位、金额 2 位（截图口径）；可按模板调整"
+      },
+      {
+        "number": "20",
+        "label": "【明细表】跨页表头重复",
+        "control": "开关",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "明细超过一页时，每页重复表头"
+      },
+      {
+        "number": "21",
+        "label": "【明细表】每页行数上限",
+        "control": "数字",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "超出自动分页，避免把合计行挤到下一页"
+      },
+      {
+        "number": "22",
+        "label": "【金额与合计】合计行",
+        "control": "开关",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "显示 / 隐藏合计行"
+      },
+      {
+        "number": "23",
+        "label": "【金额与合计】大写金额",
+        "control": "开关",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "人民币大写，如“肆拾柒元整”；转换规则固定，不开放配置"
+      },
+      {
+        "number": "24",
+        "label": "【金额与合计】合计列选择",
+        "control": "多选",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "价税合计 / 税额 / 税前金额，可多选；截图只显示价税合计"
+      },
+      {
+        "number": "25",
+        "label": "【条款区】条款开关",
+        "control": "开关",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "不显示条款时可作简版订单用"
+      },
+      {
+        "number": "26",
+        "label": "【条款区】条款内容",
+        "control": "富文本（逐条）",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "可增删、拖拽排序；支持变量如 {{supplier.name}}、{{amount}}、{{delivery.days}}"
+      },
+      {
+        "number": "27",
+        "label": "【条款区】编号方式",
+        "control": "单选",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "一、二、三 / 1. 2. 3. / 无编号"
+      },
+      {
+        "number": "28",
+        "label": "【条款区】字号 / 行距",
+        "control": "数字",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "建议默认小五 + 1.5 倍行距，保证一页放得下"
+      },
+      {
+        "number": "29",
+        "label": "【签章区】甲方签字盖章位",
+        "control": "开关 + 标签",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "如“甲方签字(盖章)：”"
+      },
+      {
+        "number": "30",
+        "label": "【签章区】乙方签字盖章位",
+        "control": "开关 + 标签",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "如“乙方签字(盖章)：”"
+      },
+      {
+        "number": "31",
+        "label": "【签章区】底部操作行",
+        "control": "多选开关",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "制单 / 审批 / 签字日期 / 签字，逐项可开关；截图含“制单：梁丽 审批： 签字日期：”"
+      },
+      {
+        "number": "32",
+        "label": "【页眉页脚】页码格式",
+        "control": "下拉",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "第X页 共Y页 / X/Y / 仅页码 / 不显示"
+      },
+      {
+        "number": "33",
+        "label": "【页眉页脚】水印",
+        "control": "下拉",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "无 / 草稿 / 作废 / 仅供内部；防止未生效合同外流"
+      },
+      {
+        "number": "34",
+        "label": "【打印】纸张与方向",
+        "control": "下拉",
+        "required": "是",
+        "source": "用户选择",
+        "rule": "A4 纵向 / A4 横向 / A5 / 自定义"
+      },
+      {
+        "number": "35",
+        "label": "【打印】页边距",
+        "control": "数字 ×4",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "上右下左；影响一页能放多少行"
+      },
+      {
+        "number": "36",
+        "label": "【打印】输出方式",
+        "control": "单选",
+        "required": "是",
+        "source": "用户选择",
+        "rule": "浏览器打印 / 导出 PDF / 直接打印"
+      },
+      {
+        "number": "37",
+        "label": "【格式设计器】设计器入口",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "打开独立窗口“报表格式设计”（文件 / 查看 / 表格 / 帮助），可视化编辑当前模板"
+      },
+      {
+        "number": "38",
+        "label": "【格式设计器】设计画布",
+        "control": "网格画布",
+        "required": "—",
+        "source": "—",
+        "rule": "带行列标尺（老系统为 21 列 × 29 行），可拖拽定位、对齐、画线、画框；所见即所得"
+      },
+      {
+        "number": "39",
+        "label": "【格式设计器】元素类型",
+        "control": "工具栏",
+        "required": "—",
+        "source": "—",
+        "rule": "文本、字段占位符、线条、矩形、图片/LOGO、条码、二维码、表格区、页码/页次"
+      },
+      {
+        "number": "40",
+        "label": "【格式设计器】占位符字段库",
+        "control": "列表（可拖入画布）",
+        "required": "—",
+        "source": "按单据类型动态提供",
+        "rule": "如 [单号] [工单单号] [经办人] [日期] [审核码] [子件品号] [品名] [规格] [数量] [单位] [仓库] [备注] [页脚] [页次] [所有报表记录数]；打印时替换为真实数据"
+      },
+      {
+        "number": "41",
+        "label": "【格式设计器】模板分类",
+        "control": "单选",
+        "required": "—",
+        "source": "—",
+        "rule": "标准（系统预置，只读）/ 自订（用户自建，可改可删）；打印下拉里以“标准-”“自订-”前缀区分"
+      },
+      {
+        "number": "42",
+        "label": "【格式设计器】设计权限",
+        "control": "权限项",
+        "required": "—",
+        "source": "角色配置",
+        "rule": "仅指定角色可进设计器，避免一线人员误改模板导致打印错版"
+      },
+      {
+        "number": "43",
+        "label": "【格式设计器】模板导入导出",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "模板可导出为文件在环境间迁移（测试→生产），避免手工重画"
+      }
+    ]
+  },
+  {
+    "number": 24,
+    "name": "工单列表",
+    "fields": [
+      {
+        "number": "1",
+        "label": "工单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "老系统为“单号”，如 20261018001"
+      },
+      {
+        "number": "2",
+        "label": "工单名称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "工单主档",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "客户",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "客户主档",
+        "rule": "—"
+      },
+      {
+        "number": "4",
+        "label": "产品",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "成品品号 + 品名"
+      },
+      {
+        "number": "5",
+        "label": "数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "工单主档",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "状态",
+        "control": "标签",
+        "required": "—",
+        "source": "枚举",
+        "rule": "立项中 / 采购中 / 装配中 / 待出货 / 已发货（5 种）"
+      },
+      {
+        "number": "7",
+        "label": "开工日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "工单主档",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "交货日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "工单主档",
+        "rule": "—"
+      },
+      {
+        "number": "9",
+        "label": "计划数",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：count(生产计划)",
+        "rule": "—"
+      },
+      {
+        "number": "10",
+        "label": "已发货数",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：sum(发货数量)",
+        "rule": "—"
+      },
+      {
+        "number": "11",
+        "label": "操作",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "查看详情"
+      }
+    ]
+  },
+  {
+    "number": 25,
+    "name": "新建工单表单",
+    "fields": [
+      {
+        "number": "1",
+        "label": "工单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "保存后生成"
+      },
+      {
+        "number": "2",
+        "label": "工单名称",
+        "control": "文本",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "客户",
+        "control": "选择器/文本",
+        "required": "是",
+        "source": "客户主档",
+        "rule": "清单未列出客户管理页，可能为自由文本"
+      },
+      {
+        "number": "4",
+        "label": "产品",
+        "control": "选择器",
+        "required": "是",
+        "source": "物料选择器（限成品）",
+        "rule": "带出品名、规格、单位、BOM 版本"
+      },
+      {
+        "number": "5",
+        "label": "数量",
+        "control": "数字",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "正整数；决定后续所有 BOM 需求量"
+      },
+      {
+        "number": "6",
+        "label": "开工日期",
+        "control": "日期",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "交货日期",
+        "control": "日期",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "须 ≥ 开工日期"
+      },
+      {
+        "number": "8",
+        "label": "备注",
+        "control": "多行文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      }
+    ]
+  },
+  {
+    "number": 26,
+    "name": "工单详情",
+    "fields": [
+      {
+        "number": "1",
+        "label": "工单号 / 名称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "工单主档",
+        "rule": "—"
+      },
+      {
+        "number": "2",
+        "label": "客户",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "工单主档",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "产品 / 规格 / 单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "4",
+        "label": "数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "工单主档",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "状态",
+        "control": "标签 + 切换按钮",
+        "required": "—",
+        "source": "人工切换",
+        "rule": "立项中 / 采购中 / 装配中 / 待出货；已发货由系统置位"
+      },
+      {
+        "number": "6",
+        "label": "开工日期 / 交货日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "工单主档",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "备注",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "工单主档",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "【关联计划】计划号",
+        "control": "文本",
+        "required": "—",
+        "source": "生产计划",
+        "rule": "—"
+      },
+      {
+        "number": "9",
+        "label": "【关联计划】产品",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "10",
+        "label": "【关联计划】数量",
+        "control": "数字",
+        "required": "—",
+        "source": "生产计划",
+        "rule": "—"
+      },
+      {
+        "number": "11",
+        "label": "【关联计划】状态",
+        "control": "标签",
+        "required": "—",
+        "source": "枚举",
+        "rule": "—"
+      },
+      {
+        "number": "12",
+        "label": "【关联计划】计划日期",
+        "control": "日期",
+        "required": "—",
+        "source": "生产计划",
+        "rule": "—"
+      },
+      {
+        "number": "13",
+        "label": "【业务进度】采购",
+        "control": "文本/百分比",
+        "required": "—",
+        "source": "计算",
+        "rule": "采购单数 + 到货率"
+      },
+      {
+        "number": "14",
+        "label": "【业务进度】领料",
+        "control": "文本",
+        "required": "—",
+        "source": "计算",
+        "rule": "应领 / 已领"
+      },
+      {
+        "number": "15",
+        "label": "【业务进度】完工",
+        "control": "文本",
+        "required": "—",
+        "source": "计算",
+        "rule": "计划数 / 完工入库数"
+      },
+      {
+        "number": "16",
+        "label": "【业务进度】发货",
+        "control": "文本",
+        "required": "—",
+        "source": "计算",
+        "rule": "已发货数量 / 物流单号"
+      }
+    ]
+  },
+  {
+    "number": 27,
+    "name": "生产计划列表",
+    "fields": [
+      {
+        "number": "1",
+        "label": "计划号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "如 JH20261022001"
+      },
+      {
+        "number": "2",
+        "label": "关联工单",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "工单",
+        "rule": "可跳转"
+      },
+      {
+        "number": "3",
+        "label": "产品",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "4",
+        "label": "数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "生产计划",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "状态",
+        "control": "标签",
+        "required": "—",
+        "source": "枚举",
+        "rule": "待分析 / 待备料 / 已备料 / 已完工（4 态，需确认）"
+      },
+      {
+        "number": "6",
+        "label": "计划日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "生产计划",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "BOM 行数",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "缺料行数",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算",
+        "rule": "需购量 ＞ 0 的行数"
+      },
+      {
+        "number": "9",
+        "label": "操作：分析缺料",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "仅“待分析”状态显示"
+      },
+      {
+        "number": "10",
+        "label": "操作：生产领料",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "仅“待备料”状态显示"
+      },
+      {
+        "number": "11",
+        "label": "操作：完工入库",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "仅“已备料”状态显示"
+      }
+    ]
+  },
+  {
+    "number": 28,
+    "name": "新建生产计划表单",
+    "fields": [
+      {
+        "number": "1",
+        "label": "计划号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "—"
+      },
+      {
+        "number": "2",
+        "label": "关联工单",
+        "control": "选择器",
+        "required": "是",
+        "source": "工单（未发货）",
+        "rule": "带出产品、数量、交货日期"
+      },
+      {
+        "number": "3",
+        "label": "产品 BOM",
+        "control": "选择器",
+        "required": "是",
+        "source": "成品物料 + BOM 版本",
+        "rule": "带出 BOM 明细"
+      },
+      {
+        "number": "4",
+        "label": "数量",
+        "control": "数字",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "正整数；可小于工单数量（分批）"
+      },
+      {
+        "number": "5",
+        "label": "计划日期",
+        "control": "日期",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "默认今天"
+      },
+      {
+        "number": "6",
+        "label": "备注",
+        "control": "多行文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      }
+    ]
+  },
+  {
+    "number": 29,
+    "name": "Excel 导入计划表单",
+    "fields": [
+      {
+        "number": "1",
+        "label": "上传文件",
+        "control": "文件上传（拖拽/点击）",
+        "required": "是",
+        "source": "用户上传",
+        "rule": "仅 .xls / .xlsx；建议限制 10MB、单次 1 个文件"
+      },
+      {
+        "number": "2",
+        "label": "Sheet 选择",
+        "control": "多选/页签",
+        "required": "是",
+        "source": "解析文件",
+        "rule": "多 sheet 逐个预览，可勾选要导入的 sheet"
+      },
+      {
+        "number": "3",
+        "label": "【预览】行号",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "Excel 行号",
+        "rule": "用于定位错误行"
+      },
+      {
+        "number": "4",
+        "label": "【预览】品号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "Excel 单元格",
+        "rule": "为空时按品名 + 规格匹配"
+      },
+      {
+        "number": "5",
+        "label": "【预览】品名",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "Excel 单元格",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "【预览】规格",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "Excel 单元格",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "【预览】数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "Excel 单元格",
+        "rule": "必须为正数，否则标错"
+      },
+      {
+        "number": "8",
+        "label": "【预览】匹配结果",
+        "control": "标签",
+        "required": "—",
+        "source": "计算",
+        "rule": "匹配已有 / 新建物料 / 数据错误"
+      },
+      {
+        "number": "9",
+        "label": "覆盖已存在资料",
+        "control": "复选",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "默认不勾；勾选后“只用 Excel 中有值的数据去覆盖”，空单元格不覆盖"
+      },
+      {
+        "number": "10",
+        "label": "导入模式",
+        "control": "单选",
+        "required": "是",
+        "source": "用户选择",
+        "rule": "新增计划 / 追加到已有工单（需确认是否支持）"
+      },
+      {
+        "number": "11",
+        "label": "确认导入",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "导入前二次确认，展示“将新建 X 个物料、Y 个计划”"
+      },
+      {
+        "number": "12",
+        "label": "错误导出",
+        "control": "按钮",
+        "required": "否",
+        "source": "—",
+        "rule": "把校验失败的行导出为 Excel，便于用户修正后重传"
+      }
+    ]
+  },
+  {
+    "number": 30,
+    "name": "计划详情",
+    "fields": [
+      {
+        "number": "1",
+        "label": "计划号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "生产计划",
+        "rule": "—"
+      },
+      {
+        "number": "2",
+        "label": "关联工单",
+        "control": "链接（只读）",
+        "required": "—",
+        "source": "工单",
+        "rule": "可跳转"
+      },
+      {
+        "number": "3",
+        "label": "产品 / 规格 / 单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "4",
+        "label": "数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "生产计划",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "计划日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "生产计划",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "导入来源",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "追溯",
+        "rule": "手工创建 / Excel 导入（文件名 + 导入时间 + 操作人）"
+      },
+      {
+        "number": "7",
+        "label": "状态",
+        "control": "标签（只读）",
+        "required": "—",
+        "source": "枚举",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "【BOM 明细】序号",
+        "control": "数字",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "—"
+      },
+      {
+        "number": "9",
+        "label": "【BOM 明细】子件品号",
+        "control": "文本",
+        "required": "—",
+        "source": "BOM 明细",
+        "rule": "—"
+      },
+      {
+        "number": "10",
+        "label": "【BOM 明细】子件品名",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "11",
+        "label": "【BOM 明细】规格",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "12",
+        "label": "【BOM 明细】单位",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "13",
+        "label": "【BOM 明细】单台用量",
+        "control": "数字",
+        "required": "—",
+        "source": "BOM 明细",
+        "rule": "老系统对应“BOM 用量(1)”"
+      },
+      {
+        "number": "14",
+        "label": "【BOM 明细】需求量",
+        "control": "数字（计算）",
+        "required": "—",
+        "source": "单台用量 × 计划数量",
+        "rule": "—"
+      },
+      {
+        "number": "15",
+        "label": "【BOM 明细】标签",
+        "control": "标签",
+        "required": "—",
+        "source": "计算",
+        "rule": "本次新建（物料）/ 匹配已有"
+      },
+      {
+        "number": "16",
+        "label": "【BOM 明细】当前库存",
+        "control": "数字",
+        "required": "—",
+        "source": "库存台账",
+        "rule": "实时值"
+      },
+      {
+        "number": "17",
+        "label": "【BOM 明细】可分配",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：库存 - 占用",
+        "rule": "—"
+      },
+      {
+        "number": "18",
+        "label": "【BOM 明细】需购量",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：需求量 - 可分配（＜0 取 0）",
+        "rule": "—"
+      }
+    ]
+  },
+  {
+    "number": 31,
+    "name": "缺料分析（DemandAnalysis）弹窗",
+    "fields": [
+      {
+        "number": "1",
+        "label": "计划来源",
+        "control": "单选",
+        "required": "是",
+        "source": "用户选择",
+        "rule": "订单 / 生产计划（老系统两个单选）"
+      },
+      {
+        "number": "2",
+        "label": "需求量来源",
+        "control": "单选",
+        "required": "是",
+        "source": "用户选择",
+        "rule": "未交量（需求量 - 已交量）/ 订单生产采购联动（需求量 - 工单量 - MRP量 - 采购底稿量 - 委外量 - 生产计划量）"
+      },
+      {
+        "number": "3",
+        "label": "单号区间",
+        "control": "区间输入",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "起 ~ 止"
+      },
+      {
+        "number": "4",
+        "label": "日期区间",
+        "control": "日期区间",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "订单日期 / 开单日期"
+      },
+      {
+        "number": "5",
+        "label": "预交货日区间",
+        "control": "日期区间",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "老系统字段“预交货日期”"
+      },
+      {
+        "number": "6",
+        "label": "品号区间",
+        "control": "区间输入",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "支持范围筛选"
+      },
+      {
+        "number": "7",
+        "label": "展算公式",
+        "control": "单选（4 选 1）",
+        "required": "是",
+        "source": "用户选择",
+        "rule": "①需求量 ②需求量 - 实际在库量 ③需求量 - (实际在库量 - 安全库存) ④需求量 - (实际在库量 - 安全库存 + 预计入库量 - 预计出库量)"
+      },
+      {
+        "number": "8",
+        "label": "生产计划合并",
+        "control": "下拉",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "同品号、预计完工日 合并 / 不合并"
+      },
+      {
+        "number": "9",
+        "label": "采购计划合并",
+        "control": "下拉",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "同品号、预交货日 合并 / 不合并"
+      },
+      {
+        "number": "10",
+        "label": "开工完工日小于系统日期则改为系统日期",
+        "control": "复选",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "避免生成过期日期"
+      },
+      {
+        "number": "11",
+        "label": "可用量不足部分是否考虑补货",
+        "control": "复选",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "—"
+      },
+      {
+        "number": "12",
+        "label": "考虑替代件",
+        "control": "复选",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "开启后替代件库存计入可用量"
+      },
+      {
+        "number": "13",
+        "label": "是否带出主供应商",
+        "control": "复选",
+        "required": "否",
+        "source": "用户选择",
+        "rule": "带出物料档案默认供应商，写入采购底稿"
+      },
+      {
+        "number": "14",
+        "label": "【结果】选项",
+        "control": "复选框",
+        "required": "—",
+        "source": "用户选择",
+        "rule": "支持全选 / 全不选"
+      },
+      {
+        "number": "15",
+        "label": "【结果】品号 / 品名 / 规格 / 单位",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "16",
+        "label": "【结果】需求量",
+        "control": "数字",
+        "required": "—",
+        "source": "按展算公式计算",
+        "rule": "—"
+      },
+      {
+        "number": "17",
+        "label": "【结果】可用量",
+        "control": "数字",
+        "required": "—",
+        "source": "库存台账",
+        "rule": "—"
+      },
+      {
+        "number": "18",
+        "label": "【结果】其他计划占用",
+        "control": "数字",
+        "required": "—",
+        "source": "计算",
+        "rule": "—"
+      },
+      {
+        "number": "19",
+        "label": "【结果】可分配",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：可用量 - 占用",
+        "rule": "—"
+      },
+      {
+        "number": "20",
+        "label": "【结果】在途量",
+        "control": "数字",
+        "required": "—",
+        "source": "采购在途",
+        "rule": "—"
+      },
+      {
+        "number": "21",
+        "label": "【结果】需购量",
+        "control": "数字",
+        "required": "—",
+        "source": "计算：需求量 - 可分配 - 在途",
+        "rule": "小于 0 取 0，且不显示该行（或显示为 0）"
+      },
+      {
+        "number": "22",
+        "label": "【结果】建议采购量",
+        "control": "数字",
+        "required": "—",
+        "source": "计算",
+        "rule": "按最小采购量 / 补货批量取整"
+      },
+      {
+        "number": "23",
+        "label": "【结果】供应商",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档默认供应商",
+        "rule": "仅在勾选“带出主供应商”时填充"
+      },
+      {
+        "number": "24",
+        "label": "结果列表",
+        "control": "单一列表",
+        "required": "—",
+        "source": "—",
+        "rule": "【已确认】取消原 5 个分类页签（厂内源工单/委外源工单/工单/委外/采购），所有需求统一归入“采购”一列，不再分组"
+      },
+      {
+        "number": "25",
+        "label": "一键生成采购底稿",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "勾选行生成底稿"
+      }
+    ]
+  },
+  {
+    "number": 32,
+    "name": "收货单列表",
+    "fields": [
+      {
+        "number": "1",
+        "label": "收货单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "—"
+      },
+      {
+        "number": "2",
+        "label": "收货日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "业务日期",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "采购单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "来源采购单",
+        "rule": "可跳转"
+      },
+      {
+        "number": "4",
+        "label": "供应商",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "采购单",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "明细行数",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "收货数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：sum(明细.数量)",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "入库仓库",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "仓库主档",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "经办人",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "当前用户",
+        "rule": "—"
+      },
+      {
+        "number": "9",
+        "label": "状态",
+        "control": "标签",
+        "required": "—",
+        "source": "枚举",
+        "rule": "已生效 / 已作废"
+      },
+      {
+        "number": "10",
+        "label": "操作",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "详情抽屉"
+      }
+    ]
+  },
+  {
+    "number": 33,
+    "name": "创建入库单（收货单）表单",
+    "fields": [
+      {
+        "number": "1",
+        "label": "单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "如 202610210001"
+      },
+      {
+        "number": "2",
+        "label": "性质",
+        "control": "下拉",
+        "required": "否",
+        "source": "字典",
+        "rule": "单据性质；老系统为独立字段"
+      },
+      {
+        "number": "3",
+        "label": "日期",
+        "control": "日期",
+        "required": "是",
+        "source": "默认今天",
+        "rule": "入库业务日期"
+      },
+      {
+        "number": "4",
+        "label": "预订结账日",
+        "control": "日期",
+        "required": "否",
+        "source": "用户输入/系统",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "预收款日",
+        "control": "日期",
+        "required": "否",
+        "source": "用户输入/系统",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "供应商",
+        "control": "选择器",
+        "required": "是",
+        "source": "供应商主档",
+        "rule": "如 B0120 佑HC维和达。这是取单的前置条件：未选供应商时“取单”不可用"
+      },
+      {
+        "number": "7",
+        "label": "供应商全称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "供应商主档",
+        "rule": "选择后带出，如“广东亚德客智能装备有限公司”"
+      },
+      {
+        "number": "8",
+        "label": "币种 / 汇率",
+        "control": "下拉 + 数字",
+        "required": "是",
+        "source": "默认 RMB / 用户输入",
+        "rule": "汇率影响本币金额，默认 1.00"
+      },
+      {
+        "number": "9",
+        "label": "经办人",
+        "control": "选择器",
+        "required": "是",
+        "source": "用户",
+        "rule": "如 0009 标准件采购。与供应商同为取单前置条件"
+      },
+      {
+        "number": "10",
+        "label": "部门",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "用户所属部门",
+        "rule": "如 007 采购部"
+      },
+      {
+        "number": "11",
+        "label": "凭证",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统",
+        "rule": "如“未转撕”；财务凭证状态"
+      },
+      {
+        "number": "12",
+        "label": "项目",
+        "control": "选择器",
+        "required": "否",
+        "source": "项目字典",
+        "rule": "—"
+      },
+      {
+        "number": "13",
+        "label": "审核人",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "用户",
+        "rule": "如 0010 标准件仓库"
+      },
+      {
+        "number": "14",
+        "label": "送货地址",
+        "control": "文本",
+        "required": "否",
+        "source": "供应商默认地址",
+        "rule": "如 东莞市寮步镇山祥新街横巷1号（维萨娜）"
+      },
+      {
+        "number": "15",
+        "label": "制单人 / 制单日期",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统",
+        "rule": "如 0010 / 2026/10/21"
+      },
+      {
+        "number": "16",
+        "label": "备注",
+        "control": "多行文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      },
+      {
+        "number": "17",
+        "label": "【取单】取单按钮",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "供应商与经办人未填时置灰；点击打开“进货单取单”弹窗"
+      },
+      {
+        "number": "18",
+        "label": "【取单】前置单据类型",
+        "control": "单选",
+        "required": "是",
+        "source": "用户选择",
+        "rule": "进货检验单 / 采购单 / 借入单；默认“采购单”"
+      },
+      {
+        "number": "19",
+        "label": "【取单】单号区间",
+        "control": "区间输入（起~止）",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "按采购单号过滤"
+      },
+      {
+        "number": "20",
+        "label": "【取单】日期区间",
+        "control": "日期区间",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "按采购日期过滤"
+      },
+      {
+        "number": "21",
+        "label": "【取单】预交货日期区间",
+        "control": "日期区间",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "按采购单行的预交货日过滤，便于按到货计划取数"
+      },
+      {
+        "number": "22",
+        "label": "【取单】重置",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "清空全部取单条件"
+      },
+      {
+        "number": "23",
+        "label": "【取单列表】选项",
+        "control": "复选框",
+        "required": "—",
+        "source": "用户选择",
+        "rule": "勾选要带入的采购单行；支持多选"
+      },
+      {
+        "number": "24",
+        "label": "【取单列表】采购日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "采购单",
+        "rule": "—"
+      },
+      {
+        "number": "25",
+        "label": "【取单列表】采购单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "采购单",
+        "rule": "—"
+      },
+      {
+        "number": "26",
+        "label": "【取单列表】品号 / 品名 / 规格 / 单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "采购明细",
+        "rule": "—"
+      },
+      {
+        "number": "27",
+        "label": "【取单列表】采购数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "采购明细",
+        "rule": "原始下单数量"
+      },
+      {
+        "number": "28",
+        "label": "【取单列表】未交数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：采购数量 - 已收货数量",
+        "rule": "取单带入的是这个数，不是采购数量"
+      },
+      {
+        "number": "29",
+        "label": "【取单列表】税率",
+        "control": "百分比（只读）",
+        "required": "—",
+        "source": "采购明细",
+        "rule": "—"
+      },
+      {
+        "number": "30",
+        "label": "【取单列表】换算分子 / 分母",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "采购明细",
+        "rule": "交易单位与库存单位的换算　【已确认取消：系统不做单位换算，一律按 1:1 — Q004】"
+      },
+      {
+        "number": "31",
+        "label": "【取单列表】库存单位 / 库存单位数量",
+        "control": "文本 / 数字",
+        "required": "—",
+        "source": "物料主档 / 换算",
+        "rule": "按换算率折算后的库存数量"
+      },
+      {
+        "number": "32",
+        "label": "【取单列表】赠品",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "采购明细",
+        "rule": "赠品行数量可为 0，仍需入库"
+      },
+      {
+        "number": "33",
+        "label": "【取单列表】机种名称",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "采购明细",
+        "rule": "用于归集到具体机种"
+      },
+      {
+        "number": "34",
+        "label": "【明细】序号",
+        "control": "数字",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "—"
+      },
+      {
+        "number": "35",
+        "label": "【明细】品号 / 品名 / 规格",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "取单带入",
+        "rule": "不可手工录入"
+      },
+      {
+        "number": "36",
+        "label": "【明细】前置单据",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "采购单号",
+        "rule": "行级追溯依据，逐行标明来自哪张采购单"
+      },
+      {
+        "number": "37",
+        "label": "【明细】交易单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "38",
+        "label": "【明细】仓库 / 仓库名称",
+        "control": "下拉",
+        "required": "是",
+        "source": "仓库主档",
+        "rule": "默认取物料主要仓库（如 B201 标准件仓）；行级可改"
+      },
+      {
+        "number": "39",
+        "label": "【明细】批号",
+        "control": "文本",
+        "required": "条件",
+        "source": "用户输入",
+        "rule": "批次管理开启时必填"
+      },
+      {
+        "number": "40",
+        "label": "【明细】交易数量",
+        "control": "数字",
+        "required": "是",
+        "source": "取单带入，可改小",
+        "rule": "默认 = 未交数量；不得超过未交数量"
+      },
+      {
+        "number": "41",
+        "label": "【明细】含税",
+        "control": "复选框",
+        "required": "—",
+        "source": "采购明细",
+        "rule": "是否含税价"
+      },
+      {
+        "number": "42",
+        "label": "【明细】含税单价 / 单价",
+        "control": "金额",
+        "required": "—",
+        "source": "采购明细",
+        "rule": "取单带入；含税与不含税两个口径"
+      },
+      {
+        "number": "43",
+        "label": "【明细】税率 / 税前金额 / 税额 / 价税合计",
+        "control": "百分比 / 金额",
+        "required": "—",
+        "source": "计算",
+        "rule": "金额全部由系统计算，不允许手改"
+      },
+      {
+        "number": "44",
+        "label": "【明细】本币税前金额 / 本币税额 / 本币价税合计",
+        "control": "金额",
+        "required": "—",
+        "source": "计算：外币金额 × 汇率",
+        "rule": "人民币本位币口径"
+      },
+      {
+        "number": "45",
+        "label": "【明细】换算分子 / 分母 / 库存单位 / 库存单位数量",
+        "control": "数字 / 文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "交易单位与库存单位换算后的数量　【已确认取消：系统不做单位换算，一律按 1:1 — Q004】"
+      },
+      {
+        "number": "46",
+        "label": "【明细】已开票数量",
+        "control": "数字",
+        "required": "—",
+        "source": "发票回写",
+        "rule": "与开票环节联动，本期是否纳入待确认"
+      },
+      {
+        "number": "47",
+        "label": "【明细】存放位置",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "货架/库位，配合仓库使用"
+      },
+      {
+        "number": "48",
+        "label": "【明细】备注",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "行级备注"
+      }
+    ]
+  },
+  {
+    "number": 34,
+    "name": "发货单列表",
+    "fields": [
+      {
+        "number": "1",
+        "label": "发货单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "系统生成",
+        "rule": "—"
+      },
+      {
+        "number": "2",
+        "label": "发货日期",
+        "control": "日期（只读）",
+        "required": "—",
+        "source": "业务日期",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "工单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "工单",
+        "rule": "可跳转"
+      },
+      {
+        "number": "4",
+        "label": "客户",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "工单/客户主档",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "物流公司",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "发货单",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "物流单号",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "发货单",
+        "rule": "可后补"
+      },
+      {
+        "number": "7",
+        "label": "明细行数",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算",
+        "rule": "—"
+      },
+      {
+        "number": "8",
+        "label": "发货数量",
+        "control": "数字（只读）",
+        "required": "—",
+        "source": "计算：sum(明细.数量)",
+        "rule": "—"
+      },
+      {
+        "number": "9",
+        "label": "状态",
+        "control": "标签",
+        "required": "—",
+        "source": "枚举",
+        "rule": "已发货 / 已作废"
+      },
+      {
+        "number": "10",
+        "label": "操作",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "查看详情"
+      }
+    ]
+  },
+  {
+    "number": 35,
+    "name": "创建发货单表单",
+    "fields": [
+      {
+        "number": "1",
+        "label": "工单",
+        "control": "选择器",
+        "required": "是",
+        "source": "工单（待出货 且 计划全部完工）",
+        "rule": "不满足条件的工单不出现在下拉中，或置灰并提示原因"
+      },
+      {
+        "number": "2",
+        "label": "客户",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "工单",
+        "rule": "—"
+      },
+      {
+        "number": "3",
+        "label": "收货地址",
+        "control": "文本",
+        "required": "否",
+        "source": "客户主档/用户输入",
+        "rule": "—"
+      },
+      {
+        "number": "4",
+        "label": "联系人 / 电话",
+        "control": "文本",
+        "required": "否",
+        "source": "客户主档",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "发货日期",
+        "control": "日期",
+        "required": "是",
+        "source": "默认今天",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "物流公司",
+        "control": "文本/下拉",
+        "required": "是",
+        "source": "物流公司字典",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "物流单号",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "可后补"
+      },
+      {
+        "number": "8",
+        "label": "备注",
+        "control": "多行文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "—"
+      },
+      {
+        "number": "9",
+        "label": "【明细】品号 / 品名 / 规格 / 单位",
+        "control": "文本（只读）",
+        "required": "—",
+        "source": "工单产品",
+        "rule": "—"
+      },
+      {
+        "number": "10",
+        "label": "【明细】发货数量",
+        "control": "数字",
+        "required": "是",
+        "source": "用户输入",
+        "rule": "≤ 可用成品库存；默认 = 工单数量 - 已发货"
+      },
+      {
+        "number": "11",
+        "label": "【明细】仓库",
+        "control": "下拉",
+        "required": "是",
+        "source": "成品仓",
+        "rule": "默认 CP01"
+      }
+    ]
+  },
+  {
+    "number": 36,
+    "name": "物料选择器（MaterialPicker）",
+    "fields": [
+      {
+        "number": "1",
+        "label": "搜索框",
+        "control": "文本",
+        "required": "否",
+        "source": "用户输入",
+        "rule": "匹配品号 / 品名 / 规格，建议防抖 300ms"
+      },
+      {
+        "number": "2",
+        "label": "分类筛选",
+        "control": "树形",
+        "required": "否",
+        "source": "商品分类",
+        "rule": "三级分类树（一级 Y1 原材料 / G 工具 / D 成品 …，三级 Y01001 控制类 …）"
+      },
+      {
+        "number": "3",
+        "label": "【列表】品号",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "4",
+        "label": "【列表】品名",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "5",
+        "label": "【列表】规格",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "6",
+        "label": "【列表】单位",
+        "control": "文本",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "7",
+        "label": "【列表】当前库存",
+        "control": "数字",
+        "required": "—",
+        "source": "库存台账",
+        "rule": "帮助用户判断是否需采购"
+      },
+      {
+        "number": "8",
+        "label": "【列表】参考单价",
+        "control": "金额",
+        "required": "—",
+        "source": "物料主档",
+        "rule": "—"
+      },
+      {
+        "number": "9",
+        "label": "【列表】选择",
+        "control": "复选框/行点击",
+        "required": "—",
+        "source": "用户操作",
+        "rule": "支持单选与多选（按调用方配置）"
+      },
+      {
+        "number": "10",
+        "label": "已选清单",
+        "control": "标签区",
+        "required": "—",
+        "source": "用户选择",
+        "rule": "多选时显示已选条数与明细，可移除"
+      },
+      {
+        "number": "11",
+        "label": "确定 / 取消",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "确定后回传选中物料数组"
+      }
+    ]
+  },
+  {
+    "number": 37,
+    "name": "重置演示数据",
+    "fields": [
+      {
+        "number": "1",
+        "label": "触发按钮",
+        "control": "按钮（顶栏）",
+        "required": "—",
+        "source": "—",
+        "rule": "建议仅在演示/测试环境渲染"
+      },
+      {
+        "number": "2",
+        "label": "确认弹窗标题",
+        "control": "文本",
+        "required": "—",
+        "source": "固定文案",
+        "rule": "如“确认重置演示数据？”"
+      },
+      {
+        "number": "3",
+        "label": "确认弹窗说明",
+        "control": "文本",
+        "required": "—",
+        "source": "固定文案",
+        "rule": "明确列出将被清空的数据范围与不可恢复提示"
+      },
+      {
+        "number": "4",
+        "label": "确认按钮",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "建议要求二次输入“RESET”或长按确认，防止误点"
+      },
+      {
+        "number": "5",
+        "label": "取消按钮",
+        "control": "按钮",
+        "required": "—",
+        "source": "—",
+        "rule": "默认焦点在取消上"
+      }
+    ]
+  }
+]

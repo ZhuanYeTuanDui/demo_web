@@ -1,4 +1,4 @@
-import { productMaterials } from "./product-materials";
+import { createMockState } from "./mock-data";
 
 export interface Warehouse {
   id: string;
@@ -214,139 +214,11 @@ export const products = [
 ];
 export const today = () => new Date().toLocaleDateString("sv-SE");
 export const stockKey = (warehouse: string, material: string) => `${warehouse}:${material}`;
+// 初始化数据以关系表 fixture 为唯一来源，再适配现有页面，保持业务行为不变。
 export function seed(): State {
-  return {
-    version: 1,
-    warehouses: [
-      { id: "BZ01", name: "标准件仓库", kind: "存货仓", available: true },
-      { id: "XC01", name: "生产现场仓", kind: "现场仓", available: false },
-      { id: "CP01", name: "成品仓库", kind: "存货仓", available: false },
-    ],
-    materials: [
-      { id: "M001", name: "PLC 控制器", spec: "LX3V-3624MT-A", unit: "PCS", price: 860 },
-      { id: "M002", name: "触摸屏", spec: "PI3070ig-O", unit: "PCS", price: 520 },
-      { id: "M003", name: "交流接触器", spec: "NXC-25", unit: "PCS", price: 48 },
-      { id: "M004", name: "漏电开关", spec: "DZ47S / C100", unit: "PCS", price: 65 },
-      { id: "M005", name: "温控模块", spec: "TM4-N2SB", unit: "PCS", price: 185 },
-      ...products.map((p) => ({ id: p.id, name: p.name, spec: p.spec, unit: "台", price: 0 })),
-      ...productMaterials(),
-    ],
-    stocks: {
-      "BZ01:M001": 2,
-      "BZ01:M002": 3,
-      "BZ01:M003": 12,
-      "BZ01:M004": 4,
-      "BZ01:M005": 8,
-      "XC01:M001": 1,
-      "CP01:FG001": 2,
-    },
-    plans: [
-      {
-        id: "PP202610001",
-        name: "十月成型机交付计划",
-        workOrder: "WO202610001",
-        product: "FG001",
-        qty: 5,
-        date: today(),
-        status: "待分析",
-        auditStatus: "已审核",
-      },
-      {
-        id: "PP202610002",
-        name: "包装机备货计划",
-        workOrder: "WO202610002",
-        product: "FG002",
-        qty: 2,
-        date: today(),
-        status: "待分析",
-        auditStatus: "已审核",
-      },
-    ],
-    requests: [
-      {
-        id: "PR202610001",
-        plan: "",
-        applicant: "仓库管理员",
-        date: today(),
-        lines: [{ material: "M005", qty: 4 }],
-        status: "已转采购",
-      },
-    ],
-    drafts: [],
-    receipts: [],
-    inbounds: [],
-    issues: [],
-    shipments: [],
-    finishedInbounds: [],
-    finishedOutbounds: [],
-    deletedMaterialIds: [],
-    workOrders: [
-      {
-        id: "WO202610001",
-        name: "十月成型机交付工单",
-        customer: "演示客户",
-        product: "FG001",
-        qty: 5,
-        date: today(),
-        status: "立项中",
-      },
-      {
-        id: "WO202610002",
-        name: "包装机备货工单",
-        customer: "",
-        product: "FG002",
-        qty: 2,
-        date: today(),
-        status: "立项中",
-      },
-    ],
-    purchases: [
-      {
-        id: "PO202610001",
-        request: "PR202610001",
-        plan: "",
-        buyer: "陈采购",
-        supplier: "东莞精工电气有限公司",
-        date: today(),
-        lines: [
-          {
-            id: "POL202610001",
-            material: "M005",
-            qty: 4,
-            received: 0,
-            request: "PR202610001",
-            requestLine: "0",
-          },
-        ],
-        amount: null,
-        receiptStatus: "未收货",
-        status: "未审核",
-      },
-    ],
-    movements: [
-      {
-        id: "IO202610001",
-        date: "2026-10-18",
-        type: "入库",
-        warehouse: "BZ01",
-        material: "M001",
-        qty: 2,
-        source: "期初建账",
-        reason: "期初库存",
-      },
-      {
-        id: "IO202610002",
-        date: "2026-10-18",
-        type: "入库",
-        warehouse: "CP01",
-        material: "FG001",
-        qty: 2,
-        source: "期初建账",
-        reason: "期初库存",
-      },
-    ],
-  };
+  return createMockState();
 }
+
 export function id(prefix: string) {
   return `${prefix}${Date.now()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 }

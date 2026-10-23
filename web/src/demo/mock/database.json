@@ -1,0 +1,412 @@
+{
+  "schemaVersion": 1,
+  "datePolicy": "单据日期在初始化时使用中国时区当天；期初流水保持原始日期",
+  "tables": {
+    "material_categories": [
+      {
+        "id": "Y",
+        "name": "原材料",
+        "parent_id": null
+      },
+      {
+        "id": "D",
+        "name": "成品",
+        "parent_id": null
+      }
+    ],
+    "accounting_categories": [],
+    "warehouses": [
+      {
+        "id": "BZ01",
+        "name": "标准件仓库",
+        "kind": "存货仓",
+        "included_in_available": 1,
+        "contact_name": null,
+        "phone": null,
+        "fax": null,
+        "address": null,
+        "inactive": 0,
+        "remark": "演示仓库，联系方式未提供"
+      },
+      {
+        "id": "XC01",
+        "name": "生产现场仓",
+        "kind": "现场仓",
+        "included_in_available": 0,
+        "contact_name": null,
+        "phone": null,
+        "fax": null,
+        "address": null,
+        "inactive": 0,
+        "remark": "演示仓库，联系方式未提供"
+      },
+      {
+        "id": "CP01",
+        "name": "成品仓库",
+        "kind": "存货仓",
+        "included_in_available": 0,
+        "contact_name": null,
+        "phone": null,
+        "fax": null,
+        "address": null,
+        "inactive": 0,
+        "remark": "演示仓库，联系方式未提供"
+      }
+    ],
+    "materials": [
+      {
+        "id": "M001",
+        "name": "PLC 控制器",
+        "spec": "LX3V-3624MT-A",
+        "stock_unit": "PCS",
+        "category_id": null,
+        "reference_price_micro": 860000000,
+        "inactive": 0
+      },
+      {
+        "id": "M002",
+        "name": "触摸屏",
+        "spec": "PI3070ig-O",
+        "stock_unit": "PCS",
+        "category_id": null,
+        "reference_price_micro": 520000000,
+        "inactive": 0
+      },
+      {
+        "id": "M003",
+        "name": "交流接触器",
+        "spec": "NXC-25",
+        "stock_unit": "PCS",
+        "category_id": null,
+        "reference_price_micro": 48000000,
+        "inactive": 0
+      },
+      {
+        "id": "M004",
+        "name": "漏电开关",
+        "spec": "DZ47S / C100",
+        "stock_unit": "PCS",
+        "category_id": null,
+        "reference_price_micro": 65000000,
+        "inactive": 0
+      },
+      {
+        "id": "M005",
+        "name": "温控模块",
+        "spec": "TM4-N2SB",
+        "stock_unit": "PCS",
+        "category_id": null,
+        "reference_price_micro": 185000000,
+        "inactive": 0
+      },
+      {
+        "id": "FG001",
+        "name": "C0173 自动成型机",
+        "spec": "VSN-LZQ350",
+        "stock_unit": "台",
+        "category_id": "D",
+        "reference_price_micro": null,
+        "inactive": 0
+      },
+      {
+        "id": "FG002",
+        "name": "C0252 三封切包装机",
+        "spec": "VSN-C0252",
+        "stock_unit": "台",
+        "category_id": "D",
+        "reference_price_micro": null,
+        "inactive": 0
+      }
+    ],
+    "inventory_balances": [
+      {
+        "warehouse_id": "BZ01",
+        "material_id": "M001",
+        "quantity": 2,
+        "amount_cents": null
+      },
+      {
+        "warehouse_id": "BZ01",
+        "material_id": "M002",
+        "quantity": 3,
+        "amount_cents": null
+      },
+      {
+        "warehouse_id": "BZ01",
+        "material_id": "M003",
+        "quantity": 12,
+        "amount_cents": null
+      },
+      {
+        "warehouse_id": "BZ01",
+        "material_id": "M004",
+        "quantity": 4,
+        "amount_cents": null
+      },
+      {
+        "warehouse_id": "BZ01",
+        "material_id": "M005",
+        "quantity": 8,
+        "amount_cents": null
+      },
+      {
+        "warehouse_id": "XC01",
+        "material_id": "M001",
+        "quantity": 1,
+        "amount_cents": null
+      },
+      {
+        "warehouse_id": "CP01",
+        "material_id": "FG001",
+        "quantity": 2,
+        "amount_cents": null
+      }
+    ],
+    "work_orders": [
+      {
+        "id": "WO202610001",
+        "document_no": "WO202610001",
+        "document_date": "2026-10-22",
+        "remark": null,
+        "audit_status": "未审核",
+        "created_by": null,
+        "created_at": null,
+        "auditor_name": null,
+        "audited_at": null,
+        "name": "十月成型机交付工单",
+        "customer_name": "演示客户",
+        "product_id": "FG001",
+        "quantity": 5,
+        "execution_status": "立项中",
+        "start_date": null,
+        "delivery_date": null
+      },
+      {
+        "id": "WO202610002",
+        "document_no": "WO202610002",
+        "document_date": "2026-10-22",
+        "remark": null,
+        "audit_status": "未审核",
+        "created_by": null,
+        "created_at": null,
+        "auditor_name": null,
+        "audited_at": null,
+        "name": "包装机备货工单",
+        "customer_name": "",
+        "product_id": "FG002",
+        "quantity": 2,
+        "execution_status": "立项中",
+        "start_date": null,
+        "delivery_date": null
+      }
+    ],
+    "production_plans": [
+      {
+        "id": "PP202610001",
+        "document_no": "PP202610001",
+        "document_date": "2026-10-22",
+        "remark": null,
+        "audit_status": "已审核",
+        "created_by": null,
+        "created_at": null,
+        "auditor_name": null,
+        "audited_at": null,
+        "name": "十月成型机交付计划",
+        "work_order_id": "WO202610001",
+        "product_id": "FG001",
+        "quantity": 5,
+        "quantity_basis": "perUnit",
+        "execution_status": "待分析"
+      },
+      {
+        "id": "PP202610002",
+        "document_no": "PP202610002",
+        "document_date": "2026-10-22",
+        "remark": null,
+        "audit_status": "已审核",
+        "created_by": null,
+        "created_at": null,
+        "auditor_name": null,
+        "audited_at": null,
+        "name": "包装机备货计划",
+        "work_order_id": "WO202610002",
+        "product_id": "FG002",
+        "quantity": 2,
+        "quantity_basis": "perUnit",
+        "execution_status": "待分析"
+      }
+    ],
+    "production_plan_lines": [
+      {
+        "id": "PP202610001-L1",
+        "document_id": "PP202610001",
+        "line_no": 1,
+        "material_id": "M001",
+        "quantity": 1,
+        "unit": "PCS"
+      },
+      {
+        "id": "PP202610001-L2",
+        "document_id": "PP202610001",
+        "line_no": 2,
+        "material_id": "M002",
+        "quantity": 1,
+        "unit": "PCS"
+      },
+      {
+        "id": "PP202610001-L3",
+        "document_id": "PP202610001",
+        "line_no": 3,
+        "material_id": "M003",
+        "quantity": 4,
+        "unit": "PCS"
+      },
+      {
+        "id": "PP202610001-L4",
+        "document_id": "PP202610001",
+        "line_no": 4,
+        "material_id": "M004",
+        "quantity": 2,
+        "unit": "PCS"
+      },
+      {
+        "id": "PP202610002-L1",
+        "document_id": "PP202610002",
+        "line_no": 1,
+        "material_id": "M001",
+        "quantity": 1,
+        "unit": "PCS"
+      },
+      {
+        "id": "PP202610002-L2",
+        "document_id": "PP202610002",
+        "line_no": 2,
+        "material_id": "M002",
+        "quantity": 1,
+        "unit": "PCS"
+      },
+      {
+        "id": "PP202610002-L3",
+        "document_id": "PP202610002",
+        "line_no": 3,
+        "material_id": "M003",
+        "quantity": 6,
+        "unit": "PCS"
+      },
+      {
+        "id": "PP202610002-L4",
+        "document_id": "PP202610002",
+        "line_no": 4,
+        "material_id": "M005",
+        "quantity": 2,
+        "unit": "PCS"
+      }
+    ],
+    "purchase_drafts": [],
+    "purchase_draft_lines": [],
+    "requisitions": [
+      {
+        "id": "PR202610001",
+        "document_no": "PR202610001",
+        "document_date": "2026-10-22",
+        "remark": null,
+        "audit_status": "未审核",
+        "created_by": null,
+        "created_at": null,
+        "auditor_name": null,
+        "audited_at": null,
+        "applicant_name": "仓库管理员",
+        "plan_id": null,
+        "execution_status": "已转采购"
+      }
+    ],
+    "requisition_lines": [
+      {
+        "id": "PR202610001-L1",
+        "document_id": "PR202610001",
+        "line_no": 1,
+        "material_id": "M005",
+        "quantity": 4,
+        "unit": "PCS",
+        "line_status": "未结束"
+      }
+    ],
+    "purchase_orders": [
+      {
+        "id": "PO202610001",
+        "document_no": "PO202610001",
+        "document_date": "2026-10-22",
+        "remark": null,
+        "audit_status": "未审核",
+        "created_by": null,
+        "created_at": null,
+        "auditor_name": null,
+        "audited_at": null,
+        "supplier_name": "东莞精工电气有限公司",
+        "buyer_name": "陈采购",
+        "receipt_status": "未收货",
+        "currency": "CNY",
+        "exchange_rate": 1
+      }
+    ],
+    "purchase_lines": [
+      {
+        "id": "POL202610001",
+        "document_id": "PO202610001",
+        "line_no": 1,
+        "material_id": "M005",
+        "quantity": 4,
+        "unit": "PCS",
+        "source_requisition_line_id": "PR202610001-L1",
+        "received_quantity": 0,
+        "price_incl_tax_micro": null,
+        "amount_incl_tax_cents": null
+      }
+    ],
+    "receipts": [],
+    "receipt_lines": [],
+    "inventory_inbounds": [],
+    "inventory_inbound_lines": [],
+    "material_issues": [],
+    "material_issue_lines": [],
+    "finished_inbounds": [],
+    "finished_inbound_lines": [],
+    "shipments": [],
+    "shipment_lines": [],
+    "finished_outbounds": [],
+    "finished_outbound_lines": [],
+    "inventory_movements": [
+      {
+        "id": "IO202610001",
+        "movement_date": "2026-10-18",
+        "direction": "入库",
+        "warehouse_id": "BZ01",
+        "material_id": "M001",
+        "quantity": 2,
+        "source_doc_type": "opening_balance",
+        "source_doc_id": "OPENING-20261018",
+        "source_line_id": "1",
+        "reason": "期初库存"
+      },
+      {
+        "id": "IO202610002",
+        "movement_date": "2026-10-18",
+        "direction": "入库",
+        "warehouse_id": "CP01",
+        "material_id": "FG001",
+        "quantity": 2,
+        "source_doc_type": "opening_balance",
+        "source_doc_id": "OPENING-20261018",
+        "source_line_id": "2",
+        "reason": "期初库存"
+      }
+    ],
+    "analysis_runs": [],
+    "analysis_run_lines": [],
+    "purchase_order_revisions": [],
+    "print_templates": [],
+    "print_template_versions": [],
+    "print_records": [],
+    "operation_logs": []
+  }
+}
