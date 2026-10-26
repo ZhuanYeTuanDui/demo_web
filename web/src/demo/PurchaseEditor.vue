@@ -247,7 +247,7 @@ function save() {
       <div class="pagination"><span>共 {{ sourceLines.length }} 条来源物料</span><el-pagination v-model:current-page="sourcePage" :total="sourceLines.length" :page-size="20" layout="prev, pager, next" /></div>
     </section>
     <h3>采购明细</h3>
-    <el-table :data="purchaseRows" max-height="380" empty-text="请先选择采购物料" row-key="key">
+    <el-table :data="purchaseRows" class="purchase-detail-table" max-height="85vh" empty-text="请先选择采购物料" row-key="key">
       <el-table-column label="品号 / 品名 / 规格" min-width="220"
         ><template #default="{ row }"
           >{{ material(row.material)?.name }}
@@ -380,6 +380,10 @@ function save() {
 }
 .editor-footer .muted {
   margin-right: auto;
+}
+.purchase-detail-table :deep(.el-table__cell) {
+  padding-top: 2px;
+  padding-bottom: 2px;
 }
 @media (max-width: 700px) {
   .purchase-fields {
