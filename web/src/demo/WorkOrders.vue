@@ -153,11 +153,6 @@ function viewPlan(planId: string) {
         ></el-table-column
       >
       <el-table-column prop="customer" label="客户" min-width="130" />
-      <el-table-column label="产品" min-width="200"
-        ><template #default="{ row }">{{
-          material(row.product)?.name || row.product
-        }}</template></el-table-column
-      >
       <el-table-column prop="qty" label="数量" width="90" align="right" />
       <el-table-column prop="date" label="日期" width="120" />
       <el-table-column label="关联计划" width="100"
@@ -228,14 +223,6 @@ function viewPlan(planId: string) {
         <el-form-item label="客户"
           ><el-input v-model="form.customer" maxlength="60"
         /></el-form-item>
-        <el-form-item label="产品" required
-          ><el-select v-model="form.product" filterable
-            ><el-option
-              v-for="p in products"
-              :key="p.id"
-              :label="p.name"
-              :value="p.id" /></el-select
-        ></el-form-item>
         <el-form-item label="数量" required
           ><el-input-number v-model="form.qty" :min="1" :max="100000" :precision="0"
         /></el-form-item>
@@ -263,9 +250,6 @@ function viewPlan(planId: string) {
         ><el-descriptions-item label="工单号">{{ selected.id }}</el-descriptions-item
         ><el-descriptions-item label="名称">{{ selected.name }}</el-descriptions-item
         ><el-descriptions-item label="客户">{{ selected.customer || "—" }}</el-descriptions-item
-        ><el-descriptions-item label="产品">{{
-          material(selected.product)?.name || selected.product
-        }}</el-descriptions-item
         ><el-descriptions-item label="数量">{{ selected.qty }}</el-descriptions-item
         ><el-descriptions-item label="状态">{{ selected.status }}</el-descriptions-item
         ><el-descriptions-item label="备注">{{

@@ -185,7 +185,7 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
     <template #toolbar
       ><div class="panel-heading">
         <el-button :icon="Upload" @click="importing = true">导入 Excel</el-button>
-        <el-button type="primary" :icon="Plus" @click="openEditor()">新增生产计划</el-button>
+        <el-button v-show="false" type="primary" :icon="Plus" @click="openEditor()">新增生产计划</el-button>
 
         <h2>
           计划列表 <span class="count-badge">{{ plans.length }}</span>
