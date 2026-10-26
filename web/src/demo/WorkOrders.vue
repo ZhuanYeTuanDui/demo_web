@@ -228,14 +228,6 @@ function viewPlan(planId: string) {
         <el-form-item label="客户"
           ><el-input v-model="form.customer" maxlength="60"
         /></el-form-item>
-        <el-form-item label="产品" required
-          ><el-select v-model="form.product" filterable
-            ><el-option
-              v-for="p in products"
-              :key="p.id"
-              :label="p.name"
-              :value="p.id" /></el-select
-        ></el-form-item>
         <el-form-item label="数量" required
           ><el-input-number v-model="form.qty" :min="1" :max="100000" :precision="0"
         /></el-form-item>
