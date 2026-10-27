@@ -399,6 +399,12 @@ h3 {
 .el-table .cell {
   padding: 0 16px;
 }
+.el-table .cell .el-input,
+.el-table .cell .el-input-number,
+.el-table .cell .el-select,
+.el-table .cell .el-date-editor {
+  max-width: 100%;
+}
 .el-table .el-button.is-link {
   font-size: 13px;
   min-height: 24px;
