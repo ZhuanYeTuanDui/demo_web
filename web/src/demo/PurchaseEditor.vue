@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { computed, reactive, ref } from "vue";
 import { state, material, commit } from "./store";
 import {
   createPurchase,
   updatePurchase,
   purchaseLineAmount,
   purchaseTotal,
-  materialIsActive,
   type Purchase,
   type PurchaseLine,
 } from "./model";
 import MaterialPicker from "./MaterialPicker.vue";
-import PurchaseSourcePicker, { type PurchaseSourceSelection } from "./PurchaseSourcePicker.vue";
+import PurchaseSourcePicker, { type PurchaseSourceLine } from "./PurchaseSourcePicker.vue";
 const props = defineProps<{ order?: Purchase; draftIds?: string[] }>();
 const emit = defineEmits<{ saved: []; cancel: [] }>();
 type EditRow = PurchaseLine & { key: string; existing?: boolean; requestIndex?: number };
@@ -26,125 +25,51 @@ const sourcePicker = ref(false);
 const totalAmount = computed(() =>
   purchaseTotal(purchaseRows.value.map((row) => ({ amount: purchaseLineAmount(row) })))
 );
-function sourceKey(source: PurchaseSourceSelection) {
-  return source.kind === "draft" ? `draft:${source.draftId}` : `request:${source.requestId}`;
-}
-const chosenSources = ref<PurchaseSourceSelection[]>([...new Map(
-  (props.order?.lines || []).flatMap<PurchaseSourceSelection>(line => line.draft
-    ? [{ kind: "draft", draftId: line.draft }]
-    : line.request ? [{ kind: "request", requestId: line.request }] : [])
-    .map(source => [sourceKey(source), source])
-).values()]);
-const sourceKeys = computed(() => chosenSources.value.map(sourceKey));
-const activeSourceKey = ref(sourceKeys.value[0] || "");
-const activeSource = computed(() => chosenSources.value.find(source => sourceKey(source) === activeSourceKey.value));
-const sourceKeyword = ref("");
-const sourcePage = ref(1);
-const sourcePlan = computed(() => {
-  const source = activeSource.value;
-  return source?.kind === "draft" ? state.value.drafts.find(d => d.id === source.draftId)?.plan
-    : source?.kind === "request" ? state.value.requests.find(r => r.id === source.requestId)?.plan : "";
-});
-const sourceLines = computed(() => {
-  const source = activeSource.value;
-  if (!source) return [];
-  const draft = source.kind === "draft" ? state.value.drafts.find(d => d.id === source.draftId) : undefined;
-  const request = source.kind === "request" ? state.value.requests.find(r => r.id === source.requestId) : undefined;
-  const lines = draft?.lines || request?.lines || [];
-  return lines.map((line, index) => {
-    const lineId = draft?.lines[index]?.id || "";
-    const selected = source.kind === "draft" ? draftLineSelected(source.draftId, lineId)
-      : requestLineSelected(source.requestId, index);
-    const item = material(line.material);
-    return { ...line, index, lineId, selected,
-      disabled: !item || !materialIsActive(item) || (source.kind === "draft" && draft?.auditStatus !== "已审核"),
-      label: source.kind === "draft" ? `选择底稿物料 ${source.draftId} ${lineId}` : `选择请购物料 ${source.requestId} ${index}`,
-    };
-  }).filter(line => {
-    const item = material(line.material);
-    return (!line.disabled || line.selected) && `${line.material} ${item?.name || ""} ${item?.spec || ""}`.toLowerCase().includes(sourceKeyword.value.trim().toLowerCase());
-  });
-});
-const sourcePaged = computed(() => sourceLines.value.slice((sourcePage.value - 1) * 20, sourcePage.value * 20));
-watch([activeSourceKey, sourceKeyword], () => { sourcePage.value = 1; });
-watch(() => sourceLines.value.length, total => { sourcePage.value = Math.min(sourcePage.value, Math.max(1, Math.ceil(total / 20))); });
-function addSources(sources: PurchaseSourceSelection[]) {
-  // 取单只登记来源单据，物料须在采购页面另行勾选，不自动加入采购明细。
-  for (const source of sources) {
-    if (!sourceKeys.value.includes(sourceKey(source))) chosenSources.value.push(source);
+const sourceKeys = computed(() =>
+  purchaseRows.value.flatMap((row) => {
+    const keys: string[] = [];
+    if (row.draft && row.draftLine) keys.push(`draft:${row.draft}:${row.draftLine}`);
+    if (row.request && row.requestIndex != null) keys.push(`request:${row.request}:${row.requestIndex}`);
+    return keys;
+  })
+);
+function addSources(lines: PurchaseSourceLine[]) {
+  const existing = new Set(sourceKeys.value);
+  for (const line of lines) {
+    if (existing.has(line.key)) continue;
+    existing.add(line.key);
+    if (line.sourceType === "draft" && line.draftId && line.lineId) {
+      purchaseRows.value.push({
+        id: line.key,
+        key: line.key,
+        material: line.material,
+        qty: line.qty,
+        received: 0,
+        draft: line.draftId,
+        draftLine: line.lineId,
+        unitPrice: null,
+        amount: null,
+        dueDate: line.dueDate || "",
+        remark: "",
+      });
+    } else if (line.sourceType === "request" && line.requestId && line.lineIndex != null) {
+      purchaseRows.value.push({
+        id: line.key,
+        key: line.key,
+        material: line.material,
+        qty: line.qty,
+        received: 0,
+        request: line.requestId,
+        requestLine: String(line.lineIndex),
+        requestIndex: line.lineIndex,
+        unitPrice: null,
+        amount: null,
+        dueDate: "",
+        remark: "",
+      });
+    }
   }
-  if (sources[0]) activeSourceKey.value = sourceKey(sources[0]);
   sourcePicker.value = false;
-}
-function toggleSourceLine(line: (typeof sourceLines.value)[number], checked: boolean) {
-  const source = activeSource.value;
-  if (!source || line.disabled) return;
-  if (source.kind === "draft") toggleDraftLine(source.draftId, line.lineId, checked);
-  else toggleRequestLine(source.requestId, line.index, checked);
-}
-function draftLineSelected(draftId: string, lineId: string) {
-  return purchaseRows.value.some((row) => row.draft === draftId && row.draftLine === lineId);
-}
-function requestLineSelected(requestId: string, lineIndex: number) {
-  return purchaseRows.value.some(
-    (row) =>
-      row.request === requestId &&
-      (row.requestIndex === lineIndex || row.requestLine === String(lineIndex))
-  );
-}
-function toggleDraftLine(draftId: string, lineId: string, checked: boolean) {
-  const key = `draft:${draftId}:${lineId}`;
-  if (!checked) {
-    purchaseRows.value = purchaseRows.value.filter(
-      (row) => !(row.draft === draftId && row.draftLine === lineId)
-    );
-    return;
-  }
-  if (draftLineSelected(draftId, lineId)) return;
-  const line = state.value.drafts.find((d) => d.id === draftId)?.lines.find((l) => l.id === lineId);
-  if (line)
-    purchaseRows.value.push({
-      id: key,
-      key,
-      material: line.material,
-      qty: line.qty,
-      received: 0,
-      draft: draftId,
-      draftLine: lineId,
-      unitPrice: null,
-      amount: null,
-      dueDate: line.dueDate || "",
-      remark: "",
-    });
-}
-function toggleRequestLine(requestId: string, lineIndex: number, checked: boolean) {
-  if (!checked) {
-    purchaseRows.value = purchaseRows.value.filter(
-      (row) =>
-        !(
-          row.request === requestId &&
-          (row.requestIndex === lineIndex || row.requestLine === String(lineIndex))
-        )
-    );
-    return;
-  }
-  if (requestLineSelected(requestId, lineIndex)) return;
-  const line = state.value.requests.find((r) => r.id === requestId)?.lines[lineIndex];
-  const key = `request:${requestId}:${lineIndex}`;
-  if (line)
-    purchaseRows.value.push({
-      ...line,
-      id: key,
-      key,
-      received: 0,
-      request: requestId,
-      requestLine: String(lineIndex),
-      requestIndex: lineIndex,
-      unitPrice: null,
-      amount: null,
-      dueDate: "",
-      remark: "",
-    });
 }
 let manualSerial = 0;
 function add(ids: string[]) {
@@ -227,25 +152,8 @@ function save() {
     <div class="purchase-source-actions">
       <el-button @click="picker = true">选择物料</el-button>
       <el-button type="primary" plain @click="sourcePicker = true">取单</el-button>
-      <span class="muted">先取底稿或请购单，再从来源单据勾选物料。</span>
+      <span class="muted">取单后勾选物料，直接加入采购明细。</span>
     </div>
-    <section v-if="chosenSources.length" class="purchase-source-materials" aria-label="来源单据物料">
-      <el-tabs v-model="activeSourceKey" aria-label="已取来源单据">
-        <el-tab-pane v-for="source in chosenSources" :key="sourceKey(source)" :name="sourceKey(source)"
-          :label="source.kind === 'draft' ? source.draftId : source.requestId" />
-      </el-tabs>
-      <div class="cell-sub">来源计划：{{ sourcePlan || '—' }}</div>
-      <el-input v-model="sourceKeyword" clearable placeholder="搜索来源物料名称、编码或规格" aria-label="搜索来源物料" />
-      <p class="muted">勾选需要采购的物料后可修改采购数量；来源要求量不变，其他采购单仍可重复取用。</p>
-      <el-table :data="sourcePaged" max-height="260" empty-text="暂无可选来源物料" row-key="material">
-        <el-table-column label="选择" width="65"><template #default="{ row }"><el-checkbox
-          :model-value="row.selected" :disabled="row.disabled" :aria-label="row.label"
-          @change="(checked: string | number | boolean) => toggleSourceLine(row, !!checked)" /></template></el-table-column>
-        <el-table-column label="品号 / 名称 / 规格" min-width="260"><template #default="{ row }">{{ material(row.material)?.name || row.material }}<div class="cell-sub">{{ row.material }} · {{ material(row.material)?.spec || '—' }}</div></template></el-table-column>
-        <el-table-column prop="qty" label="来源要求量" width="120" />
-      </el-table>
-      <div class="pagination"><span>共 {{ sourceLines.length }} 条来源物料</span><el-pagination v-model:current-page="sourcePage" :total="sourceLines.length" :page-size="20" layout="prev, pager, next" /></div>
-    </section>
     <h3>采购明细</h3>
     <el-table :data="purchaseRows" class="purchase-detail-table" max-height="85vh" empty-text="请先选择采购物料" row-key="key">
       <el-table-column label="品号 / 品名 / 规格" min-width="220"
