@@ -951,6 +951,15 @@ function sourceLines(state: State, input: PurchaseSources) {
     chosen,
   };
 }
+function hasPurchaseSources(input?: PurchaseSources) {
+  return !!input && Boolean(
+    input.lines?.length ||
+      input.draftLines?.length ||
+      input.requestLines?.length ||
+      input.draftIds?.length ||
+      input.requestIds?.length
+  );
+}
 function markConvertedRequests(requests: Requisition[]) {
   for (const request of requests) request.status = "已转采购";
 }
@@ -1003,7 +1012,10 @@ export function updatePurchase(
   const base = input.lines ?? order.lines;
   if (new Set(base.map((line) => line.id)).size !== base.length)
     throw new Error("采购明细不能重复");
-  const source = input.sources ? sourceLines(state, input.sources) : undefined;
+  const source =
+    input.sources && hasPurchaseSources(input.sources)
+      ? sourceLines(state, input.sources)
+      : undefined;
   const added = source?.rows || [];
   const lines: PurchaseLine[] = [
     ...base

@@ -124,7 +124,7 @@ function actions(row: Purchase) {
     { label: "详情", action: () => (detail.value = row.id) },
     ...(row.status === "未审核"
       ? [
-          { label: "编辑 / 添加", action: () => edit(row) },
+          { label: "编辑", action: () => edit(row) },
           { label: "审核", disabled: auditing.value, action: () => audit(row) },
         ]
       : [
@@ -234,7 +234,7 @@ function actions(row: Purchase) {
   </FaManagementList>
   <el-dialog
     v-model="editing"
-    :title="editOrder ? '编辑采购单 / 添加物料' : '新增采购单'"
+    :title="editOrder ? '编辑采购单' : '新增采购单'"
     width="min(1080px,94vw)"
     destroy-on-close
     :close-on-click-modal="false"
@@ -324,7 +324,7 @@ function actions(row: Purchase) {
       </el-table>
       <div class="analysis-action-buttons">
         <el-button v-if="selected.status === '未审核'" @click="edit(selected)"
-          >编辑 / 添加物料</el-button
+          >编辑采购单</el-button
         ><el-button @click="printOrder = selected">打印预览</el-button>
       </div></template
     > </el-drawer
