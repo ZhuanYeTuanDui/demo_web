@@ -951,6 +951,9 @@ function sourceLines(state: State, input: PurchaseSources) {
     chosen,
   };
 }
+function markConvertedRequests(requests: Requisition[]) {
+  for (const request of requests) request.status = "已转采购";
+}
 export function createPurchase(state: State, input: PurchaseInput) {
   if (!input.buyer.trim() || !input.supplier.trim()) throw new Error("采购人、供应商不能为空");
   const source = sourceLines(state, input);
@@ -968,6 +971,7 @@ export function createPurchase(state: State, input: PurchaseInput) {
     receiptStatus: "未收货",
   };
   state.purchases.unshift(order);
+  markConvertedRequests(source.requests);
   return order;
 }
 export function appendPurchase(state: State, orderId: string, input: PurchaseSources) {
@@ -976,6 +980,7 @@ export function appendPurchase(state: State, orderId: string, input: PurchaseSou
   const amount = purchaseTotal([...order.lines, ...source.rows]);
   order.lines.push(...source.rows);
   order.amount = amount;
+  markConvertedRequests(source.requests);
   return order;
 }
 export function updatePurchase(
@@ -998,7 +1003,8 @@ export function updatePurchase(
   const base = input.lines ?? order.lines;
   if (new Set(base.map((line) => line.id)).size !== base.length)
     throw new Error("采购明细不能重复");
-  const added = input.sources ? sourceLines(state, input.sources).rows : [];
+  const source = input.sources ? sourceLines(state, input.sources) : undefined;
+  const added = source?.rows || [];
   const lines: PurchaseLine[] = [
     ...base
       .map((l) => {
@@ -1049,6 +1055,7 @@ export function updatePurchase(
     lines,
     amount,
   });
+  markConvertedRequests(source?.requests || []);
   return order;
 }
 export function purchaseDifferences(state: State, orderId: string) {

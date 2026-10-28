@@ -195,8 +195,8 @@ const orders = computed(() =>
         ><el-input v-model="keyword" placeholder="底稿号、来源计划或物料" clearable /></el-form-item
     ></template>
     <template #toolbar
-      ><el-button type="primary" @click="openEditor()">新增底稿</el-button
-      ><el-button @click="emit('navigate', 'plans')">生产计划</el-button></template
+      ><el-button v-show="false" type="primary" @click="openEditor()">新增底稿</el-button
+      ><el-button v-show="false" @click="emit('navigate', 'plans')">生产计划</el-button></template
     >
     <el-table :data="paged" row-key="id" stripe empty-text="暂无该审核状态的采购底稿">
       <el-table-column label="底稿号 / 日期" min-width="230"
