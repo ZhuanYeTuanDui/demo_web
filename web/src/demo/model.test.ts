@@ -137,4 +137,18 @@ describe("采购与生产演示闭环", () => {
     expect(() => receive(s, o.id, "XC01")).toThrow("可用量");
     expect(o.status).toBe("未审核");
   });
+  it("请购单生成采购单后标记为已转采购", () => {
+    const s = seed();
+    s.requests.unshift({
+      id: "PR测试转采购",
+      plan: "",
+      date: "2026-10-28",
+      applicant: "测试",
+      lines: [{ material: "M001", qty: 1 }],
+      status: "待采购",
+    });
+    const order = convertRequest(s, "PR测试转采购", "采购员", "供应商");
+    expect(order.request).toBe("PR测试转采购");
+    expect(s.requests.find((r) => r.id === "PR测试转采购")!.status).toBe("已转采购");
+  });
 });
