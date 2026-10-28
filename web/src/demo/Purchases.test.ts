@@ -103,6 +103,21 @@ describe("采购来源编辑与审核", () => {
     expect(draft.lines[0]!.qty).toBe(line.qty);
   });
 
+  it("编辑已有采购单不添加物料也能直接保存", async () => {
+    state.value = seed();
+    const order = createPurchase(state.value, {
+      buyer: "采购",
+      supplier: "供应商",
+      lines: [{ material: "M005", qty: 2 }],
+    });
+    wrapper = mount(PurchaseEditor, { props: { order }, attachTo: document.body, global });
+    await flushPromises();
+    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+    expect(wrapper.emitted("saved")).toHaveLength(1);
+    expect(state.value.purchases.find((item) => item.id === order.id)!.lines).toHaveLength(1);
+  });
+
   it("重新编辑可移除全部旧行再添加新来源，保存原子更新，取消保留已保存数据", async () => {
     state.value = seed();
     const order = createPurchase(state.value, {
