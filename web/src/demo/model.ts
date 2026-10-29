@@ -127,6 +127,9 @@ export interface Receipt {
 }
 export interface Inbound extends Omit<Receipt, "auditStatus"> {
   receipt: string;
+  supplier?: string;
+  remark?: string;
+  lines: (ReceiptLine & { purchase?: string })[];
 }
 export interface IssueLine extends Line {
   warehouse: string;
@@ -821,6 +824,23 @@ export function move(
     reason,
   });
 }
+/** 多物料手工出库先整单校验，避免后续物料不足时产生部分扣库。 */
+export function registerStockOutbound(state: State, input: { id: string; warehouse: string; reason: string; lines: Line[] }) {
+  if (!input.id.trim()) throw new Error("出库单号不能为空");
+  if (state.movements.some((row) => row.source === input.id)) throw new Error("出库记录已保存，不能重复出库");
+  if (!input.reason.trim()) throw new Error("请填写出库原因");
+  if (!state.warehouses.some((row) => row.id === input.warehouse && !row.inactive))
+    throw new Error("请选择正常使用的仓库");
+  if (!input.lines.length) throw new Error("请从库存选择出库物料");
+  if (new Set(input.lines.map((line) => line.material)).size !== input.lines.length)
+    throw new Error("出库物料不能重复");
+  validateLines(state, input.lines, true);
+  for (const line of input.lines)
+    if ((state.stocks[stockKey(input.warehouse, line.material)] || 0) < line.qty)
+      throw new Error(`物料 ${line.material} 库存不足，不能出库`);
+  for (const line of input.lines)
+    move(state, input.warehouse, line, "出库", input.id, input.reason.trim(), true);
+}
 export interface PurchaseSources {
   draftLines?: { draftId: string; lineId: string }[];
   lineAmounts?: Record<string, number | null>;
@@ -1112,6 +1132,9 @@ export function unauditPurchase(state: State, orderId: string) {
   if (!order || order.status !== "已审核") throw new Error("仅已审核采购单可以反审核");
   if (state.receipts.some((r) => r.purchase === order.id && r.auditStatus === "已审核"))
     throw new Error("存在已审核的直接下游收货单，不能反审核");
+  if (order.lines.some((line) => line.received > 0) || state.inbounds.some((document) =>
+    document.lines.some((line) => (line.purchase || document.purchase) === order.id && line.qty > 0)))
+    throw new Error("采购单已有物料入库，不能反审核");
   order.status = "未审核";
 }
 export function mergePurchases(state: State, orderIds: string[]) {
@@ -1233,6 +1256,54 @@ function refreshReceiptStatus(order: Purchase) {
     : order.lines.some((l) => l.received > 0)
       ? "部分收货"
       : "未收货";
+}
+export interface PurchaseInboundInput {
+  id: string;
+  supplier: string;
+  warehouse: string;
+  remark?: string;
+  lines: { purchase: string; lineId: string; qty: number }[];
+}
+/** 先校验所有采购来源与可收量，再统一登记库存及采购已收量。 */
+export function createPurchaseInbound(state: State, input: PurchaseInboundInput) {
+  if (!input.id.trim()) throw new Error("入库单号不能为空");
+  if (state.inbounds.some((document) => document.id === input.id) ||
+    state.movements.some((movement) => movement.source === input.id))
+    throw new Error("入库单已保存，不能重复入库");
+  const supplier = input.supplier.trim();
+  if (!supplier) throw new Error("请先填写供应商名称");
+  receiptWarehouse(state, input.warehouse);
+  if (!input.lines.length) throw new Error("请取单并选择入库物料");
+  const keys = new Set<string>();
+  const lines = input.lines.map((row) => {
+    const key = JSON.stringify([row.purchase, row.lineId]);
+    if (keys.has(key)) throw new Error("不能重复选择同一采购明细");
+    keys.add(key);
+    const order = purchaseForReceipt(state, row.purchase);
+    if (!order.supplier.toLowerCase().includes(supplier.toLowerCase()))
+      throw new Error("来源采购单供应商与入库供应商不匹配，请重新取单");
+    const [line] = plannedReceiptLines(state, order.id, [row]);
+    return { ...line!, purchase: order.id };
+  });
+  const document: Inbound = {
+    id: input.id,
+    receipt: "",
+    purchase: lines[0]!.purchase,
+    supplier,
+    warehouse: input.warehouse,
+    date: today(),
+    remark: input.remark?.trim() || "",
+    status: "已收货",
+    lines,
+  };
+  for (const line of lines) {
+    move(state, document.warehouse, line, "入库", document.id, `采购入库 ${line.purchase}`);
+    const order = state.purchases.find((purchase) => purchase.id === line.purchase)!;
+    order.lines.find((source) => source.id === line.lineId)!.received += line.qty;
+    refreshReceiptStatus(order);
+  }
+  state.inbounds.unshift(document);
+  return document;
 }
 export function confirmReceipt(
   state: State,

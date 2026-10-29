@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import DataLink from "./DataLink.vue";
 import ElDialog from "./CachedDialog.vue";
+import ElDrawer from "./CachedDrawer.vue";
+import InboundEditor from "./InboundEditor.vue";
+import StockMaterialPicker from "./StockMaterialPicker.vue";
 import FaManagementList from "./FaManagementList.vue";
 import { computed, reactive, ref, watch } from "vue";
 import { Search, Plus, Download, } from "@element-plus/icons-vue";
 import { state, material, warehouseName, commit } from "./store";
-import { stockKey, move, type Movement } from "./model";
+import { stockKey, registerStockOutbound, id, type Line } from "./model";
 import WarehouseDetails from "./WarehouseDetails.vue";
 
 const props = defineProps<{ page: string; warehouseId?: string }>();
@@ -16,14 +19,37 @@ const direction = ref("");
 const currentPage = ref(1);
 const pageSize = ref(10);
 const dialog = ref(false);
+const inboundDialog = ref(false);
+const inboundEditor = ref<InstanceType<typeof InboundEditor>>();
+const inboundDetail = ref("");
+const selectedInbound = computed(() => state.value.inbounds.find((document) => document.id === inboundDetail.value));
+function closeInbound(done: () => void) {
+  void inboundEditor.value?.cancel().then(() => { if (!inboundDialog.value) done(); });
+}
 const warehouseDialog = ref(false);
 const form = reactive({
+  id: "",
   warehouse: "BZ01",
-  material: "M001",
-  qty: 1,
-  type: "入库" as Movement["type"],
+  lines: [] as Line[],
   reason: "",
 });
+const savingOutbound = ref(false);
+const outboundError = ref("");
+const stockPicker = ref(false);
+function openOutbound() {
+  Object.assign(form, { id: id("OUT"), warehouse: "BZ01", lines: [], reason: "" });
+  outboundError.value = "";
+  dialog.value = true;
+}
+function selectOutboundMaterials(ids: string[]) {
+  const existing = new Set(form.lines.map((line) => line.material));
+  form.lines.push(...ids.filter((material) => !existing.has(material)).map((material) => ({ material, qty: 1 })));
+  stockPicker.value = false;
+}
+function removeOutboundMaterial(material: string) {
+  form.lines = form.lines.filter((line) => line.material !== material);
+}
+watch(() => form.warehouse, () => { form.lines = []; stockPicker.value = false; });
 const warehouseForm = reactive({ id: "", name: "", kind: "存货仓", available: true });
 const rows = computed(() =>
   state.value.warehouses
@@ -68,23 +94,21 @@ function clear() {
   direction.value = "";
 }
 function saveMovement() {
+  if (savingOutbound.value) return;
+  outboundError.value = "";
+  if (!form.reason.trim() || !form.lines.length) {
+    outboundError.value = "请选择出库物料并填写出库原因";
+    return;
+  }
+  savingOutbound.value = true;
   if (
     commit((s) => {
-      if (!form.reason.trim()) throw new Error("请填写出入库原因");
-      move(
-        s,
-        form.warehouse,
-        { material: form.material, qty: form.qty },
-        form.type,
-        "手工登记",
-        form.reason.trim()
-      );
-    }, "记录已保存，库存已更新")
+      registerStockOutbound(s, form);
+    }, "出库记录已保存，库存已扣减")
   ) {
     dialog.value = false;
-    form.reason = "";
-    form.qty = 1;
   }
+  savingOutbound.value = false;
 }
 function saveWarehouse() {
   if (
@@ -225,9 +249,10 @@ watch(() => list.value.length, (total) => { currentPage.value = Math.min(current
       </template>
       <template #toolbar
         ><div class="panel-heading">
-          <el-button type="primary" :icon="Plus" @click="dialog = true">登记出入库</el-button>
-          <h2>
-            {{ page === "movements" ? "出入库流水" : "分仓库存明细" }}
+          <el-button type="primary" :icon="Plus" @click="inboundDialog = true">登记入库</el-button>
+          <el-button @click="openOutbound">登记出库</el-button>
+          <h2 v-if="page !== 'movements'">
+            分仓库存明细
             <span class="count-badge">{{ list.length }}</span>
           </h2>
           <el-button :icon="Download" @click="exportCsv">导出记录</el-button>
@@ -288,7 +313,8 @@ watch(() => list.value.length, (total) => { currentPage.value = Math.min(current
           min-width="120"
         /><el-table-column label="来源单据 / 记录号" min-width="245"
           ><template #default="{ row }"
-            ><div class="cell-title code">{{ row.source }}</div>
+            ><DataLink v-if="state.inbounds.some((document) => document.id === row.source)" @click="inboundDetail = row.source">{{ row.source }}</DataLink>
+            <div v-else class="cell-title code">{{ row.source }}</div>
             <span class="cell-sub code">{{ row.id }}</span></template
           ></el-table-column
         ></el-table
@@ -304,44 +330,61 @@ watch(() => list.value.length, (total) => { currentPage.value = Math.min(current
         />
       </div>
     </FaManagementList>
-    <el-dialog v-model="dialog" title="登记出入库" width="520px" :close-on-click-modal="false"
-      ><el-form label-position="top" @submit.prevent="saveMovement"
-        ><el-form-item label="变动方向" required
-          ><el-radio-group v-model="form.type"
-            ><el-radio-button value="入库">入库</el-radio-button
-            ><el-radio-button value="出库">出库</el-radio-button></el-radio-group
-          ></el-form-item
+    <el-drawer v-model="inboundDialog" title="登记入库" size="min(1080px, 96vw)" destroy-on-close
+      :before-close="closeInbound" :close-on-click-modal="false">
+      <InboundEditor ref="inboundEditor" @cancel="inboundDialog = false" @saved="inboundDialog = false" />
+    </el-drawer>
+    <el-drawer :model-value="!!selectedInbound" title="入库单详情" size="min(1000px, 95vw)" @close="inboundDetail = ''">
+      <template v-if="selectedInbound">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="入库单号">{{ selectedInbound.id }}</el-descriptions-item>
+          <el-descriptions-item label="供应商">{{ selectedInbound.supplier || state.purchases.find((order) => order.id === selectedInbound?.purchase)?.supplier || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="仓库">{{ warehouseName(selectedInbound.warehouse) }}</el-descriptions-item>
+          <el-descriptions-item label="日期">{{ selectedInbound.date }}</el-descriptions-item>
+          <el-descriptions-item label="来源收货单">{{ selectedInbound.receipt || '直接采购入库' }}</el-descriptions-item>
+          <el-descriptions-item label="备注">{{ selectedInbound.remark || '—' }}</el-descriptions-item>
+        </el-descriptions>
+        <h3>入库明细</h3>
+        <el-table :data="selectedInbound.lines">
+          <el-table-column label="物料" min-width="220"><template #default="{ row }">{{ material(row.material)?.name }}<div class="cell-sub">{{ row.material }}</div></template></el-table-column>
+          <el-table-column label="来源采购单" min-width="210"><template #default="{ row }"><DataLink href="#orders" @click="emit('navigate', 'orders')">{{ row.purchase || selectedInbound?.purchase }}</DataLink></template></el-table-column>
+          <el-table-column prop="qty" label="入库数量" width="110" />
+        </el-table>
+      </template>
+    </el-drawer>
+    <el-dialog v-model="dialog" title="登记出库" width="min(960px, 94vw)" :close-on-click-modal="false"
+      ><el-form label-position="top" :disabled="savingOutbound" @submit.prevent="saveMovement">
+      <div class="form-grid"
         ><el-form-item label="仓库" required
-          ><el-select v-model="form.warehouse"
+          ><el-select v-model="form.warehouse" aria-label="出库仓库"
             ><el-option
               v-for="w in state.warehouses"
               :key="w.id"
               :label="w.name"
               :disabled="w.inactive"
               :value="w.id" /></el-select></el-form-item
-        ><el-form-item label="商品" required
-          ><el-select v-model="form.material" filterable
-            ><el-option
-              v-for="m in state.materials"
-              :key="m.id"
-              :label="`${m.name} · ${m.id}`"
-              :value="m.id" /></el-select></el-form-item
-        ><el-form-item label="数量" required
-          ><el-input-number
-            v-model="form.qty"
-            :min="1"
-            :max="100000"
-            :precision="0" /></el-form-item
-        ><el-form-item label="原因" required
+        ><el-form-item label="出库原因" required
           ><el-input
             v-model="form.reason"
             maxlength="100"
-            placeholder="例如：期初补录、库存调整" /></el-form-item></el-form
+            placeholder="例如：库存调整、物料外发" /></el-form-item></div>
+        <div class="panel-heading compact"><el-button type="primary" plain :disabled="!form.warehouse" @click="stockPicker = true">选择库存物料</el-button></div>
+        <el-table :data="form.lines" row-key="material" max-height="360" empty-text="请从当前仓库库存选择物料">
+          <el-table-column label="品号 / 品名 / 规格" min-width="240"><template #default="{ row }">{{ material(row.material)?.name }}<div class="cell-sub">{{ row.material }} · {{ material(row.material)?.spec || '—' }}</div></template></el-table-column>
+          <el-table-column label="当前库存" width="110" align="right"><template #default="{ row }">{{ state.stocks[stockKey(form.warehouse, row.material)] || 0 }}</template></el-table-column>
+          <el-table-column label="出库数量" width="170"><template #default="{ row }"><el-input-number v-model="row.qty" :min="1" :max="Math.min(100000, state.stocks[stockKey(form.warehouse, row.material)] || 0)" :precision="0" controls-position="right" :aria-label="`出库数量 ${row.material}`" style="width: 140px" /></template></el-table-column>
+          <el-table-column label="单位" width="70"><template #default="{ row }">{{ material(row.material)?.unit }}</template></el-table-column>
+          <el-table-column label="操作" width="80" fixed="right"><template #default="{ row }"><el-button link type="danger" @click="removeOutboundMaterial(row.material)">移除</el-button></template></el-table-column>
+        </el-table>
+        <el-alert v-if="outboundError" :title="outboundError" type="error" :closable="false" show-icon />
+        </el-form
       ><template #footer
-        ><el-button @click="dialog = false">取消</el-button
-        ><el-button type="primary" @click="saveMovement">保存记录</el-button></template
+        ><el-button :disabled="savingOutbound" @click="dialog = false">取消</el-button
+        ><el-button type="primary" :loading="savingOutbound" @click="saveMovement">确认出库</el-button></template
       ></el-dialog
     >
+    <StockMaterialPicker v-if="stockPicker && dialog" :warehouse="form.warehouse" :excluded-ids="form.lines.map((line) => line.material)"
+      @confirm="selectOutboundMaterials" @cancel="stockPicker = false" />
     <el-dialog v-model="warehouseDialog" title="新增仓库" width="480px"
       ><el-form label-position="top"
         ><el-form-item label="仓库编号" required
