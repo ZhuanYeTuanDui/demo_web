@@ -212,7 +212,7 @@ function removeLine(line: (typeof form.lines)[number]) {
             row.auditStatus === "未审核" ? "未审核" : "已审核 / 已出库"
           }}</el-tag></template
         ></el-table-column
-      ><el-table-column label="操作" width="130" fixed="right"
+      ><el-table-column label="操作" width="240" fixed="right"
         ><template #default="{ row }"
           ><FaTableActions :actions="actions(row)" /></template></el-table-column
     ></el-table>

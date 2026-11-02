@@ -287,7 +287,7 @@ watch(() => filtered.value.length, (total) => { page.value = Math.min(page.value
           <el-table-column label="状态" width="90"><template #default="{ row }">
             <el-tag :type="materialIsActive(row) ? 'success' : 'info'">{{ materialIsActive(row) ? '启用' : '停用' }}</el-tag>
           </template></el-table-column>
-          <el-table-column label="操作" width="200" fixed="right"><template #default="{ row }">
+          <el-table-column label="操作" width="240" fixed="right"><template #default="{ row }">
             <FaTableActions :actions="actions(row)" />
           </template></el-table-column>
           </el-table

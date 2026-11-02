@@ -56,7 +56,7 @@ describe("入库新建与取单", () => {
     setup();
     await wrapper!.get('input[placeholder^="先填写供应商"]').setValue("华东五金");
     await click("取单");
-    await wrapper!.getComponent(InboundSourcePicker).findAll('input[type="checkbox"]')[0]!.setValue(true);
+    await wrapper!.getComponent(InboundSourcePicker).findAll('label[aria-label^="选择采购物料"] input')[0]!.setValue(true);
     await click("确认取单（1）");
     const confirm = vi.spyOn(ElMessageBox, "confirm").mockRejectedValue("cancel");
     await wrapper!.get("form").trigger("submit");

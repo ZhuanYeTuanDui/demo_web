@@ -18,7 +18,7 @@ let wrapper: VueWrapper | undefined;
 const resizer = defineComponent({ template: '<div><slot :width="960" :height="320" /></div>' });
 const global = { plugins: [ElementPlus], stubs: { ElAutoResizer: resizer } };
 const click = async (label: string) => {
-  const button = wrapper!.findAll("button").find((item) => item.text() === label);
+  const button = wrapper!.findAll("button").find((item) => item.text() === label || item.attributes("aria-label") === label);
   expect(button, `应存在${label}按钮`).toBeTruthy();
   await button!.trigger("click");
 };
@@ -41,6 +41,30 @@ function editPlan(): Plan {
 }
 
 describe("计划共用详情与编辑", () => {
+  it("BOM按名称图号规格筛选，清空恢复明细且保存保留隐藏行修改", async () => {
+    const plan = editPlan();
+    plan.bom = [{ material: "M001", qty: 2 }, { material: "M002", qty: 3 }];
+    state.value.materials.find((item) => item.id === "M001")!.details = { drawingNo: "DRAW-SEARCH" };
+    wrapper = mount(PlanDetails, { props: { plan, editable: true }, global });
+    await flushPromises();
+    const search = wrapper.get('input[placeholder="物料编码、名称、图号或规格"]');
+    expect(wrapper.text()).toContain("计划产品");
+    const rows = () => wrapper!.getComponent(ElTableV2).props("data");
+    for (const query of ["m001", "PLC", "draw-search", "LX3V"]) {
+      await search.setValue(query);
+      expect(rows().map((line: { material: string }) => line.material)).toEqual(["M001"]);
+    }
+    wrapper.findAllComponents(ElInputNumber).find((input) => input.props("ariaLabel")?.endsWith("单台用量"))!.vm.$emit("update:modelValue", 7);
+    await search.setValue("无匹配物料");
+    expect(rows()).toHaveLength(0);
+    await search.setValue("");
+    expect(rows()).toHaveLength(2);
+    expect(rows()[0].qty).toBe(7);
+    await search.setValue("触摸屏");
+    await click("保存修改");
+    await flushPromises();
+    expect(state.value.plans[0]!.bom).toEqual([{ material: "M001", qty: 7 }, { material: "M002", qty: 3 }]);
+  });
   it("编辑副本的名称、工单、数量和物料后统一保存，不改产品共享BOM", async () => {
     const plan = editPlan();
     const originalRequirement = requirements(plan);

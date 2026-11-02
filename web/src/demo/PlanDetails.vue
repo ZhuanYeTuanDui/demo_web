@@ -24,6 +24,7 @@ const saving = ref(false);
 const confirmingClose = ref(false);
 const error = ref("");
 const choosing = ref(false);
+const bomKeyword = ref("");
 const totalBasis = computed(() => props.plan.importSource?.basis === "total");
 const preview = computed<Plan>(() => (props.editable ? { ...props.plan, ...form } : props.plan));
 const workOrders = computed(() =>
@@ -187,6 +188,8 @@ function viewWorkOrder() {
     </p>
     <div class="plan-materials-heading">
       <h3>{{ totalBasis ? "本次需求清单" : "单台产品 BOM" }}</h3>
+      <el-input v-if="editable" v-model="bomKeyword" clearable aria-label="搜索 BOM 物料"
+        placeholder="物料编码、名称、图号或规格" class="plan-materials-search" :disabled="saving" />
       <el-button v-if="editable" :icon="Plus" :disabled="saving" @click="choosing = true"
         >添加物料</el-button
       >
@@ -199,6 +202,7 @@ function viewWorkOrder() {
     </p>
     <PlanMaterialsTable
       :plan="preview"
+      :keyword="bomKeyword"
       :editable="editable"
       :disabled="saving"
       @quantity="setQuantity"
@@ -234,6 +238,16 @@ function viewWorkOrder() {
 }
 .plan-materials-heading h3 {
   margin: 0;
+}
+.plan-materials-search {
+  flex: 1;
+  min-width: 180px;
+  max-width: 600px;
+}
+@media (max-width: 760px) {
+  .plan-materials-heading {
+    flex-wrap: wrap;
+  }
 }
 .plan-quantity-note {
   margin-block: 10px;

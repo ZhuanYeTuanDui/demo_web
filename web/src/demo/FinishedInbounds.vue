@@ -194,7 +194,7 @@ async function create() {
         ><template #default="{ row }">{{ row.lines.length }}</template></el-table-column
       >
       <el-table-column prop="remark" label="备注" min-width="180" />
-      <el-table-column label="操作" width="110" fixed="right"
+      <el-table-column label="操作" width="240" fixed="right"
         ><template #default="{ row }"
           ><FaTableActions
             :actions="[

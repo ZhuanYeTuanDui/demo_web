@@ -153,6 +153,9 @@ function viewPlan(planId: string) {
         ></el-table-column
       >
       <el-table-column prop="customer" label="客户" min-width="130" />
+      <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip
+        ><template #default="{ row }">{{ row.remark || "—" }}</template></el-table-column
+      >
       <el-table-column prop="qty" label="数量" width="90" align="right" />
       <el-table-column prop="date" label="日期" width="120" />
       <el-table-column label="关联计划" width="100"
@@ -170,7 +173,7 @@ function viewPlan(planId: string) {
           ></template
         ></el-table-column
       >
-      <el-table-column label="操作" width="180" fixed="right"
+      <el-table-column label="操作" width="240" fixed="right"
         ><template #default="{ row }"
           ><FaTableActions
             :actions="[

@@ -40,6 +40,16 @@ describe("物料出入库表单", () => {
     expect(state.value.stocks[stockKey("BZ01", "M001")]).toBe(3);
     expect(state.value.stocks[stockKey("BZ01", "M002")]).toBe(2);
     expect(state.value.movements.filter((row) => row.type === "出库")).toHaveLength(2);
+    const documents = wrapper!.getComponent({ name: "ElTable" }).props("data");
+    const outbound = documents.filter((row: { type: string }) => row.type === "出库");
+    expect(outbound).toHaveLength(1);
+    expect(outbound[0].lines).toHaveLength(2);
+    await wrapper!.get('input[placeholder="商品、记录号或来源单号"]').setValue("触摸屏");
+    expect(wrapper!.getComponent({ name: "ElTable" }).props("data")[0].lines).toHaveLength(2);
+    await click(outbound[0].id);
+    expect(wrapper!.text()).toContain("出库单详情");
+    expect(wrapper!.text()).toContain("PLC 控制器");
+    expect(wrapper!.text()).toContain("触摸屏");
   });
   it("切换仓库清空选择与数量，取消不扣库存", async () => {
     setup();

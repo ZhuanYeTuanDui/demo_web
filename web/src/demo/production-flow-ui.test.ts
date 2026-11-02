@@ -25,7 +25,7 @@ afterEach(() => {
   sessionStorage.clear();
 });
 const click = async (label: string) => {
-  const button = wrapper!.findAll("button").find((item) => item.text() === label);
+  const button = wrapper!.findAll("button").find((item) => item.text() === label || item.attributes("aria-label") === label);
   expect(button, `应存在${label}按钮`).toBeTruthy();
   await button!.trigger("click");
 };
@@ -177,7 +177,7 @@ describe("生产单据页面闭环", () => {
       .find((tab) => tab.text() === "已审核")!
       .trigger("click");
     expect(wrapper.findAll("button").some((button) => button.text() === "生产领料")).toBe(false);
-    expect(wrapper.text()).toContain("分析缺料");
+    expect(wrapper.find('button[aria-label="分析缺料"]').exists()).toBe(true);
     expect(wrapper.text()).toContain("返审");
     expect(wrapper.text()).not.toContain("完工入库");
     expect(state.value.issues).toHaveLength(0);

@@ -5,7 +5,7 @@ import DataLink from "./DataLink.vue";
 import { material } from "./store";
 import { planBom, type Plan } from "./model";
 
-const props = defineProps<{ plan: Plan; editable?: boolean; disabled?: boolean }>();
+const props = defineProps<{ plan: Plan; editable?: boolean; disabled?: boolean; keyword?: string }>();
 const emit = defineEmits<{
   navigate: [page: string];
   quantity: [materialId: string, qty: number | undefined];
@@ -13,7 +13,14 @@ const emit = defineEmits<{
 }>();
 const page = ref(1);
 const pageSize = ref(100);
-const lines = computed(() => props.editable ? props.plan.bom || [] : planBom(props.plan));
+const lines = computed(() => {
+  const bom = props.editable ? props.plan.bom || [] : planBom(props.plan);
+  const query = props.keyword?.trim().toLowerCase() || "";
+  return bom.filter((line) => {
+    const item = material(line.material);
+    return `${line.material} ${item?.name || ''} ${item?.details?.drawingNo || ''} ${item?.spec || ''}`.toLowerCase().includes(query);
+  });
+});
 const paged = computed(() =>
   lines.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
 );
@@ -21,7 +28,7 @@ const createdMaterials = computed(
   () =>
     new Set(props.plan.importSource?.rows.filter((row) => row.created).map((row) => row.material))
 );
-watch([() => props.plan.id, pageSize], () => {
+watch([() => props.plan.id, pageSize, () => props.keyword], () => {
   page.value = 1;
 });
 watch(
@@ -121,7 +128,7 @@ const columns = computed<Column[]>(() => [
     <ElAutoResizer
       ><template #default="{ width, height }">
         <ElTableV2
-          :key="`${plan.id}-${page}-${pageSize}`"
+          :key="`${plan.id}-${page}-${pageSize}-${keyword || ''}`"
           :columns="columns"
           :data="paged"
           :width="width"

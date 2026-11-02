@@ -54,11 +54,24 @@ const paged = computed(() =>
   filtered.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
 );
 const selected = computed(() => state.value.drafts.find((d) => d.id === detail.value));
+const editorKeyword = ref("");
+const detailKeyword = ref("");
+function matchesMaterial(materialId: string, keyword: string) {
+  const item = material(materialId);
+  return `${materialId} ${item?.name || ''} ${item?.details?.drawingNo || ''} ${item?.spec || ''}`
+    .toLowerCase().includes(keyword.trim().toLowerCase());
+}
+const editorLines = computed(() => form.lines.filter((line) => matchesMaterial(line.material, editorKeyword.value)));
+const filteredDetailLines = computed(() => (selected.value?.lines || []).filter((line) => matchesMaterial(line.material, detailKeyword.value)));
 const detailPage = ref(1);
 const detailLines = computed(
-  () => selected.value?.lines.slice((detailPage.value - 1) * 20, detailPage.value * 20) || []
+  () => filteredDetailLines.value.slice((detailPage.value - 1) * 20, detailPage.value * 20)
 );
 watch(detail, () => {
+  detailKeyword.value = "";
+  detailPage.value = 1;
+});
+watch(detailKeyword, () => {
   detailPage.value = 1;
 });
 watch([keyword, auditTab, pageSize], () => {
@@ -75,6 +88,7 @@ function sourcePlan(id: string) {
   emit("navigate", "plans");
 }
 function openEditor(draft?: PurchaseDraft) {
+  editorKeyword.value = "";
   editingId.value = draft?.id || "";
   form.plan = draft?.plan || "";
   form.remark = draft?.remark || "";
@@ -222,7 +236,7 @@ const orders = computed(() =>
         ></el-table-column
       >
       <el-table-column prop="remark" label="备注" min-width="200" />
-      <el-table-column label="操作" width="180" fixed="right"
+      <el-table-column label="操作" width="240" fixed="right"
         ><template #default="{ row }"><FaTableActions :actions="actions(row)" /></template
       ></el-table-column>
     </el-table>
@@ -260,7 +274,10 @@ const orders = computed(() =>
       <p class="muted">
         底稿保存需求与库存计算快照。只有已审核底稿可由采购单取料，来源数量不因采购取料改变，允许后续再次取用。
       </p>
-      <el-table :data="detailLines" stripe max-height="440" row-key="id">
+      <el-form label-position="top" @submit.prevent>
+        <el-form-item label="搜索底稿物料"><el-input v-model="detailKeyword" clearable placeholder="物料编码、名称、图号或规格" /></el-form-item>
+      </el-form>
+      <el-table :data="detailLines" stripe max-height="440" row-key="id" empty-text="暂无匹配物料">
         <el-table-column label="品号 / 名称 / 规格" min-width="240" fixed="left"
           ><template #default="{ row }"
             ><DataLink
@@ -294,11 +311,11 @@ const orders = computed(() =>
         <el-table-column prop="sourceLine" label="来源行" min-width="240" />
       </el-table>
       <div class="pagination">
-        <span>共 {{ selected.lines.length }} 条物料</span
+        <span>共 {{ filteredDetailLines.length }} 条物料</span
         ><el-pagination
           v-model:current-page="detailPage"
           :page-size="20"
-          :total="selected.lines.length"
+          :total="filteredDetailLines.length"
           layout="prev, pager, next"
         />
       </div>
@@ -335,9 +352,10 @@ const orders = computed(() =>
       </div>
       <div class="panel-heading compact">
         <h2>需购物料</h2>
+        <el-input v-model="editorKeyword" clearable placeholder="物料编码、名称、图号或规格" aria-label="搜索需购物料" style="width: min(300px, 100%)" />
         <el-button @click="picking = true">选择物料</el-button>
       </div>
-      <el-table :data="form.lines" row-key="material" max-height="420" empty-text="请选择需购物料">
+      <el-table :data="editorLines" row-key="material" max-height="420" empty-text="暂无匹配物料，请搜索或选择需购物料">
         <el-table-column label="物料" min-width="230"
           ><template #default="{ row }"
             >{{ material(row.material)?.name }}
@@ -355,8 +373,8 @@ const orders = computed(() =>
               :aria-label="`${material(row.material)?.name}需购数量`" /></template
         ></el-table-column>
         <el-table-column label="操作" width="90"
-          ><template #default="{ $index }"
-            ><el-button link type="danger" @click="form.lines.splice($index, 1)"
+          ><template #default="{ row }"
+            ><el-button link type="danger" @click="form.lines.splice(form.lines.indexOf(row), 1)"
               >移除</el-button
             ></template
           ></el-table-column

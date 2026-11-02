@@ -130,7 +130,7 @@ async function create() {
         min-width="130" /><el-table-column
         prop="tracking"
         label="物流单号"
-        min-width="180" /><el-table-column label="操作" width="130" fixed="right"
+        min-width="180" /><el-table-column label="操作" width="240" fixed="right"
         ><template #default="{ row }"
           ><FaTableActions
             :actions="[

@@ -237,7 +237,7 @@ function actions(receipt: Receipt) {
         ></el-table-column
       >
       <el-table-column prop="auditStatus" label="审核状态" width="100" />
-      <el-table-column label="操作" fixed="right" width="180"
+      <el-table-column label="操作" fixed="right" width="240"
         ><template #default="{ row }"><FaTableActions :actions="actions(row)" /></template
       ></el-table-column>
     </el-table>

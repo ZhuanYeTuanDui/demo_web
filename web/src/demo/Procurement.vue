@@ -126,7 +126,7 @@ function actions(row: Requisition) {
         }}</template></el-table-column
       ><el-table-column prop="status" label="状态" width="110" /><el-table-column
         label="操作"
-        width="190"
+        width="240"
         ><template #default="{ row }"
           ><FaTableActions :actions="actions(row)" /></template></el-table-column
     ></el-table>

@@ -134,7 +134,7 @@ async function generate() {
             v-for="order in state.workOrders.filter((w) => w.status !== '已发货')"
             :key="order.id"
             :value="order.id"
-            :label="`${order.name} / ${order.id}`"
+            :label="`${order.name} / ${order.id}${order.remark ? ` / 备注：${order.remark}` : ''}`"
           />
         </el-select>
       </el-form-item>

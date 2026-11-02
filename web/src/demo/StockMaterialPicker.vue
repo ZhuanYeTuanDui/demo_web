@@ -19,6 +19,12 @@ const filtered = computed(() => stockRows.value.filter((item) =>
   contains(item.details?.drawingNo, filters.drawing) && contains(item.details?.brand, filters.brand) &&
   (!filters.category || materialCategory(item) === filters.category)));
 const paged = computed(() => filtered.value.slice((page.value - 1) * 20, page.value * 20));
+const selectablePage = computed(() => paged.value.filter((row) => !props.excludedIds.includes(row.id)));
+const selectedPageCount = computed(() => selectablePage.value.filter((row) => selected.value.includes(row.id)).length);
+function selectPage(checked: boolean) {
+  const ids = new Set(selectablePage.value.map((row) => row.id));
+  selected.value = checked ? [...new Set([...selected.value, ...ids])] : selected.value.filter((id) => !ids.has(id));
+}
 watch(filters, () => { page.value = 1; });
 function toggle(id: string, checked: boolean) {
   selected.value = checked ? [...new Set([...selected.value, id])] : selected.value.filter((value) => value !== id);
@@ -47,7 +53,12 @@ function confirm() {
         <el-button @click="Object.assign(filters, { id: '', name: '', spec: '', drawing: '', brand: '', category: '' })">重置筛选</el-button></div>
     </el-form>
     <el-table :data="paged" row-key="id" max-height="360" stripe empty-text="暂无匹配的库存物料">
-      <el-table-column label="选择" width="65"><template #default="{ row }"><el-checkbox
+      <el-table-column label="选择" width="65"><template #header>
+        <el-checkbox aria-label="全选当前页库存物料" :disabled="!selectablePage.length"
+          :model-value="selectablePage.length > 0 && selectedPageCount === selectablePage.length"
+          :indeterminate="selectedPageCount > 0 && selectedPageCount < selectablePage.length"
+          @change="(checked: string | number | boolean) => selectPage(!!checked)" />
+      </template><template #default="{ row }"><el-checkbox
         :model-value="selected.includes(row.id) || excludedIds.includes(row.id)" :disabled="excludedIds.includes(row.id)"
         :aria-label="`选择库存物料 ${row.id}`" @change="(checked: string | number | boolean) => toggle(row.id, !!checked)" /></template></el-table-column>
       <el-table-column prop="id" label="品号" min-width="120" />

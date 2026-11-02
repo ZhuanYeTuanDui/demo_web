@@ -217,7 +217,7 @@ watch(() => plans.value.length, (total) => { page.value = Math.min(page.value, M
             >{{ row.status }}</el-tag
           ></template
         ></el-table-column
-      ><el-table-column label="操作" width="190" fixed="right"
+      ><el-table-column label="操作" width="240" fixed="right"
         ><template #default="{ row }"
           ><FaTableActions :actions="actions(row)" /></template
         ></el-table-column

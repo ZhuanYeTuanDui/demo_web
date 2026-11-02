@@ -71,6 +71,14 @@ function toggle(key: string, checked: boolean) {
     ? [...new Set([...selected.value, key])]
     : selected.value.filter((id) => id !== key);
 }
+const selectablePage = computed(() => paged.value.filter((row) => !excluded.value.has(row.key)));
+const selectedPageCount = computed(() => selectablePage.value.filter((row) => selected.value.includes(row.key)).length);
+function selectPage(checked: boolean) {
+  const keys = new Set(selectablePage.value.map((row) => row.key));
+  selected.value = checked
+    ? [...new Set([...selected.value, ...keys])]
+    : selected.value.filter((key) => !keys.has(key));
+}
 function confirm() {
   const chosen = allRows.value.filter((row) => selected.value.includes(row.key) && !excluded.value.has(row.key));
   emit("confirm", chosen);
@@ -91,7 +99,12 @@ function confirm() {
     </el-form>
     <p class="muted">底稿与请购单物料已合并展示；勾选后直接加入采购明细。</p>
     <el-table :data="paged" row-key="key" max-height="420" stripe empty-text="当前没有可取的来源物料">
-      <el-table-column label="选择" width="65"><template #default="{ row }">
+      <el-table-column label="选择" width="65"><template #header>
+        <el-checkbox aria-label="全选当前页来源物料" :disabled="!selectablePage.length"
+          :model-value="selectablePage.length > 0 && selectedPageCount === selectablePage.length"
+          :indeterminate="selectedPageCount > 0 && selectedPageCount < selectablePage.length"
+          @change="(checked: string | number | boolean) => selectPage(!!checked)" />
+      </template><template #default="{ row }">
         <el-checkbox :model-value="selected.includes(row.key) || excluded.has(row.key)"
           :disabled="excluded.has(row.key)" :aria-label="`选择来源物料 ${row.key}`"
           @change="(checked: string | number | boolean) => toggle(row.key, !!checked)" />

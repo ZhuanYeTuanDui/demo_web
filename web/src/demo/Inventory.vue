@@ -10,6 +10,7 @@ import { Search, Plus, Download, } from "@element-plus/icons-vue";
 import { state, material, warehouseName, commit } from "./store";
 import { stockKey, registerStockOutbound, id, type Line } from "./model";
 import WarehouseDetails from "./WarehouseDetails.vue";
+import { movementDocuments } from "./movement-documents";
 
 const props = defineProps<{ page: string; warehouseId?: string }>();
 const emit = defineEmits<{ navigate: [page: string] }>();
@@ -22,6 +23,13 @@ const dialog = ref(false);
 const inboundDialog = ref(false);
 const inboundEditor = ref<InstanceType<typeof InboundEditor>>();
 const inboundDetail = ref("");
+const movementDetail = ref("");
+const documents = computed(() => movementDocuments(state.value));
+const selectedMovement = computed(() => documents.value.find((document) => document.key === movementDetail.value));
+function viewMovement(key: string, documentId: string) {
+  if (state.value.inbounds.some((document) => document.id === documentId)) inboundDetail.value = documentId;
+  else movementDetail.value = key;
+}
 const selectedInbound = computed(() => state.value.inbounds.find((document) => document.id === inboundDetail.value));
 function closeInbound(done: () => void) {
   void inboundEditor.value?.cancel().then(() => { if (!inboundDialog.value) done(); });
@@ -69,11 +77,11 @@ const rows = computed(() =>
     )
 );
 const records = computed(() =>
-  state.value.movements.filter(
+  documents.value.filter(
     (r) =>
-      (!warehouse.value || r.warehouse === warehouse.value) &&
+      (!warehouse.value || r.warehouses.includes(warehouse.value)) &&
       (!direction.value || r.type === direction.value) &&
-      `${r.source}${r.reason}${r.id}${material(r.material)?.name}`
+      `${r.source} ${r.reasons.join(' ')} ${r.id} ${r.lines.map((line) => `${line.id} ${line.material} ${material(line.material)?.name || ''} ${material(line.material)?.spec || ''}`).join(' ')}`
         .toLowerCase()
         .includes(keyword.value.toLowerCase())
   )
@@ -130,14 +138,14 @@ function exportCsv() {
   const data =
     props.page === "movements"
       ? [
-          ["记录编号", "日期", "方向", "商品", "仓库", "数量", "来源"],
+          ["单据号", "日期", "方向", "仓库", "物料行数", "业务说明", "来源"],
           ...records.value.map((r) => [
             r.id,
             r.date,
             r.type,
-            material(r.material).name,
-            warehouseName(r.warehouse),
-            r.qty,
+            r.warehouses.map(warehouseName).join("、"),
+            r.lines.length,
+            r.reasons.join("；"),
             r.source,
           ]),
         ]
@@ -289,7 +297,7 @@ watch(() => list.value.length, (total) => { currentPage.value = Math.min(current
           }}</template></el-table-column
         ></el-table
       >
-      <el-table v-else :data="pagedRecords" stripe empty-text="暂无匹配的物料出入库记录"
+      <el-table v-else :data="pagedRecords" row-key="key" stripe empty-text="暂无匹配的物料出入库单据"
         ><el-table-column prop="date" label="日期" width="115" /><el-table-column
           label="方向"
           width="85"
@@ -298,29 +306,24 @@ watch(() => list.value.length, (total) => { currentPage.value = Math.min(current
               row.type
             }}</el-tag></template
           ></el-table-column
-        ><el-table-column label="商品" min-width="160"
+        ><el-table-column label="单据号" min-width="230"
           ><template #default="{ row }"
-            ><div class="cell-title">{{ material(row.material).name }}</div>
-            <span class="cell-sub">{{ row.material }}</span></template
+            ><DataLink @click="viewMovement(row.key, row.id)">{{ row.id }}</DataLink></template
           ></el-table-column
         ><el-table-column label="仓库" min-width="130"
           ><template #default="{ row }">{{
-            warehouseName(row.warehouse)
+            row.warehouses.map(warehouseName).join('、')
           }}</template></el-table-column
-        ><el-table-column prop="qty" label="数量" width="85" align="right" /><el-table-column
-          prop="reason"
-          label="业务类型"
-          min-width="120"
-        /><el-table-column label="来源单据 / 记录号" min-width="245"
+        ><el-table-column label="物料行数" width="100" align="right"><template #default="{ row }">{{ row.lines.length }}</template></el-table-column>
+        <el-table-column label="业务说明" min-width="220"><template #default="{ row }">{{ row.reasons.join('；') }}</template></el-table-column>
+        <el-table-column label="来源" min-width="210"
           ><template #default="{ row }"
-            ><DataLink v-if="state.inbounds.some((document) => document.id === row.source)" @click="inboundDetail = row.source">{{ row.source }}</DataLink>
-            <div v-else class="cell-title code">{{ row.source }}</div>
-            <span class="cell-sub code">{{ row.id }}</span></template
+            >{{ row.source }}</template
           ></el-table-column
         ></el-table
       >
       <div class="pagination">
-        <span>共 {{ list.length }} 条记录</span
+        <span>共 {{ list.length }} {{ page === 'movements' ? '张单据' : '条记录' }}</span
         ><el-pagination
           v-model:current-page="currentPage"
           :total="list.length"
@@ -330,6 +333,30 @@ watch(() => list.value.length, (total) => { currentPage.value = Math.min(current
         />
       </div>
     </FaManagementList>
+    <el-drawer :model-value="!!selectedMovement" :title="selectedMovement?.type === '出库' ? '出库单详情' : '入库单详情'"
+      size="min(1000px, 95vw)" @close="movementDetail = ''">
+      <template v-if="selectedMovement">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="单据号">{{ selectedMovement.id }}</el-descriptions-item>
+          <el-descriptions-item label="方向">{{ selectedMovement.type }}</el-descriptions-item>
+          <el-descriptions-item label="日期">{{ selectedMovement.date }}</el-descriptions-item>
+          <el-descriptions-item label="仓库">{{ selectedMovement.warehouses.map(warehouseName).join('、') }}</el-descriptions-item>
+          <el-descriptions-item label="来源">{{ selectedMovement.source }}</el-descriptions-item>
+          <el-descriptions-item label="业务说明">{{ selectedMovement.reasons.join('；') }}</el-descriptions-item>
+        </el-descriptions>
+        <h3>物料明细</h3>
+        <el-table :data="selectedMovement.lines" row-key="id" max-height="440">
+          <el-table-column label="品号 / 品名 / 规格" min-width="240"><template #default="{ row }">
+            <DataLink :href="`#materials/${row.material}`" @click="emit('navigate', `materials/${row.material}`)">{{ material(row.material)?.name || row.material }}</DataLink>
+            <div class="cell-sub">{{ row.material }} · {{ material(row.material)?.spec || '—' }}</div>
+          </template></el-table-column>
+          <el-table-column label="仓库" min-width="130"><template #default="{ row }">{{ warehouseName(row.warehouse) }}</template></el-table-column>
+          <el-table-column prop="qty" label="数量" width="100" align="right" />
+          <el-table-column label="单位" width="70"><template #default="{ row }">{{ material(row.material)?.unit }}</template></el-table-column>
+          <el-table-column prop="id" label="流水号" min-width="210" />
+        </el-table>
+      </template>
+    </el-drawer>
     <el-drawer v-model="inboundDialog" title="登记入库" size="min(1080px, 96vw)" destroy-on-close
       :before-close="closeInbound" :close-on-click-modal="false">
       <InboundEditor ref="inboundEditor" @cancel="inboundDialog = false" @saved="inboundDialog = false" />

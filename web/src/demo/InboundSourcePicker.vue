@@ -32,6 +32,12 @@ const filtered = computed(() => allRows.value.filter((row) =>
   `${row.purchase} ${row.supplier} ${row.material} ${material(row.material)?.name} ${material(row.material)?.spec}`
     .toLowerCase().includes(keyword.value.trim().toLowerCase())));
 const paged = computed(() => filtered.value.slice((page.value - 1) * 20, page.value * 20));
+const selectablePage = computed(() => paged.value.filter((row) => !props.excludedKeys.includes(row.key)));
+const selectedPageCount = computed(() => selectablePage.value.filter((row) => selected.value.includes(row.key)).length);
+function selectPage(checked: boolean) {
+  const keys = new Set(selectablePage.value.map((row) => row.key));
+  selected.value = checked ? [...new Set([...selected.value, ...keys])] : selected.value.filter((key) => !keys.has(key));
+}
 watch(keyword, () => { page.value = 1; });
 function toggle(key: string, checked: boolean) {
   selected.value = checked ? [...new Set([...selected.value, key])] : selected.value.filter((id) => id !== key);
@@ -49,7 +55,12 @@ function confirm() {
     </el-form>
     <p class="muted">供应商包含“{{ supplier.trim() }}”的已审核采购单；可跨单勾选，数量已扣除已入库及待收货占用。</p>
     <el-table :data="paged" row-key="key" max-height="420" stripe empty-text="暂无匹配且可入库的采购物料">
-      <el-table-column label="选择" width="65"><template #default="{ row }">
+      <el-table-column label="选择" width="65"><template #header>
+        <el-checkbox aria-label="全选当前页采购物料" :disabled="!selectablePage.length"
+          :model-value="selectablePage.length > 0 && selectedPageCount === selectablePage.length"
+          :indeterminate="selectedPageCount > 0 && selectedPageCount < selectablePage.length"
+          @change="(checked: string | number | boolean) => selectPage(!!checked)" />
+      </template><template #default="{ row }">
         <el-checkbox :model-value="selected.includes(row.key) || excludedKeys.includes(row.key)"
           :disabled="excludedKeys.includes(row.key)" :aria-label="`选择采购物料 ${row.purchase} ${row.lineId}`"
           @change="(checked: string | number | boolean) => toggle(row.key, !!checked)" />
