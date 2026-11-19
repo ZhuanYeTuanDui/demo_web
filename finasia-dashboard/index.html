@@ -37,6 +37,7 @@
   --mint-3:        #54A98F;
   --mint-soft:     #DCEFE6;
   --mint-ink:      #173A31;
+  --mint-muted:    #4C6B5E;
   --mint-a:        #D6EBE2;
   --mint-b:        #BEDFD1;
   --mint-c:        #A7D3C0;
@@ -127,9 +128,6 @@
   --sh-md:0 1px 3px rgba(0,0,0,.40);
   --sh-lg:0 4px 12px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.35);
 }
-
-/* ---- one extra semantic token: secondary text on the mint surface ---- */
-:root{ --mint-muted:#4C6B5E; }
 
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -481,6 +479,361 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
 }
 .chart-tip.is-init{transition:none}
 button:active{opacity:.88;transition-duration:var(--duration-micro)}
+/* ============================================================
+   COMPONENT LAYER — shadcn/ui primitives
+   Every value below resolves through the semantic tokens above,
+   so light/dark flip without touching a single component rule.
+   ============================================================ */
+:root{
+  --overlay: rgba(17,23,19,.44);
+  --focus-halo: var(--lav);
+  --overlay-surface: #26312A;
+  --toast-success: #8ED9AE;
+  --toast-error:   #F0A795;
+  --toast-warning: #F0C58E;
+  color-scheme: light;
+}
+.dark{
+  --overlay: rgba(0,0,0,.66);
+  --focus-halo: var(--mint-soft);
+  color-scheme: dark;
+}
+
+/* ---- view switching: only hide inactive views, keep native display ---- */
+.view:not(.active){display:none!important}
+.view-work{display:flex;flex-direction:column;gap:16px}
+@media(min-width:1181px){.view-work{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn{
+  height:36px;padding:0 16px;border-radius:var(--r-pill);
+  font-size:11.5px;font-weight:700;font-family:inherit;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  white-space:nowrap;border:1px solid transparent;position:relative;
+  transition:background-color var(--duration-quick) var(--ease-smooth-out),
+             color var(--duration-quick) var(--ease-smooth-out),
+             border-color var(--duration-quick) var(--ease-smooth-out),
+             opacity var(--duration-quick) var(--ease-out);
+}
+.btn .ic{width:15px;height:15px;stroke-width:2.1}
+.btn-primary{background:var(--primary);color:var(--primary-foreground)}
+.btn-primary:hover:not(:disabled){background:var(--primary-hover)}
+.btn-mint{background:var(--mint-soft);color:var(--mint-ink);border-color:var(--border)}
+.btn-mint:hover:not(:disabled){background:var(--mint-2)}
+.btn-secondary{background:var(--card);color:var(--foreground);border-color:var(--border)}
+.btn-secondary:hover:not(:disabled){background:var(--accent)}
+.btn-ghost{background:transparent;color:var(--secondary-foreground)}
+.btn-ghost:hover:not(:disabled){background:var(--accent);color:var(--accent-foreground)}
+.btn-danger{background:var(--red-ink);color:var(--card)}
+.btn-danger:hover:not(:disabled){opacity:.86}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{height:30px;padding:0 12px;font-size:10.5px}
+.btn.sm .ic{width:13px;height:13px}
+.btn.icon{width:34px;height:34px;padding:0;border-radius:50%}
+.btn.icon.sm{width:28px;height:28px}
+.btn.icon.sm .ic{width:13px;height:13px}
+.btn.is-loading{pointer-events:none}
+.btn.is-loading>*{opacity:0}
+.btn.is-loading::after{
+  content:'';position:absolute;width:14px;height:14px;border-radius:50%;
+  border:2px solid var(--border);border-top-color:var(--mint-3);
+  animation:u-spin .62s linear infinite;
+}
+@keyframes u-spin{to{transform:rotate(360deg)}}
+
+/* ============================================================
+   FIELDS — label / input / textarea / select / helper / error
+   ============================================================ */
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.label{font-size:10.5px;font-weight:700;color:var(--secondary-foreground);letter-spacing:.01em}
+.label .req{color:var(--red-ink);margin-left:2px}
+.input,.textarea,.select{
+  width:100%;background:var(--card);border:1px solid var(--input);
+  border-radius:var(--r-md);color:var(--foreground);font-family:inherit;
+  font-size:12px;font-weight:600;padding:9px 12px;outline:none;
+  transition:border-color var(--duration-quick) var(--ease-out),
+             box-shadow var(--duration-quick) var(--ease-out),
+             background-color var(--duration-quick) var(--ease-out);
+}
+.textarea{resize:vertical;min-height:76px;line-height:1.55}
+.input::placeholder,.textarea::placeholder{color:var(--faint);font-weight:500}
+.input:hover:not(:disabled),.textarea:hover:not(:disabled),.select:hover:not(:disabled){border-color:var(--faint)}
+.input:focus,.textarea:focus,.select:focus{
+  border-color:var(--ring);
+  box-shadow:0 0 0 3px var(--focus-halo);
+}
+.input:disabled,.textarea:disabled,.select:disabled{opacity:.55;cursor:not-allowed;background:var(--muted-surface)}
+.input[readonly]{background:var(--muted-surface);color:var(--muted-foreground)}
+.select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:30px}
+.select-wrap{position:relative;display:block}
+.select-wrap .chev{position:absolute;right:11px;top:50%;transform:translateY(-50%);width:12px;height:12px;color:var(--muted-foreground);pointer-events:none;stroke-width:2.2}
+.input-wrap{position:relative;display:flex;align-items:center}
+.input-wrap>.ic{position:absolute;left:11px;width:15px;height:15px;color:var(--muted-foreground);pointer-events:none}
+.input-wrap.has-icon .input{padding-left:34px}
+.input-prefix{position:absolute;left:12px;font-size:12px;font-weight:700;color:var(--muted-foreground);pointer-events:none}
+.input-wrap.has-prefix .input{padding-left:26px}
+.input-clear{position:absolute;right:7px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:var(--muted-foreground);background:transparent}
+.input-clear:hover{background:var(--accent);color:var(--foreground)}
+.input-clear .ic{width:12px;height:12px}
+.field-foot{display:flex;align-items:center;gap:6px;min-height:14px}
+.helper{font-size:10px;font-weight:600;color:var(--muted-foreground);line-height:1.35}
+.err{display:none;align-items:center;gap:4px;font-size:10px;font-weight:700;color:var(--red-ink);line-height:1.35}
+.err .ic{width:11px;height:11px}
+.counter{margin-left:auto;font-size:10px;font-weight:600;color:var(--muted-foreground);font-variant-numeric:tabular-nums}
+.field.invalid .err{display:flex}
+.field.invalid .helper{display:none}
+.field.invalid .input,.field.invalid .textarea,.field.invalid .select{border-color:var(--red-ink)}
+.field.invalid .input:focus,.field.invalid .textarea:focus,.field.invalid .select:focus{box-shadow:0 0 0 3px var(--red-bg)}
+
+/* ---- checkbox / radio / segmented ---- */
+.check{
+  appearance:none;-webkit-appearance:none;width:16px;height:16px;flex:0 0 auto;
+  border:1px solid var(--input);border-radius:5px;background:var(--card);cursor:pointer;position:relative;
+  transition:background-color var(--duration-quick) var(--ease-out),border-color var(--duration-quick) var(--ease-out);
+}
+.check:hover{border-color:var(--faint)}
+.check:checked,.check:indeterminate{background:var(--primary);border-color:var(--primary)}
+.check:checked::after{content:'';position:absolute;left:4px;top:1px;width:5px;height:9px;border:solid var(--primary-foreground);border-width:0 2px 2px 0;transform:rotate(42deg)}
+.check:indeterminate::after{content:'';position:absolute;left:3px;top:6.5px;width:8px;height:2px;background:var(--primary-foreground);border-radius:2px}
+.check:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+.radio{accent-color:var(--mint-3);width:15px;height:15px;cursor:pointer}
+.radio-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.radio-row label{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--secondary-foreground);cursor:pointer}
+.segmented{display:inline-flex;background:var(--muted-surface);border:1px solid var(--border);border-radius:var(--r-pill);padding:3px;gap:2px;width:max-content}
+.segmented button{font-size:11px;font-weight:700;font-family:inherit;padding:7px 18px;border-radius:var(--r-pill);color:var(--muted-foreground);transition:background-color var(--duration-quick) var(--ease-out),color var(--duration-quick) var(--ease-out)}
+.segmented button:hover{color:var(--foreground)}
+.segmented button.on{background:var(--card);color:var(--foreground);box-shadow:var(--sh-sm)}
+
+/* ---- switch ---- */
+.switch{
+  position:relative;width:38px;height:22px;flex:0 0 auto;padding:0;
+  border-radius:var(--r-pill);background:var(--line);border:1px solid var(--border);cursor:pointer;
+  transition:background-color var(--duration-quick) var(--ease-out),border-color var(--duration-quick) var(--ease-out);
+}
+.switch::after{
+  content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+  background:var(--card);box-shadow:var(--sh-sm);
+  transition:transform var(--duration-fast) var(--ease-smooth-out);
+}
+.switch[aria-checked="true"]{background:var(--mint-3);border-color:var(--mint-3)}
+.switch[aria-checked="true"]::after{transform:translateX(16px)}
+.switch:disabled{opacity:.45;cursor:not-allowed}
+.switch:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid var(--border-soft)}
+.switch-row:last-child{border-bottom:none}
+.switch-copy strong{display:block;font-size:12px;font-weight:700;color:var(--foreground)}
+.switch-copy small{display:block;font-size:10.5px;font-weight:500;color:var(--muted-foreground);margin-top:2px;line-height:1.4}
+
+/* ---- chips / status ---- */
+.chip{
+  display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;
+  border-radius:var(--r-pill);background:var(--muted-surface);border:1px solid var(--border);
+  font-size:10px;font-weight:700;color:var(--secondary-foreground);white-space:nowrap;max-width:100%;
+}
+.chip .ic{width:11px;height:11px}
+.chip.mint{background:var(--mint-soft);color:var(--mint-ink);border-color:var(--lav-line)}
+.chip.lav{background:var(--lav-surface);color:var(--lav-ink);border-color:var(--lav-line)}
+.chip .x{width:13px;height:13px;cursor:pointer;opacity:.65}
+.chip .x:hover{opacity:1}
+.status{
+  display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;
+  border-radius:var(--r-pill);font-size:10px;font-weight:800;white-space:nowrap;
+}
+.status i{width:5px;height:5px;border-radius:50%;background:currentColor;flex:0 0 auto}
+.status.completed{background:var(--green-bg);color:var(--green-ink)}
+.status.pending{background:var(--lav-surface);color:var(--lav-ink)}
+.status.failed{background:var(--red-bg);color:var(--red-ink)}
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+.overlay{
+  position:fixed;inset:0;z-index:100;background:var(--overlay);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  opacity:0;visibility:hidden;
+  transition:opacity var(--duration-fast) var(--ease-out),visibility 0s linear var(--duration-fast);
+}
+.overlay.open{opacity:1;visibility:visible;transition-delay:0s}
+.modal{
+  width:min(540px,100%);max-height:min(90vh,820px);
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-xl);
+  box-shadow:var(--sh-lg);display:flex;flex-direction:column;overflow:hidden;
+  transform:translateY(8px) scale(var(--scale-medium));
+  transition:transform var(--duration-fast) var(--ease-smooth-out);
+}
+.overlay.open .modal{transform:none}
+.modal.wide{width:min(680px,100%)}
+.modal.sm{width:min(410px,100%)}
+/* transaction form: tighter density so every control is visible without scrolling */
+#ovTx .modal-body{padding:14px 20px}
+#ovTx .form-grid{gap:10px}
+#ovTx .field{gap:5px}
+#ovTx .field-foot{min-height:12px}
+#ovTx .input,#ovTx .textarea,#ovTx .select{padding:8px 12px}
+#ovTx .textarea{min-height:62px}
+#ovTx .dropzone{padding:13px}
+#ovTx .form-section{gap:6px}
+#ovTx .switch-row{padding:8px 0}
+.modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 20px 14px;border-bottom:1px solid var(--border-soft)}
+.modal-head h2{margin:0;font-size:16px;font-weight:800;letter-spacing:-.4px;color:var(--foreground)}
+.modal-head p{margin:4px 0 0;font-size:11px;font-weight:500;color:var(--muted-foreground);line-height:1.45}
+.modal-body{padding:18px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:16px}
+.modal-foot{display:flex;align-items:center;justify-content:flex-end;gap:9px;padding:14px 20px;border-top:1px solid var(--border-soft);background:var(--muted-surface)}
+.modal-foot .left{margin-right:auto}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-grid .full{grid-column:1/-1}
+.form-section{display:flex;flex-direction:column;gap:7px}
+.form-section>.label{margin-bottom:1px}
+@media(max-width:560px){
+  .form-grid{grid-template-columns:1fr}.modal-foot{flex-wrap:wrap}
+  /* narrow-screen convergence: no horizontal overflow on the overview */
+  .nav{min-width:0}
+  .stat-col{flex-direction:column}
+  .stat-card{min-height:112px}
+  .bubbles{min-height:168px;overflow:hidden}
+  .bubble-wrap{width:300px;height:168px;transform:scale(.82)}
+  .tag{height:22px;padding:0 8px;font-size:8.5px}
+  .ss-val{font-size:12.5px}
+}
+
+/* ---- upload ---- */
+.dropzone{
+  border:1.5px dashed var(--input);border-radius:var(--r-lg);background:var(--muted-surface);
+  padding:18px;text-align:center;cursor:pointer;
+  transition:border-color var(--duration-quick) var(--ease-out),background-color var(--duration-quick) var(--ease-out);
+}
+.dropzone:hover,.dropzone.drag{border-color:var(--mint-3);background:var(--mint-soft)}
+.dropzone>.ic{width:22px;height:22px;color:var(--muted-foreground)}
+.dropzone strong{display:block;font-size:11.5px;font-weight:700;color:var(--foreground);margin-top:7px}
+.dropzone small{display:block;font-size:10px;font-weight:500;color:var(--muted-foreground);margin-top:3px}
+.filelist{display:flex;flex-direction:column;gap:7px}
+.filechip{display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--card)}
+.filechip .thumb{width:30px;height:30px;border-radius:var(--r-sm);object-fit:cover;background:var(--muted-surface);flex:0 0 auto;cursor:pointer}
+.filechip .fico{width:30px;height:30px;border-radius:var(--r-sm);background:var(--lav-surface);color:var(--lav-ink);display:grid;place-items:center;flex:0 0 auto}
+.filechip .fico .ic{width:15px;height:15px}
+.filemeta{flex:1;min-width:0}
+.filemeta b{display:block;font-size:11px;font-weight:700;color:var(--foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.filemeta small{display:block;font-size:10px;color:var(--muted-foreground);margin-top:1px}
+.progress{height:3px;background:var(--line);border-radius:var(--r-pill);overflow:hidden;margin-top:5px}
+.progress i{display:block;height:100%;width:0;background:var(--mint-3);transition:width var(--duration-medium) var(--ease-out)}
+.preview-img{max-width:100%;max-height:320px;border-radius:var(--r-md);border:1px solid var(--border);display:block;margin:0 auto}
+
+/* ============================================================
+   PANELS / KPI / TABLE
+   ============================================================ */
+.panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:17px 18px;min-width:0}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.panel h3{margin:0;font-size:13.5px;font-weight:800;letter-spacing:-.25px;color:var(--foreground)}
+.panel-sub{font-size:10.5px;font-weight:500;color:var(--muted-foreground);margin:3px 0 0;line-height:1.45}
+.panel-body{margin-top:15px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:14px 16px;min-width:0}
+.kpi-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.k-lbl{font-size:10.5px;font-weight:700;color:var(--muted-foreground)}
+.k-ico{width:26px;height:26px;border-radius:50%;background:var(--muted-surface);color:var(--lav-ink);display:grid;place-items:center;flex:0 0 auto}
+.k-ico .ic{width:13px;height:13px}
+.k-val{font-size:21px;font-weight:800;letter-spacing:-.7px;margin-top:10px;color:var(--foreground);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k-val.pos{color:var(--green-ink)}
+.k-sub{font-size:10px;font-weight:600;color:var(--muted-foreground);margin-top:4px}
+.toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:14px 0 12px}
+.toolbar .grow{flex:1;min-width:190px}
+.toolbar .select{min-width:132px;width:auto;height:36px}
+.toolbar .input{height:36px}
+.bulkbar{
+  display:none;align-items:center;gap:10px;padding:9px 12px;margin-bottom:10px;
+  border-radius:var(--r-md);background:var(--mint-soft);border:1px solid var(--lav-line);
+  font-size:11px;font-weight:700;color:var(--mint-ink);
+}
+.bulkbar.show{display:flex}
+.bulkbar .spacer{flex:1}
+.dt-wrap{overflow-x:auto;margin:0 -2px}
+.dt{width:100%;border-collapse:collapse;font-size:11.5px;min-width:760px}
+.dt thead th{
+  text-align:left;font-size:10px;font-weight:700;letter-spacing:.04em;
+  color:var(--muted-foreground);padding:0 10px 10px;white-space:nowrap;
+  border-bottom:1px solid var(--border-soft);
+}
+.dt thead th.sortable{cursor:pointer;user-select:none}
+.dt thead th.sortable:hover{color:var(--foreground)}
+.dt thead th .sort{width:11px;height:11px;vertical-align:-2px;margin-left:3px;opacity:.5}
+.dt thead th.sorted .sort{opacity:1;color:var(--mint-3)}
+.dt tbody td{padding:11px 10px;border-bottom:1px solid var(--border-soft);color:var(--secondary-foreground);vertical-align:middle}
+.dt tbody tr{transition:background-color var(--duration-quick) var(--ease-out)}
+.dt tbody tr:hover{background:var(--muted-surface)}
+.dt tbody tr.selected{background:var(--mint-soft)}
+.dt tbody tr:last-child td{border-bottom:none}
+.dt.compact tbody td{padding:6px 10px}
+.dt .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap;color:var(--foreground)}
+.dt .amt-in{color:var(--green-ink)}
+.dt .cell-main{font-weight:700;color:var(--foreground)}
+.dt .cell-sub{font-size:10px;color:var(--muted-foreground);margin-top:2px;white-space:nowrap}
+.dt .row-actions{display:flex;align-items:center;justify-content:flex-end;gap:3px}
+.dt .row-actions .btn.icon.sm{color:var(--muted-foreground)}
+.dt .row-actions .btn.icon.sm:hover{background:var(--card);color:var(--foreground)}
+.dt .row-actions .btn.icon.sm.danger:hover{color:var(--red-ink)}
+.dt .cb-cell{width:34px;padding-right:0}
+.dt .att .ic{width:12px;height:12px;color:var(--lav-ink);vertical-align:-2px;margin-left:4px}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:46px 20px;text-align:center;gap:9px}
+.empty .ic{width:30px;height:30px;color:var(--faint)}
+.empty strong{font-size:13px;font-weight:800;color:var(--foreground)}
+.empty p{font-size:11px;color:var(--muted-foreground);margin:0;max-width:290px;line-height:1.6}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:14px;border-top:1px solid var(--border-soft);font-size:10.5px;font-weight:600;color:var(--muted-foreground)}
+.pager .pages{display:flex;align-items:center;gap:5px}
+.page-btn{
+  min-width:28px;height:28px;padding:0 7px;border-radius:var(--r-sm);
+  border:1px solid var(--border);background:var(--card);font-family:inherit;
+  font-size:10.5px;font-weight:700;color:var(--secondary-foreground);
+  transition:background-color var(--duration-quick) var(--ease-out),color var(--duration-quick) var(--ease-out);
+}
+.page-btn:hover:not(:disabled){background:var(--accent);color:var(--accent-foreground)}
+.page-btn.on{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+.page-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ---- settings ---- */
+.settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.kv{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--border-soft);font-size:11.5px}
+.kv:last-child{border-bottom:none}
+.kv span{color:var(--muted-foreground);font-weight:600}
+.kv b{color:var(--foreground);font-weight:700;font-variant-numeric:tabular-nums}
+@media(max-width:980px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.settings-grid{grid-template-columns:1fr}}
+@media(max-width:560px){.kpis{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}}
+
+/* ============================================================
+   TOAST — typed feedback (keeps the original pill shape)
+   ============================================================ */
+.toast{display:flex;align-items:center;gap:9px}
+.toast .ic{width:15px;height:15px;flex:0 0 auto;stroke-width:2.2}
+.toast.info .ic{color:var(--mint-3)}
+.toast.success .ic{color:var(--toast-success)}
+.toast.error .ic{color:var(--toast-error)}
+.toast.warning .ic{color:var(--toast-warning)}
+
+/* ---- workbench head note ---- */
+.context-note{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:2px}
+.context-note .chip{cursor:pointer}
+
+/* ---- small shared utilities ---- */
+[hidden]{display:none!important}
+.err em{font-style:normal}
+.panel-body.tight{margin-top:6px}
+.actions-row{display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px}
+.actions-row.left{justify-content:flex-start}
+a.btn{text-decoration:none}
+.dropzone:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+/* dark: floating feedback stays a dark surface instead of inverting to a white pill */
+.dark .chart-tip,.dark .chart-tip::after{background:var(--overlay-surface)}
+.dark .chart-tip{color:var(--foreground);border:1px solid var(--border)}
+.dark .toast{background:var(--overlay-surface);color:var(--foreground);border:1px solid var(--border)}
+.filelist:empty{display:none}
+.t-status.pend{color:var(--lav-ink)}
+.t-status.ok{color:var(--green-ink)}
+.t-status.no{color:var(--red-ink)}
+#delChip .chip{height:auto;padding:8px 12px;font-size:11.5px}
+#fldExp:has(.err[style*="none"]){margin-top:-10px}
+#txTable .sort{pointer-events:none}
 </style>
 </head>
 <body>
@@ -511,6 +864,36 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
   <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.5V3Z"/><path d="M9 8h6M9 12h6"/></symbol>
   <symbol id="i-card" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 10h18M7 15h3"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5 2.5 20h19L12 3.5Z"/><path d="M12 9.5v4.5"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="m14.5 6 3 3"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/><path d="M10 11v5M14 11v5"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v11m0 0 3.5-3.5M12 14l-3.5-3.5"/><path d="M4 16v2.5A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V16"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V5m0 0L8.5 8.5M12 5l3.5 3.5"/><path d="M4 16v2.5A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V16"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h4"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9" r="1.6"/><path d="m4 17 5-5 3.5 3.5L16 12l4 4"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 6-2.5 7-2.5 7h17S18 15 18 9Z"/><path d="M10 20h4"/></symbol>
+  <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4.5 6v6c0 5 3.2 7.8 7.5 9 4.3-1.2 7.5-4 7.5-9V6L12 3Z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3.5 11.5V4.5a1 1 0 0 1 1-1h7l9 9-8 8-9-9Z"/><circle cx="8" cy="8" r="1.3"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 6.3M20 5v6h-6"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3.5 5h17l-6.5 7.5V19l-4 2v-8.5L3.5 5Z"/></symbol>
+  <symbol id="i-chev-left" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></symbol>
+  <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="M12 19V5m0 0-5 5m5-5 5 5"/></symbol>
+  <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14m0 0 5-5m-5 5-5-5"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3.5 13 6 5h12l2.5 8v5.5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5V13Z"/><path d="M3.5 13h4.5l1.5 2.5h5L16 13h4.5"/></symbol>
+  <symbol id="i-paperclip" viewBox="0 0 24 24"><path d="m20 11-8.5 8.5a4.5 4.5 0 0 1-6.4-6.4l9-9a3 3 0 0 1 4.3 4.3l-9 9a1.5 1.5 0 0 1-2.1-2.1l8-8"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c0-3.8 3.4-6 7.5-6s7.5 2.2 7.5 6"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.8 5.6 3.8 9S14.5 18.5 12 21c-2.5-2.5-3.8-5.6-3.8-9S9.5 5.5 12 3Z"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M9 21h6M12 17v4"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10" width="15" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="m3.5 16.5 6-6 4 4 7-7"/><path d="M15 7.5h5.5V13"/></symbol>
 </svg>
 
 <div class="app">
@@ -537,10 +920,10 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
     </nav>
 
     <div class="top-actions">
-      <button class="ai-btn" data-toast="AI Assistant is ready to help"><svg class="ic"><use href="#i-sparkle"/></svg></button>
+      <button class="ai-btn" id="btnAI" aria-label="Search records with AI Assistant" title="Search records"><svg class="ic"><use href="#i-sparkle"/></svg></button>
       <button class="round ghost" id="themeToggle" aria-label="Toggle color theme" title="Toggle color theme"><svg class="ic"><use href="#i-moon"/></svg></button>
-      <button class="round" data-toast="3 unread messages"><svg class="ic"><use href="#i-mail"/></svg><span class="dot"></span></button>
-      <button class="round" data-toast="2 new notifications"><svg class="ic"><use href="#i-chat"/></svg><span class="dot"></span></button>
+      <button class="round" id="btnMail" aria-label="Email alerts" title="Email alerts"><svg class="ic"><use href="#i-mail"/></svg><span class="dot"></span></button>
+      <button class="round" id="btnChat" aria-label="Notifications" title="Notifications"><svg class="ic"><use href="#i-chat"/></svg><span class="dot"></span></button>
       <div class="avatar" title="Alen" aria-label="Alen">A</div>
     </div>
   </header>
@@ -565,18 +948,18 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
     <main class="main">
       <div class="page-head">
         <div>
-          <h1>Hello again, Alen</h1>
-          <p>Here's your financial summary &middot; sample data.</p>
+          <h1 id="pageTitle">Hello again, Alen</h1>
+          <p id="pageSub">Here's your financial summary.</p>
         </div>
         <div class="head-actions">
-          <button class="round sm" data-toast="Search your transactions"><svg class="ic"><use href="#i-search"/></svg></button>
-          <button class="round sm" data-toast="Filter options"><svg class="ic"><use href="#i-sliders"/></svg></button>
-          <button class="pill ghost" data-toast="Report builder opened">Create a Report</button>
-          <button class="pill mint" data-toast="Add Money flow started"><svg class="ic"><use href="#i-plus"/></svg> Add Money</button>
+          <button class="round sm" id="actSearch" title="Search transactions" aria-label="Search transactions"><svg class="ic"><use href="#i-search"/></svg></button>
+          <button class="round sm" id="actFilter" title="Open filters" aria-label="Open filters"><svg class="ic"><use href="#i-sliders"/></svg></button>
+          <button class="pill ghost" id="actReport">Create a Report</button>
+          <button class="pill mint" id="actNew"><svg class="ic"><use href="#i-plus"/></svg> <span id="actNewLabel">Add Money</span></button>
         </div>
       </div>
 
-      <div class="bento">
+      <div class="bento view active" id="viewDashboard">
 
         <!-- ---- Balance card ---- -->
         <section class="card balance">
@@ -591,8 +974,8 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
               <span class="growth-txt">than last month</span>
             </div>
             <div class="b-actions">
-              <button class="b-btn dark" data-toast="Transfer flow started"><svg class="ic"><use href="#i-transfer"/></svg> Transfer</button>
-              <button class="b-btn light" data-toast="Request flow started"><svg class="ic"><use href="#i-request"/></svg> Request</button>
+              <button class="b-btn dark" id="balTransfer"><svg class="ic"><use href="#i-transfer"/></svg> Transfer</button>
+              <button class="b-btn light" id="balRequest"><svg class="ic"><use href="#i-request"/></svg> Request</button>
             </div>
           </div>
           <div class="balance-bottom">
@@ -606,7 +989,7 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
                 <div class="b-val">3.2% p.a</div>
               </div>
             </div>
-            <div class="b-updated"><svg class="ic"><use href="#i-clock"/></svg> Updated &middot; sample data</div>
+            <div class="b-updated"><svg class="ic"><use href="#i-clock"/></svg> Updated &middot; stored in this browser</div>
           </div>
         </section>
 
@@ -616,7 +999,7 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
             <div class="stat-top">
               <span class="stat-ico"><svg class="ic"><use href="#i-wallet"/></svg></span>
               <div class="stat-tools">
-                <div class="dd">
+                <div class="dd" data-dd="period">
                   <button class="dd-btn"><span class="dd-label">Monthly</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
                   <div class="dd-menu"><div>Today</div><div>Weekly</div><div>Monthly</div><div>Yearly</div></div>
                 </div>
@@ -636,7 +1019,7 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
             <div class="stat-top">
               <span class="stat-ico"><svg class="ic"><use href="#i-card"/></svg></span>
               <div class="stat-tools">
-                <div class="dd">
+                <div class="dd" data-dd="period">
                   <button class="dd-btn"><span class="dd-label">Monthly</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
                   <div class="dd-menu"><div>Today</div><div>Weekly</div><div>Monthly</div><div>Yearly</div></div>
                 </div>
@@ -658,9 +1041,9 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
           <div class="card-head">
             <div class="card-title">Transactions List</div>
             <div class="tools">
-              <div class="dd">
-                <button class="dd-btn"><span class="dd-label">Today</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
-                <div class="dd-menu"><div>Today</div><div>Yesterday</div><div>Weekly</div><div>Monthly</div></div>
+              <div class="dd" data-dd="range">
+                <button class="dd-btn"><span class="dd-label">Recent</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
+                <div class="dd-menu"><div>Recent</div><div>Weekly</div><div>Monthly</div><div>All time</div></div>
               </div>
               <span class="more">••</span>
             </div>
@@ -669,12 +1052,7 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
             <div class="trow thead">
               <div>Date</div><div>Amount</div><div>Category</div><div>Status</div><div style="text-align:right">Action</div>
             </div>
-            <div class="tbody">
-              <div class="trow"><div class="t-date">08.12.pm</div><div class="t-amount">-$32.92</div><div>Food Delivery</div><div><span class="t-status ok"><i></i>Success</span></div><div class="t-action"><svg class="ic" data-toast="Receipt #1042"><use href="#i-receipt"/></svg></div></div>
-              <div class="trow"><div class="t-date">09.20.pm</div><div class="t-amount">-$115.80</div><div>Electricity Bill</div><div><span class="t-status ok"><i></i>Success</span></div><div class="t-action"><svg class="ic" data-toast="Receipt #1043"><use href="#i-receipt"/></svg></div></div>
-              <div class="trow"><div class="t-date">12.01.pm</div><div class="t-amount">-$39.90</div><div>Transfer to travel</div><div><span class="t-status no"><i></i>Failed</span></div><div class="t-action"><svg class="ic" data-toast="Receipt #1044"><use href="#i-receipt"/></svg></div></div>
-              <div class="trow"><div class="t-date">14.20.pm</div><div class="t-amount">-$121.20</div><div>Shopping</div><div><span class="t-status ok"><i></i>Success</span></div><div class="t-action"><svg class="ic" data-toast="Receipt #1045"><use href="#i-receipt"/></svg></div></div>
-            </div>
+            <div class="tbody" id="overviewBody"></div>
           </div>
         </section>
 
@@ -687,11 +1065,11 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
                 <span data-series="income"><i style="background:var(--chart-1)"></i>Income</span>
                 <span data-series="expense"><i style="background:var(--chart-2)"></i>Expense</span>
               </div>
-              <div class="dd">
+              <div class="dd" data-dd="account">
                 <button class="dd-btn"><span class="dd-label">All Accounts</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
                 <div class="dd-menu"><div>All Accounts</div><div>Main Account</div><div>Savings</div><div>Credit Card</div></div>
               </div>
-              <div class="dd">
+              <div class="dd" data-dd="period">
                 <button class="dd-btn"><span class="dd-label">Yearly</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
                 <div class="dd-menu"><div>Weekly</div><div>Monthly</div><div>Yearly</div></div>
               </div>
@@ -709,7 +1087,7 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
           <div class="card-head">
             <div class="card-title">Income Source</div>
             <div class="tools">
-              <div class="dd">
+              <div class="dd" data-dd="period">
                 <button class="dd-btn"><span class="dd-label">Weekly</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
                 <div class="dd-menu"><div>Today</div><div>Weekly</div><div>Monthly</div><div>Yearly</div></div>
               </div>
@@ -724,12 +1102,12 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
                 <path d="M266 90 H252 Q244 90 244 98 V106"/><circle cx="252" cy="109" r="2.8"/>
                 <path d="M112 142 H136 Q144 142 144 134 V128"/><circle cx="150" cy="126" r="2.8"/>
               </svg>
-              <div class="tag t1" data-toast="Passive Income · 3%">Details... <b>›</b></div>
-              <div class="tag t2" data-toast="Freelancer · 10%">Details... <b>›</b></div>
-              <div class="tag t3" data-toast="Main Job · 84%">Details... <b>›</b></div>
-              <div class="bubble b1" data-toast="Main Job — 84% of income">84%</div>
-              <div class="bubble b2" data-toast="Freelancer — 10% of income">10%</div>
-              <div class="bubble b3" data-toast="Passive Income — 3% of income">3%</div>
+              <div class="tag t1" data-src="Passive Income">Passive Income <b>›</b></div>
+              <div class="tag t2" data-src="Freelance">Freelance <b>›</b></div>
+              <div class="tag t3" data-src="Main Job">Main Job <b>›</b></div>
+              <div class="bubble b1" data-src="Main Job">84%</div>
+              <div class="bubble b2" data-src="Freelance">10%</div>
+              <div class="bubble b3" data-src="Passive Income">3%</div>
             </div>
           </div>
 
@@ -742,35 +1120,396 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
         </section>
 
       </div>
+      <!-- ============================================================
+           VIEW 2 — TRANSACTIONS WORKBENCH (real data, full CRUD)
+           ============================================================ -->
+      <div class="view view-work" id="viewTransactions">
+
+        <div class="kpis" id="kpis"></div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>All transactions</h3>
+              <p class="panel-sub" id="tableSub">Search, filter and reconcile every record.</p>
+            </div>
+            <div id="ctxNote" class="context-note"></div>
+          </div>
+
+          <div class="toolbar">
+            <div class="grow input-wrap has-icon">
+              <svg class="ic"><use href="#i-search"/></svg>
+              <input class="input" id="txSearch" type="text" placeholder="Search description, category or account" autocomplete="off" aria-label="Search transactions"/>
+              <button class="input-clear" id="txSearchClear" aria-label="Clear search" hidden><svg class="ic"><use href="#i-x"/></svg></button>
+            </div>
+            <div class="select-wrap">
+              <select class="select" id="fStatus" aria-label="Filter by status">
+                <option value="all">All statuses</option>
+                <option value="completed">Completed</option>
+                <option value="pending">Pending</option>
+                <option value="failed">Failed</option>
+              </select>
+              <svg class="ic chev"><use href="#i-chev"/></svg>
+            </div>
+            <div class="select-wrap">
+              <select class="select" id="fCategory" aria-label="Filter by category"><option value="all">All categories</option></select>
+              <svg class="ic chev"><use href="#i-chev"/></svg>
+            </div>
+            <div class="select-wrap">
+              <select class="select" id="fAccount" aria-label="Filter by account"><option value="all">All accounts</option></select>
+              <svg class="ic chev"><use href="#i-chev"/></svg>
+            </div>
+            <button class="btn btn-ghost sm" id="fClear"><svg class="ic"><use href="#i-x"/></svg> Clear</button>
+            <button class="btn btn-secondary sm" id="btnExport"><svg class="ic"><use href="#i-download"/></svg> Export</button>
+            <button class="btn btn-mint sm" id="btnNew"><svg class="ic"><use href="#i-plus"/></svg> New transaction</button>
+          </div>
+
+          <div class="bulkbar" id="bulkbar">
+            <svg class="ic"><use href="#i-check"/></svg>
+            <span id="bulkCount">0 selected</span>
+            <span class="spacer"></span>
+            <button class="btn btn-ghost sm" id="bulkClear">Clear selection</button>
+            <button class="btn btn-danger sm" id="bulkDelete"><svg class="ic"><use href="#i-trash"/></svg> Delete selected</button>
+          </div>
+
+          <div class="dt-wrap">
+            <table class="dt" id="txTable">
+              <thead>
+                <tr>
+                  <th class="cb-cell"><input type="checkbox" class="check" id="selAll" aria-label="Select all rows on this page"/></th>
+                  <th class="sortable sorted" data-sort="date">Date <svg class="ic sort"><use href="#i-arrow-down"/></svg></th>
+                  <th>Description</th>
+                  <th>Category</th>
+                  <th>Account</th>
+                  <th class="sortable num" data-sort="amount">Amount <svg class="ic sort"><use href="#i-arrow-down"/></svg></th>
+                  <th>Status</th>
+                  <th style="text-align:right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="txBody"></tbody>
+            </table>
+          </div>
+
+          <div class="empty" id="txEmpty" hidden>
+            <svg class="ic"><use href="#i-inbox"/></svg>
+            <strong id="emptyTitle">No transactions found</strong>
+            <p id="emptyText">Try a different search or clear the active filters.</p>
+            <button class="btn btn-mint sm" id="emptyNew"><svg class="ic"><use href="#i-plus"/></svg> New transaction</button>
+          </div>
+
+          <div class="pager" id="pager">
+            <span id="pagerInfo">—</span>
+            <div class="pages" id="pagerPages"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ============================================================
+           VIEW 3 — SETTINGS (forms, selects, switches, tags, feedback)
+           ============================================================ -->
+      <div class="view view-work" id="viewSettings">
+        <div class="settings-grid">
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Profile &amp; regional</h3>
+                <p class="panel-sub">Applied across the dashboard, table and exports.</p>
+              </div>
+              <span class="chip mint"><svg class="ic"><use href="#i-user"/></svg> <span id="profileChipName">Alen</span></span>
+            </div>
+            <form id="setForm" novalidate>
+              <div class="panel-body form-row">
+                <div class="field" id="fldSetName">
+                  <label class="label" for="setName">Display name<span class="req">*</span></label>
+                  <input class="input" id="setName" type="text" maxlength="24" autocomplete="off"/>
+                  <div class="field-foot"><span class="helper">2–24 characters.</span><span class="err"><svg class="ic"><use href="#i-alert"/></svg><em></em></span></div>
+                </div>
+                <div class="field" id="fldSetEmail">
+                  <label class="label" for="setEmail">Email<span class="req">*</span></label>
+                  <input class="input" id="setEmail" type="email" autocomplete="off"/>
+                  <div class="field-foot"><span class="helper">Used for weekly summaries.</span><span class="err"><svg class="ic"><use href="#i-alert"/></svg><em></em></span></div>
+                </div>
+              </div>
+              <div class="panel-body form-row">
+                <div class="field">
+                  <label class="label" for="setAccount">Default account</label>
+                  <div class="select-wrap"><select class="select" id="setAccount"></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+                </div>
+                <div class="field">
+                  <label class="label" for="setCurrency">Currency</label>
+                  <div class="select-wrap"><select class="select" id="setCurrency"><option value="USD">USD — $</option><option value="EUR">EUR — €</option><option value="GBP">GBP — £</option><option value="CNY">CNY — ¥</option></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+                </div>
+              </div>
+              <div class="panel-body form-row">
+                <div class="field">
+                  <label class="label" for="setDateFmt">Date format</label>
+                  <div class="select-wrap"><select class="select" id="setDateFmt"><option value="short">Nov 19, 2026</option><option value="numeric">19/11/2026</option><option value="iso">2026-11-19</option></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+                </div>
+                <div class="field">
+                  <label class="label" for="setPageSize">Rows per page</label>
+                  <div class="select-wrap"><select class="select" id="setPageSize"><option value="6">6 rows</option><option value="10">10 rows</option><option value="20">20 rows</option></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+                </div>
+              </div>
+              <div class="actions-row">
+                <button class="btn btn-ghost" type="button" id="setDiscard">Discard</button>
+                <button class="btn btn-primary" type="submit" id="setSave"><svg class="ic"><use href="#i-check"/></svg> Save changes</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Notifications</h3>
+                <p class="panel-sub">Preferences are saved to this browser immediately.</p>
+              </div>
+              <span class="chip lav"><svg class="ic"><use href="#i-bell"/></svg> <span id="alertCount">2 on</span></span>
+            </div>
+            <div class="panel-body tight">
+              <div class="switch-row">
+                <div class="switch-copy"><strong>Email alerts</strong><small>Notify me when a transaction fails.</small></div>
+                <button type="button" class="switch" role="switch" data-pref="emailAlerts" aria-checked="true" aria-label="Email alerts"></button>
+              </div>
+              <div class="switch-row">
+                <div class="switch-copy"><strong>Weekly summary</strong><small>A digest of income and spending every Monday.</small></div>
+                <button type="button" class="switch" role="switch" data-pref="weeklySummary" aria-checked="true" aria-label="Weekly summary"></button>
+              </div>
+              <div class="switch-row">
+                <div class="switch-copy"><strong>Transaction notifications</strong><small>Show a confirmation when a record is saved.</small></div>
+                <button type="button" class="switch" role="switch" data-pref="saveNotify" aria-checked="false" aria-label="Transaction notifications"></button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Appearance</h3>
+                <p class="panel-sub">Layout and color preferences.</p>
+              </div>
+              <span class="chip"><svg class="ic"><use href="#i-monitor"/></svg> Display</span>
+            </div>
+            <div class="panel-body tight">
+              <div class="switch-row">
+                <div class="switch-copy"><strong>Dark mode</strong><small>Overrides the system preference until changed again.</small></div>
+                <button type="button" class="switch" role="switch" data-pref="darkMode" aria-checked="false" aria-label="Dark mode"></button>
+              </div>
+              <div class="switch-row">
+                <div class="switch-copy"><strong>Compact table</strong><small>Reduce row padding in the transactions table.</small></div>
+                <button type="button" class="switch" role="switch" data-pref="compact" aria-checked="false" aria-label="Compact table"></button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Data &amp; storage</h3>
+                <p class="panel-sub">Everything lives in this browser's local storage.</p>
+              </div>
+              <span class="chip"><svg class="ic"><use href="#i-lock"/></svg> Local only</span>
+            </div>
+            <div class="panel-body tight">
+              <div class="kv"><span>Records</span><b id="dataCount">—</b></div>
+              <div class="kv"><span>Attachments</span><b id="dataFiles">—</b></div>
+              <div class="kv"><span>Storage used</span><b id="dataBytes">—</b></div>
+              <div class="kv"><span>Last change</span><b id="dataUpdated">—</b></div>
+              <div class="actions-row left">
+                <button class="btn btn-secondary sm" id="dataExport"><svg class="ic"><use href="#i-download"/></svg> Export all data</button>
+                <button class="btn btn-ghost sm" id="dataReset"><svg class="ic"><use href="#i-refresh"/></svg> Reset to sample data</button>
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </div>
     </main>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- ============================================================
+     MODALS — shared surface for form, confirm, export, preview
+     ============================================================ -->
+<div class="overlay" id="ovTx" role="dialog" aria-modal="true" aria-labelledby="txModalTitle">
+  <div class="modal wide">
+    <div class="modal-head">
+      <div>
+        <h2 id="txModalTitle">New transaction</h2>
+        <p id="txModalSub">Record an income or expense and attach the receipt.</p>
+      </div>
+      <button class="btn icon sm btn-ghost" data-close aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <form id="txForm" novalidate>
+        <div class="form-section">
+          <span class="label">Type<span class="req">*</span></span>
+          <div class="segmented" id="txType">
+            <button type="button" data-type="expense" class="on">Expense</button>
+            <button type="button" data-type="income">Income</button>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="field" id="fldAmount">
+            <label class="label" for="txAmount">Amount<span class="req">*</span></label>
+            <div class="input-wrap has-prefix"><span class="input-prefix" id="txPrefix">$</span><input class="input" id="txAmount" type="text" inputmode="decimal" placeholder="0.00" autocomplete="off"/></div>
+            <div class="field-foot"><span class="helper">Greater than 0, at most 2 decimals.</span><span class="err"><svg class="ic"><use href="#i-alert"/></svg><em></em></span></div>
+          </div>
+          <div class="field" id="fldDate">
+            <label class="label" for="txDate">Date<span class="req">*</span></label>
+            <input class="input" id="txDate" type="date"/>
+            <div class="field-foot"><span class="helper">Cannot be in the future.</span><span class="err"><svg class="ic"><use href="#i-alert"/></svg><em></em></span></div>
+          </div>
+          <div class="field full" id="fldDesc">
+            <label class="label" for="txDesc">Description<span class="req">*</span></label>
+            <input class="input" id="txDesc" type="text" maxlength="60" placeholder="e.g. Blue Bottle Coffee" autocomplete="off"/>
+            <div class="field-foot"><span class="helper">2–60 characters.</span><span class="counter" id="txDescCount">0/60</span><span class="err"><svg class="ic"><use href="#i-alert"/></svg><em></em></span></div>
+          </div>
+          <div class="field" id="fldCategory">
+            <label class="label" for="txCategory">Category<span class="req">*</span></label>
+            <div class="select-wrap"><select class="select" id="txCategory"></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+            <div class="field-foot"><span class="err"><svg class="ic"><use href="#i-alert"/></svg><em></em></span></div>
+          </div>
+          <div class="field" id="fldAccount">
+            <label class="label" for="txAccount">Account<span class="req">*</span></label>
+            <div class="select-wrap"><select class="select" id="txAccount"></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+            <div class="field-foot"><span class="err"><svg class="ic"><use href="#i-alert"/></svg><em></em></span></div>
+          </div>
+          <div class="field" id="fldStatus">
+            <label class="label" for="txStatus">Status</label>
+            <div class="select-wrap"><select class="select" id="txStatus"><option value="completed">Completed</option><option value="pending">Pending</option><option value="failed">Failed</option></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+          </div>
+          <div class="field" id="fldNote">
+            <label class="label" for="txNote">Note</label>
+            <textarea class="textarea" id="txNote" maxlength="200" placeholder="Optional context for this record"></textarea>
+            <div class="field-foot"><span class="counter" id="txNoteCount">0/200</span></div>
+          </div>
+
+          <div class="form-section full">
+            <span class="label">Receipt / attachment</span>
+            <div class="dropzone" id="txDrop" tabindex="0" role="button" aria-label="Upload receipt files">
+              <svg class="ic"><use href="#i-upload"/></svg>
+              <strong>Drop files here or click to browse</strong>
+              <small>PNG, JPG or PDF &middot; max 2 MB each &middot; up to 3 files</small>
+            </div>
+            <input type="file" id="txFile" accept="image/png,image/jpeg,application/pdf" multiple hidden/>
+            <div class="filelist" id="txFiles"></div>
+            <div class="field-foot"><span class="err" id="fileErr"><svg class="ic"><use href="#i-alert"/></svg><em></em></span></div>
+          </div>
+
+          <div class="form-section full">
+            <div class="switch-row">
+              <div class="switch-copy"><strong>Recurring payment</strong><small>Repeat this record every month.</small></div>
+              <button type="button" class="switch" role="switch" id="txRecurring" aria-checked="false" aria-label="Recurring payment"></button>
+            </div>
+            <div class="switch-row">
+              <div class="switch-copy"><strong>Notify me</strong><small>Show a confirmation when this record is saved.</small></div>
+              <button type="button" class="switch" role="switch" id="txNotify" aria-checked="true" aria-label="Notify me"></button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <span class="left helper">All required fields are marked *</span>
+      <button class="btn btn-ghost" type="button" data-close>Cancel</button>
+      <button class="btn btn-primary" type="submit" form="txForm" id="txSave"><svg class="ic"><use href="#i-check"/></svg> Save transaction</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovDelete" role="dialog" aria-modal="true" aria-labelledby="delTitle">
+  <div class="modal sm">
+    <div class="modal-head">
+      <div><h2 id="delTitle">Delete transaction?</h2><p id="delSub">This action cannot be undone.</p></div>
+      <button class="btn icon sm btn-ghost" data-close aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="delChip"></div>
+      <p class="panel-sub">The record and any attached receipts will be removed from local storage. Use <b>Reset to sample data</b> in Settings to restore the demo dataset.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" type="button" data-close>Cancel</button>
+      <button class="btn btn-danger" type="button" id="delConfirm"><svg class="ic"><use href="#i-trash"/></svg> Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovExport" role="dialog" aria-modal="true" aria-labelledby="expTitle">
+  <div class="modal sm">
+    <div class="modal-head">
+      <div><h2 id="expTitle">Export report</h2><p id="expSub">Generate a file from your current records.</p></div>
+      <button class="btn icon sm btn-ghost" data-close aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <form id="expForm" novalidate>
+      <div class="modal-body">
+        <div class="field">
+          <label class="label" for="expRange">Period<span class="req">*</span></label>
+          <div class="select-wrap"><select class="select" id="expRange"><option value="all">All time</option><option value="30">Last 30 days</option><option value="month">This month</option><option value="year">This year</option></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+        </div>
+        <div class="field">
+          <span class="label">Format<span class="req">*</span></span>
+          <div class="radio-row">
+            <label><input class="radio" type="radio" name="expFmt" value="csv" checked/> CSV spreadsheet</label>
+            <label><input class="radio" type="radio" name="expFmt" value="json"/> JSON data</label>
+          </div>
+        </div>
+        <div class="form-section">
+          <label class="radio-row" style="justify-content:flex-start"><input class="check" type="checkbox" id="expAttach" checked/> <span style="font-size:11.5px;font-weight:600;color:var(--secondary-foreground)">Include attachment metadata</span></label>
+          <div class="field-foot"><span class="helper" id="expInfo">—</span></div>
+        </div>
+        <div class="field" id="fldExp"><div class="field-foot"><span class="err" style="display:none"><svg class="ic"><use href="#i-alert"/></svg><em></em></span></div></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" type="button" data-close>Cancel</button>
+        <button class="btn btn-primary" type="submit" id="expGo"><svg class="ic"><use href="#i-download"/></svg> Generate file</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="ovPreview" role="dialog" aria-modal="true" aria-labelledby="prevTitle">
+  <div class="modal sm">
+    <div class="modal-head">
+      <div><h2 id="prevTitle">Attachment</h2><p id="prevSub">—</p></div>
+      <button class="btn icon sm btn-ghost" data-close aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal-body" id="prevBody"></div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" type="button" data-close>Close</button>
+      <a class="btn btn-primary" id="prevDownload" download hidden>Download file</a>
+    </div>
+  </div>
+</div>
+<div class="toast info" id="toast" role="status" aria-live="polite"><svg class="ic"><use href="#i-info" id="toastIcon"/></svg><span id="toastMsg"></span></div>
 
 <script>
 /* ============================================================
    Interactions
    ============================================================ */
 const toastEl = document.getElementById('toast');
+const toastMsgEl = document.getElementById('toastMsg');
+const toastUse = document.getElementById('toastIcon');
+const TOAST_ICONS = {info:'#i-info', success:'#i-check', error:'#i-alert', warning:'#i-alert'};
 let toastTimer;
-function toast(msg){
-  toastEl.textContent = msg;
+function toast(msg, type){
+  type = TOAST_ICONS[type] ? type : 'info';
+  toastEl.className = 'toast ' + type;
+  toastMsgEl.textContent = msg;
+  toastUse.setAttribute('href', TOAST_ICONS[type]);
   toastEl.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2100);
+  toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2600);
 }
-document.querySelectorAll('[data-toast]').forEach(el=>{
-  el.addEventListener('click', e=>{ e.stopPropagation(); toast(el.dataset.toast); });
-});
-
 /* nav + sidebar active state */
 function bindActive(selector){
   document.querySelectorAll(selector).forEach(item=>{
     item.addEventListener('click', ()=>{
       document.querySelectorAll(selector).forEach(x=>x.classList.remove('active'));
       item.classList.add('active');
-      if(selector === '.nav-item') toast(item.textContent.trim() + ' view');
+      if(selector === '.nav-item') activateNav(item.textContent.trim());
+      else routeSidebar(item.getAttribute('title')||'');
     });
   });
 }
@@ -790,9 +1529,13 @@ document.querySelectorAll('.dd-menu div').forEach(opt=>{
   opt.addEventListener('click', e=>{
     e.stopPropagation();
     const dd = opt.closest('.dd');
-    dd.querySelector('.dd-label').textContent = opt.textContent;
+    const label = opt.textContent.trim();
+    dd.querySelector('.dd-label').textContent = label;
     dd.classList.remove('open');
-    toast('Period: ' + opt.textContent);
+    const scope = dd.dataset.dd;
+    if(scope === 'range'){ OV.range = label; renderOverview(); toast('Overview: ' + label, 'info'); }
+    else if(scope === 'account'){ OV.account = label; renderOverview(); toast('Account: ' + label, 'info'); }
+    else toast('View: ' + label, 'info');
   });
 });
 document.addEventListener('click', ()=>document.querySelectorAll('.dd.open').forEach(x=>x.classList.remove('open')));
@@ -939,6 +1682,14 @@ window.addEventListener('resize', ()=>{ clearTimeout(resizeTimer); resizeTimer =
 (function(){
   const root = document.documentElement;
   const KEY = 'finasia-theme';
+  window.setTheme = function(dark, announce){
+    root.classList.toggle('dark', dark);
+    try{ localStorage.setItem(KEY, dark ? 'dark' : 'light'); }catch(e){}
+    CHART = readChartTokens();
+    renderFlow();
+    syncThemeSwitch();
+    if(announce) toast(dark ? 'Dark theme' : 'Light theme', 'info');
+  };
   try{
     const saved = localStorage.getItem(KEY);
     if(saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)){
@@ -946,15 +1697,911 @@ window.addEventListener('resize', ()=>{ clearTimeout(resizeTimer); resizeTimer =
     }
   }catch(e){ /* storage unavailable: light mode stays the default */ }
   const btn = document.getElementById('themeToggle');
-  if(!btn) return;
-  btn.addEventListener('click', ()=>{
-    const dark = root.classList.toggle('dark');
-    try{ localStorage.setItem(KEY, dark ? 'dark' : 'light'); }catch(e){}
-    CHART = readChartTokens();   /* SVG stops / grid must follow the new theme */
-    renderFlow();
-    toast(dark ? 'Dark theme' : 'Light theme');
-  });
+  if(btn) btn.addEventListener('click', ()=>window.setTheme(!root.classList.contains('dark'), true));
 })();
+/* ============================================================
+   COMPONENT LOGIC — real data, CRUD, validation, uploads, export
+   Everything persists in localStorage; the Overview and the
+   workbench share one dataset.
+   ============================================================ */
+const LS_TX = 'finasia.tx.v1';
+const LS_PREF = 'finasia.prefs.v1';
+const LS_THEME = 'finasia-theme';
+
+const ACCOUNTS = ['Main Account','Savings','Credit Card','Investment Account'];
+const CATEGORIES = {
+  expense: ['Food & Dining','Utilities','Shopping','Transport','Health','Entertainment','Software','Housing','Transfer'],
+  income:  ['Salary','Freelance','Investment','Passive Income','Refund','Other Income']
+};
+const CURRENCY = {USD:'$', EUR:'€', GBP:'£', CNY:'¥'};
+const MAX_FILE = 2*1024*1024, MAX_FILES = 3;
+const ALLOWED = ['image/png','image/jpeg','application/pdf'];
+
+const PREF_DEFAULT = {
+  name:'Alen', email:'alen@finasia.app', account:'Main Account', currency:'USD',
+  dateFmt:'short', pageSize:6,
+  emailAlerts:true, weeklySummary:true, saveNotify:false, compact:false
+};
+
+/* ---- representative dataset (no lorem ipsum, all internally consistent) ---- */
+const SEED = [
+  {id:'tx_1001',type:'expense',amount:32.92,  description:'Blue Bottle Coffee',        date:'2026-11-18',category:'Food & Dining', account:'Main Account',       status:'completed',note:'Client meeting, downtown',recurring:false,attachments:[]},
+  {id:'tx_1002',type:'income', amount:6200.00, description:'Payroll · Main Job',        date:'2026-11-16',category:'Salary',        account:'Main Account',       status:'completed',note:'November salary',recurring:true, attachments:[]},
+  {id:'tx_1003',type:'expense',amount:115.80,  description:'City Power · Electricity', date:'2026-11-15',category:'Utilities',     account:'Main Account',       status:'pending',  note:'Awaiting direct debit',recurring:true, attachments:[]},
+  {id:'tx_1004',type:'expense',amount:39.90,   description:'Uber trip · Airport',      date:'2026-11-14',category:'Transport',     account:'Credit Card',        status:'failed',   note:'Card declined, retried',recurring:false,attachments:[]},
+  {id:'tx_1005',type:'income', amount:1550.00, description:'Freelance invoice #2041',  date:'2026-11-12',category:'Freelance',     account:'Main Account',       status:'completed',note:'Brand identity project',recurring:false,attachments:[]},
+  {id:'tx_1006',type:'expense',amount:121.20,  description:'Whole Foods Market',       date:'2026-11-10',category:'Shopping',      account:'Credit Card',        status:'completed',note:'Weekly groceries',recurring:false,attachments:[]},
+  {id:'tx_1007',type:'expense',amount:54.99,   description:'Adobe Creative Cloud',     date:'2026-11-08',category:'Software',      account:'Main Account',       status:'completed',note:'Monthly subscription',recurring:true, attachments:[]},
+  {id:'tx_1008',type:'income', amount:465.00,  description:'Dividend · Passive Income',date:'2026-11-05',category:'Passive Income',account:'Investment Account', status:'completed',note:'Quarterly distribution',recurring:false,attachments:[]},
+  {id:'tx_1009',type:'expense',amount:1800.00, description:'Apartment rent',           date:'2026-11-02',category:'Housing',       account:'Main Account',       status:'completed',note:'November rent',recurring:true, attachments:[]},
+  {id:'tx_1010',type:'expense',amount:68.40,   description:'Uber trip · City centre',  date:'2026-10-28',category:'Transport',     account:'Credit Card',        status:'completed',note:'',recurring:false,attachments:[]},
+  {id:'tx_1011',type:'income', amount:6200.00, description:'Payroll · Main Job',        date:'2026-10-16',category:'Salary',        account:'Main Account',       status:'completed',note:'October salary',recurring:true, attachments:[]},
+  {id:'tx_1012',type:'expense',amount:210.00,  description:'Annual health check',      date:'2026-10-05',category:'Health',        account:'Savings',            status:'pending',  note:'Reimbursement requested',recurring:false,attachments:[]},
+  {id:'tx_1013',type:'income', amount:980.00,  description:'Freelance invoice #2038',  date:'2026-09-22',category:'Freelance',     account:'Main Account',       status:'completed',note:'Landing page design',recurring:false,attachments:[]},
+  {id:'tx_1014',type:'expense',amount:149.00,  description:'Cinema & dinner',          date:'2026-01-15',category:'Entertainment', account:'Credit Card',        status:'completed',note:'',recurring:false,attachments:[]},
+  {id:'tx_1015',type:'income', amount:3200.00, description:'Year-end bonus · Main Job',date:'2025-12-20',category:'Salary',        account:'Main Account',       status:'completed',note:'2025 performance bonus',recurring:false,attachments:[]}
+];
+
+/* ---- helpers ---- */
+function todayISO(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function isoOf(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+function fmtSize(n){ return n<1024 ? n+' B' : (n<1048576 ? (n/1024).toFixed(1)+' KB' : (n/1048576).toFixed(2)+' MB'); }
+function uid(){ return 'tx_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+function loadTx(){
+  try{
+    const raw = localStorage.getItem(LS_TX);
+    if(raw){ const arr=JSON.parse(raw); if(Array.isArray(arr)) return arr; }
+  }catch(e){}
+  return SEED.map(x=>Object.assign({},x,{attachments:[]}));
+}
+function loadPref(){
+  const p = Object.assign({}, PREF_DEFAULT);
+  try{
+    const raw = localStorage.getItem(LS_PREF);
+    if(raw) Object.assign(p, JSON.parse(raw));
+  }catch(e){}
+  return p;
+}
+
+let TX = loadTx();
+let PREF = loadPref();
+let FILTER = {q:'', status:'all', category:'all', account:'all'};
+let SORT = {key:'date', dir:'desc'};
+let PAGE = 1;
+let SELECTED = new Set();
+let EDIT_ID = null;
+let DRAFT_FILES = [];
+let PENDING_DELETE = [];
+let DELETE_MODE = 'records';
+let OV = {range:'Recent', account:'All Accounts'};
+
+function savePref(){
+  try{ localStorage.setItem(LS_PREF, JSON.stringify(PREF)); }
+  catch(e){ toast('Could not save preferences in this browser.','warning'); }
+}
+function persist(){
+  try{ localStorage.setItem(LS_TX, JSON.stringify(TX)); }
+  catch(e){ toast('Local storage is full — changes are kept for this session only.','warning'); }
+  refreshAll();
+}
+function refreshAll(){ renderKPIs(); renderTable(); renderOverview(); renderStorage(); }
+
+function fmtMoney(v){
+  return CURRENCY[PREF.currency] + Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fmtDate(iso, compact){
+  if(!iso) return '—';
+  const parts = iso.split('-');
+  const y=parts[0], m=parts[1], d=parts[2];
+  if(PREF.dateFmt==='iso') return iso;
+  if(PREF.dateFmt==='numeric') return d+'/'+m+'/'+y;
+  const dt=new Date(Number(y),Number(m)-1,Number(d));
+  const mon=dt.toLocaleString('en-US',{month:'short'});
+  return compact ? mon+' '+Number(d) : mon+' '+Number(d)+', '+y;
+}
+
+/* ============================================================
+   MODAL CONTROLLER
+   ============================================================ */
+let lastFocus = null;
+function openModal(id){
+  const ov=document.getElementById(id);
+  if(!ov) return;
+  lastFocus=document.activeElement;
+  ov.classList.add('open');
+  document.body.style.overflow='hidden';
+  setTimeout(()=>{
+    const f=ov.querySelector('input:not([type=hidden]):not([type=file]),select,textarea,button.btn-primary');
+    if(f) f.focus({preventScroll:true});
+  },80);
+}
+function closeModal(id){
+  const ov=document.getElementById(id);
+  if(!ov) return;
+  ov.classList.remove('open');
+  if(!document.querySelector('.overlay.open')) document.body.style.overflow='';
+  if(lastFocus && document.contains(lastFocus)) lastFocus.focus({preventScroll:true});
+}
+document.querySelectorAll('.overlay').forEach(ov=>{
+  ov.addEventListener('mousedown', e=>{ if(e.target===ov) closeModal(ov.id); });
+  ov.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(ov.id)));
+});
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){
+    const stack=document.querySelectorAll('.overlay.open');
+    const ov=stack[stack.length-1];           /* top-most dialog wins */
+    if(ov) closeModal(ov.id);
+  }
+});
+
+function fillSelect(id, items, placeholder, emptyVal, noPlaceholder){
+  const el=document.getElementById(id);
+  if(!el) return;
+  let html='';
+  if(!noPlaceholder && placeholder) html+='<option value="'+esc(emptyVal==null?'':emptyVal)+'">'+esc(placeholder)+'</option>';
+  items.forEach(v=>{ html+='<option value="'+esc(v)+'">'+esc(v)+'</option>'; });
+  el.innerHTML=html;
+}
+function fillSelectOptions(){
+  const allCats=[...new Set([...CATEGORIES.expense,...CATEGORIES.income])];
+  fillSelect('fCategory', allCats, 'All categories', 'all');
+  fillSelect('fAccount', ACCOUNTS, 'All accounts', 'all');
+  fillSelect('setAccount', ACCOUNTS, '', '', true);
+  fillSelect('txCategory', CATEGORIES.expense, 'Select a category', '');
+  fillSelect('txAccount', ACCOUNTS, 'Select an account', '');
+}
+
+/* ============================================================
+   KPI CARDS — computed from live data
+   ============================================================ */
+function renderKPIs(){
+  const inc=TX.filter(t=>t.type==='income'&&t.status==='completed');
+  const out=TX.filter(t=>t.type==='expense'&&t.status==='completed');
+  const sum=a=>a.reduce((s,t)=>s+Number(t.amount),0);
+  const net=sum(inc)-sum(out);
+  const pending=TX.filter(t=>t.status==='pending').length;
+  const items=[
+    {lbl:'Total income', val:fmtMoney(sum(inc)), ico:'#i-up',      sub:inc.length+' completed credits', pos:false},
+    {lbl:'Total expenses',val:fmtMoney(sum(out)), ico:'#i-down',    sub:out.length+' completed charges',pos:false},
+    {lbl:'Net flow',     val:fmtMoney(Math.abs(net)), ico:'#i-trend',sub:(net>=0?'Surplus':'Deficit')+' across all records',pos:net>=0},
+    {lbl:'Pending review',val:String(pending).padStart(2,'0'), ico:'#i-clock',sub:pending?pending+' record'+(pending>1?'s':'')+' awaiting confirmation':'Nothing waiting'}
+  ];
+  document.getElementById('kpis').innerHTML=items.map(k=>`
+    <div class="kpi">
+      <div class="kpi-top"><span class="k-lbl">${k.lbl}</span><span class="k-ico"><svg class="ic"><use href="${k.ico}"/></svg></span></div>
+      <div class="k-val ${k.pos?'pos':''}">${k.val}</div>
+      <div class="k-sub">${k.sub}</div>
+    </div>`).join('');
+}
+
+/* ============================================================
+   TABLE — filter / sort / paginate / select / row actions
+   ============================================================ */
+function filtered(){
+  const q=FILTER.q.trim().toLowerCase();
+  return TX.filter(t=>{
+    if(q && !(t.description+' '+t.category+' '+t.account+' '+(t.note||'')).toLowerCase().includes(q)) return false;
+    if(FILTER.status!=='all' && t.status!==FILTER.status) return false;
+    if(FILTER.category!=='all' && t.category!==FILTER.category) return false;
+    if(FILTER.account!=='all' && t.account!==FILTER.account) return false;
+    return true;
+  }).sort((a,b)=>{
+    let c = SORT.key==='amount' ? Number(a.amount)-Number(b.amount) : (a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+    return SORT.dir==='asc' ? c : -c;
+  });
+}
+function renderTable(){
+  const list=filtered();
+  const size=Number(PREF.pageSize)||6;
+  const pages=Math.max(1,Math.ceil(list.length/size));
+  if(PAGE>pages) PAGE=pages;
+  const slice=list.slice((PAGE-1)*size, PAGE*size);
+  const body=document.getElementById('txBody');
+  const table=document.getElementById('txTable');
+  const empty=document.getElementById('txEmpty');
+  const pager=document.getElementById('pager');
+
+  body.innerHTML=slice.map(t=>`
+    <tr data-id="${esc(t.id)}" class="${SELECTED.has(t.id)?'selected':''}">
+      <td class="cb-cell"><input type="checkbox" class="check row-cb" ${SELECTED.has(t.id)?'checked':''} aria-label="Select ${esc(t.description)}"/></td>
+      <td>${fmtDate(t.date)}</td>
+      <td>
+        <div class="cell-main">${esc(t.description)}${t.attachments&&t.attachments.length?`<svg class="ic att"><use href="#i-paperclip"/></svg>`:''}</div>
+        <div class="cell-sub">${cap(t.type)}${t.recurring?' · Recurring':''}</div>
+      </td>
+      <td><span class="chip">${esc(t.category)}</span></td>
+      <td>${esc(t.account)}</td>
+      <td class="num ${t.type==='income'?'amt-in':'amt-out'}">${t.type==='income'?'+':'−'}${fmtMoney(t.amount)}</td>
+      <td><span class="status ${esc(t.status)}"><i></i>${cap(t.status)}</span></td>
+      <td>
+        <div class="row-actions">
+          <button class="btn icon sm btn-ghost" data-act="edit" title="Edit record" aria-label="Edit ${esc(t.description)}"><svg class="ic"><use href="#i-edit"/></svg></button>
+          <button class="btn icon sm btn-ghost danger" data-act="del" title="Delete record" aria-label="Delete ${esc(t.description)}"><svg class="ic"><use href="#i-trash"/></svg></button>
+        </div>
+      </td>
+    </tr>`).join('');
+
+  const none=list.length===0;
+  table.hidden=none; empty.hidden=!none; pager.hidden=none;
+  if(none){
+    const hasFilter=!!(FILTER.q||FILTER.status!=='all'||FILTER.category!=='all'||FILTER.account!=='all');
+    document.getElementById('emptyTitle').textContent = hasFilter?'No matching transactions':'No transactions yet';
+    document.getElementById('emptyText').textContent = hasFilter
+      ? 'Try a different search term or clear the active filters.'
+      : 'Add your first income or expense to start reconciling records.';
+    document.getElementById('emptyNew').hidden = hasFilter;
+  }
+
+  document.getElementById('pagerInfo').textContent = none
+    ? '0 results'
+    : 'Showing '+((PAGE-1)*size+1)+'–'+Math.min(PAGE*size,list.length)+' of '+list.length+' records';
+  let ph='<button class="page-btn" data-page="prev" aria-label="Previous page"'+(PAGE===1?' disabled':'')+'><svg class="ic" style="width:13px;height:13px"><use href="#i-chev-left"/></svg></button>';
+  for(let i=1;i<=pages;i++) ph+='<button class="page-btn '+(i===PAGE?'on':'')+'" data-page="'+i+'">'+i+'</button>';
+  ph+='<button class="page-btn" data-page="next" aria-label="Next page"'+(PAGE===pages?' disabled':'')+'><svg class="ic" style="width:13px;height:13px"><use href="#i-chev-right"/></svg></button>';
+  document.getElementById('pagerPages').innerHTML=ph;
+
+  const all=document.getElementById('selAll');
+  const onPage=slice.filter(t=>SELECTED.has(t.id)).length;
+  all.checked = slice.length>0 && onPage===slice.length;
+  all.indeterminate = onPage>0 && onPage<slice.length;
+  renderBulk();
+
+  document.querySelectorAll('#txTable th.sortable').forEach(th=>{
+    const on=th.dataset.sort===SORT.key;
+    th.classList.toggle('sorted',on);
+    const u=th.querySelector('use');
+    if(u) u.setAttribute('href', on&&SORT.dir==='asc'?'#i-arrow-up':'#i-arrow-down');
+  });
+}
+function renderBulk(){
+  const bar=document.getElementById('bulkbar');
+  const n=SELECTED.size;
+  bar.classList.toggle('show',n>0);
+  document.getElementById('bulkCount').textContent=n+' selected';
+}
+function syncFilterUI(){
+  document.getElementById('fStatus').value=FILTER.status;
+  document.getElementById('fCategory').value=FILTER.category;
+  document.getElementById('fAccount').value=FILTER.account;
+  document.getElementById('txSearch').value=FILTER.q;
+  document.getElementById('txSearchClear').hidden=!FILTER.q;
+  const active=[];
+  if(FILTER.status!=='all') active.push('<span class="chip">'+cap(FILTER.status)+'</span>');
+  if(FILTER.category!=='all') active.push('<span class="chip">'+esc(FILTER.category)+'</span>');
+  if(FILTER.account!=='all') active.push('<span class="chip">'+esc(FILTER.account)+'</span>');
+  if(FILTER.q) active.push('<span class="chip">“'+esc(FILTER.q)+'”</span>');
+  document.getElementById('ctxNote').innerHTML=active.join('');
+  document.getElementById('tableSub').textContent = active.length
+    ? 'Filtered view · clear a filter to widen the results.'
+    : 'Search, filter and reconcile every record.';
+}
+
+/* ---- table events ---- */
+document.getElementById('txSearch').addEventListener('input', e=>{
+  FILTER.q=e.target.value; PAGE=1;
+  document.getElementById('txSearchClear').hidden=!FILTER.q;
+  renderTable(); syncFilterUI();
+});
+document.getElementById('txSearchClear').addEventListener('click',()=>{
+  FILTER.q=''; document.getElementById('txSearch').value=''; PAGE=1;
+  renderTable(); syncFilterUI(); document.getElementById('txSearch').focus();
+});
+['fStatus','fCategory','fAccount'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',e=>{
+    FILTER[id==='fStatus'?'status':id==='fCategory'?'category':'account']=e.target.value;
+    PAGE=1; renderTable(); syncFilterUI();
+  });
+});
+document.getElementById('fClear').addEventListener('click',()=>{
+  FILTER={q:'',status:'all',category:'all',account:'all'}; PAGE=1;
+  syncFilterUI(); renderTable(); toast('Filters cleared','info');
+});
+document.getElementById('txTable').querySelectorAll('th.sortable').forEach(th=>{
+  th.addEventListener('click',()=>{
+    const k=th.dataset.sort;
+    if(SORT.key===k) SORT.dir=SORT.dir==='asc'?'desc':'asc';
+    else { SORT.key=k; SORT.dir='desc'; }
+    PAGE=1; renderTable();
+  });
+});
+document.getElementById('selAll').addEventListener('change',e=>{
+  const size=Number(PREF.pageSize)||6;
+  const slice=filtered().slice((PAGE-1)*size,PAGE*size);
+  slice.forEach(t=>{ if(e.target.checked) SELECTED.add(t.id); else SELECTED.delete(t.id); });
+  renderTable();
+});
+document.getElementById('txBody').addEventListener('change',e=>{
+  if(!e.target.classList.contains('row-cb')) return;
+  const id=e.target.closest('tr').dataset.id;
+  if(e.target.checked) SELECTED.add(id); else SELECTED.delete(id);
+  renderTable();
+});
+document.getElementById('txBody').addEventListener('click',e=>{
+  const btn=e.target.closest('[data-act]');
+  if(!btn) return;
+  const id=btn.closest('tr').dataset.id;
+  if(btn.dataset.act==='edit') openTx(id);
+  else askDelete([id]);
+});
+document.getElementById('pagerPages').addEventListener('click',e=>{
+  const b=e.target.closest('[data-page]');
+  if(!b||b.disabled) return;
+  const pages=Math.max(1,Math.ceil(filtered().length/(Number(PREF.pageSize)||6)));
+  if(b.dataset.page==='prev') PAGE=Math.max(1,PAGE-1);
+  else if(b.dataset.page==='next') PAGE=Math.min(pages,PAGE+1);
+  else PAGE=Number(b.dataset.page);
+  renderTable();
+});
+document.getElementById('bulkClear').addEventListener('click',()=>{ SELECTED.clear(); renderTable(); });
+document.getElementById('bulkDelete').addEventListener('click',()=>{ if(SELECTED.size) askDelete([...SELECTED]); });
+
+/* ============================================================
+   OVERVIEW — the original Bento table, now driven by real data
+   ============================================================ */
+function renderOverview(){
+  const body=document.getElementById('overviewBody');
+  if(!body) return;
+  let list=[...TX].sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
+  if(OV.account!=='All Accounts' && ACCOUNTS.includes(OV.account)) list=list.filter(t=>t.account===OV.account);
+  const span={'Weekly':7,'Monthly':31}[OV.range];
+  if(span){
+    const cut=new Date(); cut.setDate(cut.getDate()-(span-1));
+    const c=isoOf(cut);
+    list=list.filter(t=>t.date>=c);
+  }
+  list=list.slice(0,4);
+  if(!list.length){
+    body.innerHTML='<div class="trow"><div class="t-date">—</div><div class="t-amount">—</div><div>No matching records</div><div><span class="t-status">—</span></div><div class="t-action"></div></div>';
+    return;
+  }
+  body.innerHTML=list.map(t=>{
+    const cls=t.status==='completed'?'ok':t.status==='failed'?'no':'pend';
+    return `<div class="trow" data-id="${esc(t.id)}">
+      <div class="t-date">${fmtDate(t.date,true)}</div>
+      <div class="t-amount">${t.type==='income'?'+':'−'}${fmtMoney(t.amount)}</div>
+      <div>${esc(t.category)}</div>
+      <div><span class="t-status ${cls}"><i></i>${cap(t.status)}</span></div>
+      <div class="t-action"><svg class="ic" data-act="view" title="Open record"><use href="#i-receipt"/></svg></div>
+    </div>`;
+  }).join('');
+}
+document.getElementById('overviewBody').addEventListener('click',e=>{
+  const a=e.target.closest('[data-act="view"]');
+  if(!a) return;
+  const id=a.closest('.trow').dataset.id;
+  if(id) openTx(id);
+});
+
+/* ============================================================
+   FORM — create / edit with validation
+   ============================================================ */
+function setFieldErr(id,msg){
+  const f=document.getElementById(id);
+  if(!f) return;
+  f.classList.toggle('invalid',!!msg);
+  const em=f.querySelector('.err em');
+  if(em) em.textContent=msg||'';
+}
+function clearFormErrors(){
+  ['fldAmount','fldDate','fldDesc','fldCategory','fldAccount'].forEach(id=>setFieldErr(id,''));
+  document.getElementById('fileErr').classList.remove('invalid');
+  document.getElementById('fileErr').querySelector('em').textContent='';
+}
+function setType(type){
+  document.querySelectorAll('#txType button').forEach(b=>b.classList.toggle('on',b.dataset.type===type));
+  fillSelect('txCategory', CATEGORIES[type], 'Select a category', '');
+  document.getElementById('txPrefix').textContent=CURRENCY[PREF.currency];
+}
+function setSwitch(id,on){ document.getElementById(id).setAttribute('aria-checked',on?'true':'false'); }
+function getSwitch(id){ return document.getElementById(id).getAttribute('aria-checked')==='true'; }
+
+function openTx(id, preset){
+  EDIT_ID=id||null;
+  DRAFT_FILES=[];
+  const t=id?TX.find(x=>x.id===id):null;
+  const type=(preset&&preset.type)||(t&&t.type)||'expense';
+  clearFormErrors();
+  setType(type);
+
+  document.getElementById('txModalTitle').textContent=t?'Edit transaction':'New transaction';
+  document.getElementById('txModalSub').textContent=t
+    ? 'Update the details of this record.'
+    : 'Record an income or expense and attach the receipt.';
+  document.getElementById('txAmount').value=t?String(t.amount):'';
+  document.getElementById('txDesc').value=t?t.description:'';
+  document.getElementById('txNote').value=t?(t.note||''):'';
+  const dateEl=document.getElementById('txDate');
+  dateEl.max=todayISO();
+  dateEl.value=t?t.date:todayISO();
+  document.getElementById('txCategory').value=t?t.category:'';
+  document.getElementById('txAccount').value=t?t.account:PREF.account;
+  document.getElementById('txStatus').value=t?t.status:'completed';
+  setSwitch('txRecurring',t?!!t.recurring:false);
+  setSwitch('txNotify',!!PREF.saveNotify);
+  document.getElementById('txDescCount').textContent=(t?t.description.length:0)+'/60';
+  document.getElementById('txNoteCount').textContent=(t&&t.note?t.note.length:0)+'/200';
+  if(t&&t.attachments) DRAFT_FILES=t.attachments.map(a=>Object.assign({},a));
+  syncFileError('');
+  renderFiles();
+  openModal('ovTx');
+  setTimeout(()=>document.getElementById('txAmount').focus({preventScroll:true}),120);
+}
+
+function validateTx(){
+  let ok=true, first=null;
+  const mark=(id,msg)=>{ setFieldErr(id,msg); if(msg&&!first){ first=document.getElementById(id); ok=false; } };
+  const raw=document.getElementById('txAmount').value.trim().replace(/,/g,'');
+  const amt=Number(raw);
+  if(!raw) mark('fldAmount','Enter an amount.');
+  else if(!/^\d+(\.\d{1,2})?$/.test(raw) || !(amt>0) || amt>1000000) mark('fldAmount','Use a positive amount, max 2 decimals, below 1,000,000.');
+  else mark('fldAmount','');
+
+  const date=document.getElementById('txDate').value;
+  if(!date) mark('fldDate','Choose a date.');
+  else if(date>todayISO()) mark('fldDate','Date cannot be in the future.');
+  else mark('fldDate','');
+
+  const desc=document.getElementById('txDesc').value.trim();
+  if(desc.length<2||desc.length>60) mark('fldDesc','Use 2–60 characters.');
+  else mark('fldDesc','');
+
+  if(!document.getElementById('txCategory').value) mark('fldCategory','Choose a category.'); else mark('fldCategory','');
+  if(!document.getElementById('txAccount').value) mark('fldAccount','Choose an account.'); else mark('fldAccount','');
+
+  if(first){ const f=first.querySelector('input,select,textarea'); if(f) f.focus(); }
+  return ok;
+}
+function saveTxForm(e){
+  e.preventDefault();
+  if(!validateTx()){ toast('Please fix the highlighted fields.','error'); return; }
+  const btn=document.getElementById('txSave');
+  btn.classList.add('is-loading'); btn.disabled=true;
+  setTimeout(()=>{
+    const type=document.querySelector('#txType button.on').dataset.type;
+    const rec={
+      id: EDIT_ID||uid(), type,
+      amount:Number(document.getElementById('txAmount').value.trim().replace(/,/g,'')),
+      description:document.getElementById('txDesc').value.trim(),
+      date:document.getElementById('txDate').value,
+      category:document.getElementById('txCategory').value,
+      account:document.getElementById('txAccount').value,
+      status:document.getElementById('txStatus').value,
+      note:document.getElementById('txNote').value.trim(),
+      recurring:getSwitch('txRecurring'),
+      attachments:DRAFT_FILES.map(a=>({name:a.name,size:a.size,type:a.type,dataUrl:a.dataUrl||null}))
+    };
+    if(EDIT_ID){
+      const i=TX.findIndex(x=>x.id===EDIT_ID);
+      if(i>=0) TX[i]=Object.assign({},TX[i],rec);
+    } else TX.unshift(rec);
+    const notify=getSwitch('txNotify');
+    const edited=!!EDIT_ID;
+    persist();
+    btn.classList.remove('is-loading'); btn.disabled=false;
+    closeModal('ovTx');
+    toast(edited?'Transaction updated':'Transaction added','success');
+    if(notify) setTimeout(()=>toast('Notification sent to '+PREF.email,'info'),700);
+  },380);
+}
+document.getElementById('txForm').addEventListener('submit',saveTxForm);
+document.querySelectorAll('#txType button').forEach(b=>{
+  b.addEventListener('click',()=>setType(b.dataset.type));
+});
+document.getElementById('txDesc').addEventListener('input',e=>{
+  document.getElementById('txDescCount').textContent=e.target.value.length+'/60';
+  if(document.getElementById('fldDesc').classList.contains('invalid')) validateFieldDesc();
+});
+document.getElementById('txNote').addEventListener('input',e=>{
+  document.getElementById('txNoteCount').textContent=e.target.value.length+'/200';
+});
+function validateFieldDesc(){
+  const v=document.getElementById('txDesc').value.trim();
+  setFieldErr('fldDesc',(v.length<2||v.length>60)?'Use 2–60 characters.':'');
+}
+['txAmount','txDate','txCategory','txAccount'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',()=>validateTx());
+});
+['txRecurring','txNotify'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{
+    const on=e.currentTarget.getAttribute('aria-checked')!=='true';
+    e.currentTarget.setAttribute('aria-checked',on?'true':'false');
+  });
+});
+
+/* ============================================================
+   UPLOAD — drag & drop, type/size validation, thumbnails
+   ============================================================ */
+function syncFileError(msg){
+  const el=document.getElementById('fileErr');
+  el.querySelector('em').textContent=msg||'';
+  el.classList.toggle('invalid',!!msg);
+}
+function makeThumb(file, done){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      const scale=Math.min(1,320/Math.max(img.width,img.height));
+      const c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(img.width*scale));
+      c.height=Math.max(1,Math.round(img.height*scale));
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      try{ done(c.toDataURL('image/jpeg',.72)); }catch(e){ done(null); }
+    };
+    img.onerror=()=>done(null);
+    img.src=reader.result;
+  };
+  reader.onerror=()=>done(null);
+  reader.readAsDataURL(file);
+}
+function handleFiles(list){
+  let err='';
+  Array.from(list).forEach(f=>{
+    if(DRAFT_FILES.length>=MAX_FILES){ err='You can attach up to '+MAX_FILES+' files.'; return; }
+    if(!ALLOWED.includes(f.type)){ err=f.name+': only PNG, JPG or PDF is allowed.'; return; }
+    if(f.size>MAX_FILE){ err=f.name+' is larger than 2 MB.'; return; }
+    if(DRAFT_FILES.some(x=>x.name===f.name&&x.size===f.size)) return;
+    const entry={name:f.name,size:f.size,type:f.type,dataUrl:null};
+    DRAFT_FILES.push(entry);
+    if(f.type.startsWith('image/')) makeThumb(f,url=>{ entry.dataUrl=url; renderFiles(); });
+  });
+  renderFiles(); syncFileError(err);
+  if(!err && list.length) toast(list.length+' file'+(list.length>1?'s':'')+' attached','success');
+}
+function renderFiles(){
+  document.getElementById('txFiles').innerHTML=DRAFT_FILES.map((d,i)=>`
+    <div class="filechip">
+      ${d.dataUrl
+        ? `<img class="thumb" src="${d.dataUrl}" data-preview="${i}" alt="Receipt thumbnail"/>`
+        : `<span class="fico"><svg class="ic"><use href="${d.type==='application/pdf'?'#i-file':'#i-image'}"/></svg></span>`}
+      <div class="filemeta">
+        <b title="${esc(d.name)}">${esc(d.name)}</b>
+        <small>${fmtSize(d.size)} · ${d.type==='application/pdf'?'PDF document':'Image'}</small>
+        <div class="progress"><i style="width:100%"></i></div>
+      </div>
+      <button type="button" class="btn icon sm btn-ghost" data-rm="${i}" aria-label="Remove ${esc(d.name)}"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>`).join('');
+}
+const drop=document.getElementById('txDrop');
+const fileInput=document.getElementById('txFile');
+drop.addEventListener('click',()=>fileInput.click());
+drop.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fileInput.click(); } });
+fileInput.addEventListener('change',e=>{ handleFiles(e.target.files); fileInput.value=''; });
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.remove('drag'); }));
+drop.addEventListener('drop',e=>{ if(e.dataTransfer&&e.dataTransfer.files) handleFiles(e.dataTransfer.files); });
+document.getElementById('txFiles').addEventListener('click',e=>{
+  const rm=e.target.closest('[data-rm]');
+  if(rm){ DRAFT_FILES.splice(Number(rm.dataset.rm),1); renderFiles(); syncFileError(''); return; }
+  const pv=e.target.closest('[data-preview]');
+  if(pv) openPreview(DRAFT_FILES[Number(pv.dataset.preview)]);
+});
+function openPreview(d){
+  if(!d) return;
+  document.getElementById('prevTitle').textContent=d.name;
+  document.getElementById('prevSub').textContent=fmtSize(d.size)+' · '+(d.type==='application/pdf'?'PDF document':'Image');
+  const body=document.getElementById('prevBody');
+  const link=document.getElementById('prevDownload');
+  if(d.dataUrl){
+    body.innerHTML='<img class="preview-img" src="'+d.dataUrl+'" alt="'+esc(d.name)+'"/>';
+    link.href=d.dataUrl; link.download=d.name.replace(/\.(png|jpe?g)$/i,'')+'-preview.jpg'; link.hidden=false;
+  }else{
+    body.innerHTML='<div class="filechip"><span class="fico"><svg class="ic"><use href="#i-file"/></svg></span><div class="filemeta"><b>'+esc(d.name)+'</b><small>'+fmtSize(d.size)+' · PDF document</small></div></div><p class="panel-sub">PDF attachments are stored as metadata in this browser demo; the original binary is not kept in local storage.</p>';
+    link.hidden=true;
+  }
+  openModal('ovPreview');
+}
+
+/* ============================================================
+   DELETE CONFIRM / RESET
+   ============================================================ */
+function askDelete(ids){
+  DELETE_MODE='records'; PENDING_DELETE=ids.slice();
+  const t=ids.length===1?TX.find(x=>x.id===ids[0]):null;
+  document.getElementById('delTitle').textContent=ids.length>1?'Delete '+ids.length+' transactions?':'Delete transaction?';
+  document.getElementById('delSub').textContent='This action cannot be undone.';
+  document.getElementById('delChip').innerHTML=t
+    ? '<span class="chip"><svg class="ic"><use href="#i-receipt"/></svg>'+esc(t.description)+' · '+fmtMoney(t.amount)+' · '+fmtDate(t.date)+'</span>'
+    : '<span class="chip"><svg class="ic"><use href="#i-list"/></svg>'+ids.length+' selected records</span>';
+  openModal('ovDelete');
+}
+function askReset(){
+  DELETE_MODE='reset';
+  document.getElementById('delTitle').textContent='Reset to sample data?';
+  document.getElementById('delSub').textContent='Your current records will be replaced.';
+  document.getElementById('delChip').innerHTML='<span class="chip"><svg class="ic"><use href="#i-database"/></svg>'+SEED.length+' sample records will be restored</span>';
+  openModal('ovDelete');
+}
+document.getElementById('delConfirm').addEventListener('click',()=>{
+  if(DELETE_MODE==='reset'){
+    TX=SEED.map(x=>Object.assign({},x,{attachments:[]}));
+    SELECTED.clear(); PAGE=1;
+    persist(); closeModal('ovDelete');
+    toast('Sample data restored','success');
+  }else{
+    const n=PENDING_DELETE.length;
+    TX=TX.filter(t=>!PENDING_DELETE.includes(t.id));
+    PENDING_DELETE.forEach(id=>SELECTED.delete(id));
+    persist(); closeModal('ovDelete');
+    toast(n>1?n+' records deleted':'Record deleted','success');
+  }
+  PENDING_DELETE=[];
+});
+
+/* ============================================================
+   EXPORT — real CSV / JSON download
+   ============================================================ */
+function rangeFilter(list,range){
+  if(range==='all') return list;
+  const now=new Date(); let cut;
+  if(range==='30'){ cut=new Date(now); cut.setDate(cut.getDate()-30); }
+  else if(range==='month') cut=new Date(now.getFullYear(),now.getMonth(),1);
+  else if(range==='year') cut=new Date(now.getFullYear(),0,1);
+  const c=isoOf(cut);
+  return list.filter(t=>t.date>=c);
+}
+function toCSV(rows){
+  const cols=['date','type','description','category','account','amount','currency','status','recurring','note','attachments'];
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""').replace(/\r?\n/g,' ')+'"';
+  const lines=[cols.join(',')];
+  rows.forEach(r=>lines.push(cols.map(c=>{
+    if(c==='attachments') return q((r.attachments||[]).map(a=>a.name).join(' | '));
+    if(c==='currency') return q(PREF.currency);
+    if(c==='recurring') return q(r.recurring?'yes':'no');
+    return q(r[c]);
+  }).join(',')));
+  return lines.join('\r\n');
+}
+function download(name,content,mime){
+  const blob=new Blob([content],{type:mime+';charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1200);
+}
+function updateExpInfo(){
+  const n=rangeFilter(TX,document.getElementById('expRange').value).length;
+  document.getElementById('expInfo').textContent=n+' record'+(n===1?'':'s')+' match this period · '+PREF.currency;
+}
+function showExpErr(msg){
+  const f=document.getElementById('fldExp');
+  const el=f.querySelector('.err');
+  f.classList.toggle('invalid',!!msg);
+  el.style.display=msg?'flex':'none';
+  el.querySelector('em').textContent=msg||'';
+}
+function openExport(){
+  showExpErr(''); updateExpInfo(); openModal('ovExport');
+}
+function doExport(e){
+  e.preventDefault();
+  const range=document.getElementById('expRange').value;
+  const list=rangeFilter(TX,range).sort((a,b)=>b.date.localeCompare(a.date));
+  if(!list.length){ showExpErr('No records in this period. Choose a wider range.'); toast('Nothing to export for this period','error'); return; }
+  const fmt=document.querySelector('input[name="expFmt"]:checked').value;
+  const include=document.getElementById('expAttach').checked;
+  const rows=list.map(t=>Object.assign({},t,{attachments:include?(t.attachments||[]).map(a=>({name:a.name,size:a.size,type:a.type})):[]}));
+  let content,mime,ext;
+  if(fmt==='csv'){ content=toCSV(rows); mime='text/csv'; ext='csv'; }
+  else{ content=JSON.stringify({generatedAt:new Date().toISOString(),currency:PREF.currency,period:range,recordCount:rows.length,records:rows},null,2); mime='application/json'; ext='json'; }
+  download('finasia-transactions-'+todayISO()+'.'+ext,content,mime);
+  closeModal('ovExport');
+  toast(rows.length+' records exported as '+fmt.toUpperCase(),'success');
+}
+document.getElementById('expForm').addEventListener('submit',doExport);
+document.getElementById('expRange').addEventListener('change',()=>{ showExpErr(''); updateExpInfo(); });
+document.getElementById('btnExport').addEventListener('click',openExport);
+document.getElementById('actReport').addEventListener('click',openExport);
+
+/* ============================================================
+   SETTINGS — persisted preferences that actually take effect
+   ============================================================ */
+function syncThemeSwitch(){
+  const el=document.querySelector('.switch[data-pref="darkMode"]');
+  if(el) el.setAttribute('aria-checked',document.documentElement.classList.contains('dark')?'true':'false');
+}
+function fillSettingsForm(){
+  document.getElementById('setName').value=PREF.name;
+  document.getElementById('setEmail').value=PREF.email;
+  document.getElementById('setAccount').value=PREF.account;
+  document.getElementById('setCurrency').value=PREF.currency;
+  document.getElementById('setDateFmt').value=PREF.dateFmt;
+  document.getElementById('setPageSize').value=String(PREF.pageSize);
+  document.querySelectorAll('.switch[data-pref]').forEach(s=>{
+    if(s.dataset.pref==='darkMode') return;
+    s.setAttribute('aria-checked',!!PREF[s.dataset.pref]?'true':'false');
+  });
+  syncThemeSwitch();
+  ['fldSetName','fldSetEmail'].forEach(id=>setFieldErr(id,''));
+  updateAlertCount();
+}
+function updateAlertCount(){
+  const n=['emailAlerts','weeklySummary','saveNotify'].filter(k=>PREF[k]).length;
+  document.getElementById('alertCount').textContent=n+' on';
+}
+function applyPrefs(){
+  const av=document.querySelector('.avatar');
+  if(av){
+    const ch=(PREF.name||'A').trim().charAt(0).toUpperCase()||'A';
+    av.textContent=ch; av.title=PREF.name; av.setAttribute('aria-label',PREF.name);
+  }
+  const nm=document.getElementById('profileChipName');
+  if(nm) nm.textContent=PREF.name;
+  const tbl=document.getElementById('txTable');
+  if(tbl) tbl.classList.toggle('compact',!!PREF.compact);
+  const pre=document.getElementById('txPrefix');
+  if(pre) pre.textContent=CURRENCY[PREF.currency];
+}
+function saveSettings(e){
+  e.preventDefault();
+  const name=document.getElementById('setName').value.trim();
+  const email=document.getElementById('setEmail').value.trim();
+  let ok=true;
+  if(name.length<2||name.length>24){ setFieldErr('fldSetName','Use 2–24 characters.'); ok=false; } else setFieldErr('fldSetName','');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ setFieldErr('fldSetEmail','Enter a valid email address.'); ok=false; } else setFieldErr('fldSetEmail','');
+  if(!ok){ toast('Please fix the highlighted fields.','error'); return; }
+  PREF.name=name; PREF.email=email;
+  PREF.account=document.getElementById('setAccount').value;
+  PREF.currency=document.getElementById('setCurrency').value;
+  PREF.dateFmt=document.getElementById('setDateFmt').value;
+  PREF.pageSize=Number(document.getElementById('setPageSize').value)||6;
+  savePref(); applyPrefs(); PAGE=1; renderTable(); renderKPIs(); renderOverview();
+  updateHead(currentNav,{view: currentView});
+  toast('Preferences saved','success');
+}
+document.getElementById('setForm').addEventListener('submit',saveSettings);
+document.getElementById('setDiscard').addEventListener('click',()=>{ fillSettingsForm(); toast('Changes discarded','info'); });
+document.querySelectorAll('.switch[data-pref]').forEach(s=>{
+  s.addEventListener('click',()=>{
+    const key=s.dataset.pref;
+    const on=s.getAttribute('aria-checked')!=='true';
+    s.setAttribute('aria-checked',on?'true':'false');
+    if(key==='darkMode'){ window.setTheme(on,false); toast(on?'Dark theme':'Light theme','info'); return; }
+    PREF[key]=on; savePref();
+    if(key==='compact'){ applyPrefs(); }
+    if(key==='saveNotify'){ setSwitch('txNotify',on); }
+    updateAlertCount();
+    toast((on?'Enabled ':'Disabled ')+s.getAttribute('aria-label'),'info');
+  });
+});
+document.getElementById('dataExport').addEventListener('click',()=>{
+  if(!TX.length){ toast('No records to export','error'); return; }
+  download('finasia-all-data-'+todayISO()+'.json',
+    JSON.stringify({exportedAt:new Date().toISOString(),preferences:PREF,records:TX},null,2),'application/json');
+  toast('Full dataset exported','success');
+});
+document.getElementById('dataReset').addEventListener('click',askReset);
+function renderStorage(){
+  const bytes=new Blob([JSON.stringify(TX)]).size;
+  const files=TX.reduce((s,t)=>s+(t.attachments?t.attachments.length:0),0);
+  document.getElementById('dataCount').textContent=TX.length+' records';
+  document.getElementById('dataFiles').textContent=files+' file'+(files===1?'':'s');
+  document.getElementById('dataBytes').textContent=fmtSize(bytes);
+  document.getElementById('dataUpdated').textContent=fmtDate(todayISO(),true);
+}
+
+/* ============================================================
+   ROUTING — nav / sidebar / head actions all lead somewhere real
+   ============================================================ */
+const VIEWS={
+  'Dashboard':   {view:'dashboard'},
+  'Transactions':{view:'transactions'},
+  'Wallet':      {view:'transactions',account:'Main Account',label:'Wallet'},
+  'Investment':  {view:'transactions',category:'Investment',label:'Investments'},
+  'Reports':     {view:'transactions',export:true,label:'Reports'},
+  'AI Assistant':{view:'transactions',focus:true,label:'Search records'},
+  'Settings':    {view:'settings'}
+};
+const SIDE_MAP={
+  'Dashboard':'Dashboard','Wallet':'Wallet','Notifications':'Settings','Documents':'Reports',
+  'Messages':'Settings','Investments':'Investment','Settings':'Settings','Help':'Settings','Log out':null
+};
+let currentNav='Dashboard', currentView='dashboard';
+function showView(v){
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  const id=v==='dashboard'?'viewDashboard':v==='transactions'?'viewTransactions':'viewSettings';
+  document.getElementById(id).classList.add('active');
+  currentView=v;
+  const sideTitle={dashboard:'Dashboard',transactions:'Wallet',settings:'Settings'}[v];
+  document.querySelectorAll('.side-item').forEach(x=>x.classList.toggle('active',x.getAttribute('title')===sideTitle));
+  if(v==='dashboard') requestAnimationFrame(()=>{ CHART=readChartTokens(); renderFlow(); });
+}
+function updateHead(name,cfg){
+  const h=document.getElementById('pageTitle'), p=document.getElementById('pageSub'), label=document.getElementById('actNewLabel');
+  if(name==='Dashboard'){
+    h.textContent='Hello again, '+PREF.name;
+    p.innerHTML="Here's your financial summary.";
+    label.textContent='Add Money';
+  }else if(name==='Settings'){
+    h.textContent='Settings';
+    p.textContent='Manage your profile, preferences and local data.';
+    label.textContent='New transaction';
+  }else{
+    h.textContent=cfg.label||'Transactions';
+    const bits=[TX.length+' records'];
+    if(cfg.account) bits.push(cfg.account);
+    if(cfg.category) bits.push(cfg.category);
+    p.textContent=bits.join(' · ')+' · stored locally.';
+    label.textContent='New transaction';
+  }
+}
+function activateNav(name){
+  const cfg=VIEWS[name]||{view:'transactions'};
+  currentNav=name;
+  document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.textContent.trim()===name));
+  showView(cfg.view);
+  if(cfg.view==='transactions'){
+    FILTER={q:'',status:'all',category:'all',account:'all'};
+    if(cfg.account) FILTER.account=cfg.account;
+    if(cfg.category) FILTER.category=cfg.category;
+    PAGE=1; syncFilterUI(); renderTable();
+    if(cfg.focus) setTimeout(()=>document.getElementById('txSearch').focus({preventScroll:true}),110);
+    if(cfg.export) setTimeout(openExport,110);
+  }
+  updateHead(name,cfg);
+}
+function routeSidebar(title){
+  document.querySelectorAll('.side-item').forEach(x=>x.classList.toggle('active',x.getAttribute('title')===title));
+  const target=SIDE_MAP[title];
+  if(target) activateNav(target);
+  else toast('Local demo — there is no account session to sign out of.','info');
+}
+function filterBySource(kw){
+  activateNav('Transactions');
+  FILTER.q=kw; PAGE=1;
+  syncFilterUI(); renderTable();
+  toast('Filtered by “'+kw+'”','info');
+}
+document.querySelectorAll('[data-src]').forEach(el=>{
+  el.addEventListener('click',e=>{ e.stopPropagation(); filterBySource(el.dataset.src); });
+});
+document.getElementById('actSearch').addEventListener('click',()=>{
+  activateNav('Transactions');
+  setTimeout(()=>document.getElementById('txSearch').focus({preventScroll:true}),110);
+});
+document.getElementById('actFilter').addEventListener('click',()=>{
+  activateNav('Transactions');
+  setTimeout(()=>document.getElementById('fStatus').focus({preventScroll:true}),110);
+});
+document.getElementById('actNew').addEventListener('click',()=>{
+  const onDashboard=document.getElementById('viewDashboard').classList.contains('active');
+  openTx(null,{type:onDashboard?'income':'expense'});
+});
+document.getElementById('btnNew').addEventListener('click',()=>openTx());
+document.getElementById('emptyNew').addEventListener('click',()=>openTx());
+document.getElementById('balTransfer').addEventListener('click',()=>openTx(null,{type:'expense'}));
+document.getElementById('balRequest').addEventListener('click',()=>openTx(null,{type:'income'}));
+document.getElementById('btnAI').addEventListener('click',()=>activateNav('AI Assistant'));
+[['btnMail','Email alerts'],['btnChat','Notifications']].forEach(pair=>{
+  document.getElementById(pair[0]).addEventListener('click',()=>{
+    const dot=document.querySelector('#'+pair[0]+' .dot');
+    if(dot) dot.remove();
+    activateNav('Settings');
+    toast(pair[1]+' marked as read','success');
+  });
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+fillSelectOptions();
+fillSettingsForm();
+applyPrefs();
+syncThemeSwitch();
+syncFilterUI();
+try{ if(!localStorage.getItem(LS_TX)) localStorage.setItem(LS_TX, JSON.stringify(TX)); }catch(e){}
+CHART=readChartTokens();
+renderFlow();          /* re-read tokens so an OS-dark first visit gets dark chart colors */
+refreshAll();
+updateHead('Dashboard',VIEWS['Dashboard']);
 </script>
 </body>
 </html>
