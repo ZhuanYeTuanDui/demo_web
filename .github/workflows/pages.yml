@@ -44,6 +44,13 @@ jobs:
       - name: 检查类型并构建
         run: pnpm build
 
+      # 静态设计 Demo 不参与 Vite 构建，构建后直接并入 dist，
+      # 访问路径：https://<owner>.github.io/demo_web/finasia-dashboard/
+      - name: 复制静态设计 Demo 到发布产物
+        run: |
+          mkdir -p dist/finasia-dashboard
+          cp "${{ github.workspace }}/finasia-dashboard/index.html" dist/finasia-dashboard/index.html
+
       - name: 上传静态站点
         uses: actions/upload-pages-artifact@v4
         with:
