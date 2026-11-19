@@ -12,37 +12,40 @@
    ============================================================ */
 :root{
   /* surfaces */
-  --bg:            #f2f3fa;
-  --shell:         #f7f7fc;
+  --bg:            #F4F6F2;
+  --shell:         #FAFBF8;
   --surface:       #ffffff;
-  --surface-soft:  #f6f6fa;
-  --line:          #edecf4;
+  --surface-soft:  #F3F6F1;
+  --line:          #E6EBE4;
 
   /* ink */
-  --ink:           #241c48;
-  --ink-2:         #5d5878;
-  --muted:         #a19db4;
-  --faint:         #c3c0d0;
+  --ink:           #1C2621;
+  --ink-2:         #5B665E;
+  --muted:         #98A29A;
+  --faint:         #C7CEC6;
 
   /* mint / teal */
-  --mint-1:        #8adccb;
-  --mint-2:        #55c3ae;
-  --mint-3:        #29a18d;
-  --mint-soft:     #a9e7d8;
-  --mint-ink:      #12463e;
+  --mint-1:        #CDEBE0;
+  --mint-2:        #A9DCCB;
+  --mint-3:        #5CB69E;
+  --mint-soft:     #DCEFE6;
+  --mint-ink:      #173A31;
 
   /* lavender + accent */
-  --lav:           #e8e6f5;
-  --blue:          #7ca8f2;
-  --green-bg:      #d3f5df;
-  --green-ink:     #2c9d64;
-  --red-bg:        #ffddd4;
-  --red-ink:       #e2674d;
+  --lav:           #EAE8F4;
+  --lav-surface:   #F4F2FA;
+  --lav-line:      #EAE7F4;
+  --lav-ink:       #8B84AD;
+  --blue:          #A99FD2;
+  --green-bg:      #E3F1E7;
+  --green-ink:     #3E8B5B;
+  --red-bg:        #FAE9E2;
+  --red-ink:       #C2705A;
 
   /* elevation */
-  --sh-sm: 0 4px 14px rgba(40,30,80,.045);
-  --sh-md: 0 10px 30px rgba(40,30,80,.055);
-  --sh-lg: 0 24px 60px rgba(40,30,80,.075), 0 2px 8px rgba(40,30,80,.03);
+  --sh-sm: 0 4px 14px rgba(24,34,28,.045);
+  --sh-md: 0 10px 30px rgba(24,34,28,.055);
+  --sh-lg: 0 24px 60px rgba(24,34,28,.075), 0 2px 8px rgba(24,34,28,.03);
 
   --r-card: 20px;
   --r-pill: 999px;
@@ -52,7 +55,7 @@
 html,body{margin:0;padding:0}
 body{
   font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
-  background:radial-gradient(1200px 700px at 12% -8%, #eef0fb 0%, var(--bg) 62%);
+  background:radial-gradient(1200px 700px at 12% -8%, #EDF1EA 0%, var(--bg) 62%);
   color:var(--ink);
   min-height:100vh;
   padding:22px;
@@ -89,30 +92,30 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
   box-shadow:var(--sh-sm);margin-left:12px;
 }
 .nav-item{
-  font-size:12px;font-weight:600;color:#8b87a0;
+  font-size:12px;font-weight:600;color:#8B958C;
   padding:9px 15px;border-radius:var(--r-pill);white-space:nowrap;
   transition:background .2s,color .2s,transform .2s;
 }
-.nav-item:hover{color:var(--ink);background:#f6f5fb}
-.nav-item.active{background:var(--ink);color:#fff;box-shadow:0 4px 12px rgba(36,28,72,.22)}
+.nav-item:hover{color:var(--ink);background:#F4F7F2}
+.nav-item.active{background:var(--ink);color:#fff;box-shadow:0 4px 12px rgba(24,34,28,.22)}
 .nav-item.active:hover{background:var(--ink);color:#fff}
 
 .top-actions{margin-left:auto;display:flex;align-items:center;gap:9px}
 .ai-btn{
   width:54px;height:37px;border-radius:var(--r-pill);background:var(--ink);color:#fff;
-  display:grid;place-items:center;box-shadow:0 5px 14px rgba(36,28,72,.22);
+  display:grid;place-items:center;box-shadow:0 5px 14px rgba(24,34,28,.22);
   transition:transform .2s;
 }
 .ai-btn:hover{transform:translateY(-2px)}
 .ai-btn .ic{width:18px;height:18px;stroke-width:1.6}
 .round{
-  width:37px;height:37px;border-radius:50%;background:#fff;color:#8b87a0;
+  width:37px;height:37px;border-radius:50%;background:#fff;color:#8B958C;
   display:grid;place-items:center;box-shadow:var(--sh-sm);position:relative;
   transition:transform .2s,color .2s;
 }
 .round:hover{transform:translateY(-2px);color:var(--ink)}
 .round.ghost{background:transparent;box-shadow:none}
-.dot{position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:#ff6b6b;border:1.5px solid #fff}
+.dot{position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:#E08A7A;border:1.5px solid #fff}
 .avatar{width:36px;height:36px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 2px #fff,var(--sh-sm);flex:0 0 auto}
 .avatar svg{width:100%;height:100%;display:block}
 
@@ -128,18 +131,18 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
 }
 .side-item{
   width:40px;height:40px;border-radius:13px;display:grid;place-items:center;
-  color:#b6b2c4;position:relative;transition:background .2s,color .2s,transform .2s;
+  color:#B2BBB1;position:relative;transition:background .2s,color .2s,transform .2s;
 }
 .side-item .ic{width:18px;height:18px}
-.side-item:hover{color:var(--ink);background:#f5f4fa;transform:translateX(2px)}
-.side-item.active{background:var(--ink);color:#fff;border-radius:50%;box-shadow:0 6px 16px rgba(36,28,72,.28)}
+.side-item:hover{color:var(--ink);background:#F3F6F1;transform:translateX(2px)}
+.side-item.active{background:var(--ink);color:#fff;border-radius:50%;box-shadow:0 6px 16px rgba(24,34,28,.28)}
 .side-item.active:hover{background:var(--ink);color:#fff;transform:none}
 .side-item .dot{top:5px;right:5px;width:6px;height:6px}
 .side-spacer{flex:1}
 
 .main{
   flex:1;min-width:0;background:var(--surface);border-radius:24px;
-  padding:25px 28px 28px;box-shadow:0 8px 26px rgba(40,30,80,.03);
+  padding:25px 28px 28px;box-shadow:0 8px 26px rgba(24,34,28,.03);
 }
 
 /* ---- page head ---- */
@@ -155,34 +158,34 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
   transition:transform .2s,box-shadow .2s,filter .2s;white-space:nowrap;
 }
 .pill:hover{transform:translateY(-2px)}
-.pill.ghost{background:var(--surface-soft);color:#7c7891}
+.pill.ghost{background:var(--surface-soft);color:#7B867C}
 .pill.ghost:hover{box-shadow:var(--sh-sm)}
-.pill.mint{background:linear-gradient(135deg,#b6ebdd,#96dccb);color:#155a4f;box-shadow:0 6px 16px rgba(85,195,174,.25)}
-.pill.mint:hover{filter:brightness(1.03);box-shadow:0 9px 20px rgba(85,195,174,.32)}
+.pill.mint{background:linear-gradient(135deg,#DCEFE6,#BFE0D0);color:#1D4438;box-shadow:0 6px 16px rgba(90,170,145,.16)}
+.pill.mint:hover{filter:brightness(1.03);box-shadow:0 9px 20px rgba(90,170,145,.22)}
 .pill.mint .ic{width:15px;height:15px;stroke-width:2.2}
 
 /* ============================================================
    BENTO GRID — 11 columns
    ============================================================ */
 .bento{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));grid-template-rows:246px 288px;gap:16px}
-.card{background:#fff;border:1px solid var(--line);border-radius:var(--r-card);box-shadow:0 5px 18px rgba(40,30,80,.022);padding:18px;min-width:0}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r-card);box-shadow:0 5px 18px rgba(24,34,28,.022);padding:18px;min-width:0}
 .card-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .card-title{font-size:13.5px;font-weight:800;letter-spacing:-.25px;white-space:nowrap}
-.more{font-size:15px;letter-spacing:1.5px;color:#a7a3b7;line-height:1;cursor:pointer;padding:2px 4px}
+.more{font-size:15px;letter-spacing:1.5px;color:#A2ABA1;line-height:1;cursor:pointer;padding:2px 4px}
 .more:hover{color:var(--ink)}
 
 /* dropdown pill */
 .dd{position:relative}
 .dd-btn{
-  background:#fff;border:1px solid #f0eff6;border-radius:var(--r-pill);
-  padding:5px 10px;font-size:10.5px;font-weight:700;color:#8b87a0;
+  background:#fff;border:1px solid #ECF0E9;border-radius:var(--r-pill);
+  padding:5px 10px;font-size:10.5px;font-weight:700;color:#8B958C;
   display:inline-flex;align-items:center;gap:6px;box-shadow:var(--sh-sm);white-space:nowrap;
 }
 .dd-btn .chev{width:9px;height:9px;stroke-width:2.4}
 .dd-menu{
   position:absolute;right:0;top:calc(100% + 7px);z-index:20;min-width:120px;
   background:#fff;border:1px solid var(--line);border-radius:13px;padding:5px;
-  box-shadow:0 14px 34px rgba(40,30,80,.13);display:none;
+  box-shadow:0 14px 34px rgba(24,34,28,.13);display:none;
 }
 .dd.open .dd-menu{display:block}
 .dd-menu div{font-size:11px;font-weight:600;color:var(--ink-2);padding:8px 10px;border-radius:8px;white-space:nowrap}
@@ -194,31 +197,31 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
    ============================================================ */
 .balance{
   grid-column:span 3;border:none;padding:10px;color:var(--mint-ink);
-  background:linear-gradient(166deg,#8fdfcf 0%,#5bc6b2 44%,#2ca38f 100%);
-  box-shadow:0 16px 34px rgba(42,163,143,.24);
+  background:linear-gradient(166deg,#D6EBE2 0%,#BEDFD1 44%,#A7D3C0 100%);
+  box-shadow:0 16px 34px rgba(70,140,120,.15);
   display:flex;flex-direction:column;overflow:hidden;position:relative;
 }
 .balance::before{
   content:'';position:absolute;width:230px;height:230px;right:-90px;top:-110px;
-  border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.22),transparent 68%);
+  border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.34),transparent 68%);
 }
 .balance::after{
   content:'';position:absolute;width:180px;height:180px;left:-70px;bottom:-90px;
-  border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.10),transparent 70%);
+  border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.14),transparent 70%);
 }
 .balance-top{
   position:relative;z-index:1;flex:1;
-  background:rgba(255,255,255,.20);border:1px solid rgba(255,255,255,.34);
+  background:rgba(255,255,255,.46);border:1px solid rgba(255,255,255,.62);
   border-radius:16px;padding:13px 14px 14px;
   display:flex;flex-direction:column;
 }
 .b-row{display:flex;align-items:center;justify-content:space-between}
 .b-lbl{font-size:11px;font-weight:700;opacity:.78;display:inline-flex;align-items:center;gap:6px}
 .b-lbl .ic{width:12px;height:12px}
-.b-amount{font-size:29px;font-weight:800;letter-spacing:-1.4px;margin:5px 0 8px;color:#103e37;line-height:1.1}
+.b-amount{font-size:29px;font-weight:800;letter-spacing:-1.4px;margin:5px 0 8px;color:#173A31;line-height:1.1}
 .b-growth{display:flex;align-items:center;gap:8px;margin-bottom:auto}
 .growth-badge{
-  background:rgba(18,88,76,.78);color:#fff;border-radius:var(--r-pill);
+  background:rgba(30,80,66,.88);color:#fff;border-radius:var(--r-pill);
   padding:5px 9px;font-size:10px;font-weight:800;display:inline-flex;gap:4px;align-items:center;
 }
 .growth-badge .ic{width:11px;height:11px;stroke-width:2.4}
@@ -231,12 +234,12 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
 }
 .b-btn:hover{transform:translateY(-2px)}
 .b-btn .ic{width:13px;height:13px}
-.b-btn.dark{background:var(--ink);color:#fff;box-shadow:0 6px 14px rgba(36,28,72,.24)}
-.b-btn.light{background:#fff;color:#2b2a45;box-shadow:0 6px 14px rgba(20,60,55,.12)}
-.balance-bottom{position:relative;z-index:1;padding:12px 6px 2px;color:#fff}
+.b-btn.dark{background:var(--ink);color:#fff;box-shadow:0 6px 14px rgba(24,34,28,.24)}
+.b-btn.light{background:#fff;color:#26332C;box-shadow:0 6px 14px rgba(30,60,50,.09)}
+.balance-bottom{position:relative;z-index:1;padding:12px 6px 2px;color:var(--mint-ink)}
 .b-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .b-key{font-size:9.5px;font-weight:700;opacity:.82;display:flex;align-items:center;gap:5px}
-.b-key i{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.9);display:inline-block}
+.b-key i{width:5px;height:5px;border-radius:50%;background:rgba(23,58,49,.5);display:inline-block}
 .b-val{font-size:17px;font-weight:800;letter-spacing:-.5px;margin-top:3px}
 .b-updated{font-size:9px;font-weight:600;opacity:.65;display:flex;align-items:center;gap:5px;margin-top:9px}
 .b-updated .ic{width:11px;height:11px}
@@ -246,14 +249,14 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
    ============================================================ */
 .stat-col{grid-column:span 3;display:flex;flex-direction:column;gap:16px;min-width:0}
 .stat-card{
-  flex:1;min-height:0;background:var(--surface-soft);border:1px solid #f0eff6;
+  flex:1;min-height:0;background:var(--lav-surface);border:1px solid var(--lav-line);
   border-radius:18px;padding:13px 15px;display:flex;flex-direction:column;justify-content:space-between;
 }
 .stat-top{display:flex;align-items:center;justify-content:space-between}
-.stat-ico{width:29px;height:29px;border-radius:50%;background:#fff;color:#9893ad;display:grid;place-items:center;box-shadow:var(--sh-sm)}
+.stat-ico{width:29px;height:29px;border-radius:50%;background:#fff;color:var(--lav-ink);display:grid;place-items:center;box-shadow:var(--sh-sm)}
 .stat-ico .ic{width:14px;height:14px}
 .stat-tools{display:flex;align-items:center;gap:8px}
-.stat-label{font-size:11px;font-weight:600;color:#a09caf}
+.stat-label{font-size:11px;font-weight:600;color:#9CA69C}
 .stat-value-row{display:flex;align-items:center;gap:9px}
 .stat-value{font-size:21px;font-weight:800;letter-spacing:-.7px;line-height:1}
 .badge{border-radius:var(--r-pill);padding:4px 8px;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;gap:3px}
@@ -270,18 +273,18 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
   display:grid;grid-template-columns:.95fr 1fr 1.28fr .95fr 34px;align-items:center;
   padding:9px 11px;font-size:11px;font-weight:600;
 }
-.thead{background:var(--surface-soft);border-radius:11px;color:#9b97ad;font-size:10px;font-weight:700;letter-spacing:.2px;padding-top:12px;padding-bottom:12px}
-.tbody .trow{border-bottom:1px solid #f5f4f9;color:#6d6884;transition:background .2s;border-radius:9px;padding-top:12px;padding-bottom:12px}
-.tbody .trow:hover{background:#faf9fd}
+.thead{background:var(--surface-soft);border-radius:11px;color:#98A299;font-size:10px;font-weight:700;letter-spacing:.2px;padding-top:12px;padding-bottom:12px}
+.tbody .trow{border-bottom:1px solid #F2F5F0;color:#6A756B;transition:background .2s;border-radius:9px;padding-top:12px;padding-bottom:12px}
+.tbody .trow:hover{background:#F8FAF6}
 .tbody .trow:last-child{border-bottom:none}
-.t-amount{font-weight:700;color:#3c3759}
-.t-date{color:#a5a1b4;font-size:10.5px}
+.t-amount{font-weight:700;color:#33403A}
+.t-date{color:#A2ABA2;font-size:10.5px}
 .t-status{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800}
 .t-status i{width:5px;height:5px;border-radius:50%;background:currentColor}
-.t-status.ok{color:#39a86e}
-.t-status.no{color:#e2674d}
+.t-status.ok{color:#4A9668}
+.t-status.no{color:#C2705A}
 .t-action{display:flex;justify-content:flex-end}
-.t-action .ic{width:14px;height:14px;color:#b9b5c7;cursor:pointer}
+.t-action .ic{width:14px;height:14px;color:#B4BDB3;cursor:pointer}
 .t-action .ic:hover{color:var(--ink)}
 
 /* ============================================================
@@ -290,7 +293,7 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
 .flow{grid-column:span 6;padding:17px 18px 12px;display:flex;flex-direction:column}
 .flow .tools{flex-wrap:wrap;justify-content:flex-end}
 .legend{display:inline-flex;align-items:center;gap:11px;margin-right:2px}
-.legend span{font-size:10px;font-weight:700;color:#918da4;display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none;transition:opacity .2s}
+.legend span{font-size:10px;font-weight:700;color:#8C968D;display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none;transition:opacity .2s}
 .legend span:hover{opacity:.6}
 .legend span.off{opacity:.35;text-decoration:line-through}
 .legend i{width:7px;height:7px;border-radius:50%;display:inline-block}
@@ -299,11 +302,11 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
 .chart-tip{
   position:absolute;transform:translate(-50%,-100%);pointer-events:none;
   background:var(--ink);color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.1px;
-  padding:7px 12px;border-radius:var(--r-pill);box-shadow:0 8px 18px rgba(36,28,72,.28);
+  padding:7px 12px;border-radius:var(--r-pill);box-shadow:0 8px 18px rgba(24,34,28,.28);
   white-space:nowrap;transition:left .12s ease,top .12s ease;
 }
 .chart-tip::after{content:'';position:absolute;left:50%;bottom:-4px;width:8px;height:8px;background:var(--ink);transform:translateX(-50%) rotate(45deg);border-radius:1px}
-.axis-txt{font-size:9.5px;fill:#b9b5c7;font-weight:600}
+.axis-txt{font-size:9.5px;fill:#B4BDB3;font-weight:600}
 
 /* ============================================================
    5. INCOME SOURCE — bubble chart
@@ -312,40 +315,40 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
 .bubbles{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
 .bubble-wrap{position:relative;width:360px;height:200px;max-width:100%}
 .bubble-wrap>svg.leaders{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-.leaders path{fill:none;stroke:#4a4463;stroke-width:1.15;stroke-linecap:round;stroke-linejoin:round}
-.leaders circle{fill:#2b2745}
+.leaders path{fill:none;stroke:#5E6A61;stroke-width:1.15;stroke-linecap:round;stroke-linejoin:round}
+.leaders circle{fill:#3C4740}
 .bubble{
   position:absolute;border-radius:50%;display:grid;place-items:center;font-weight:800;
-  color:#26314f;transition:transform .25s ease,box-shadow .25s ease;cursor:pointer;
+  color:#2C3B33;transition:transform .25s ease,box-shadow .25s ease;cursor:pointer;
 }
 .bubble:hover{transform:scale(1.05);z-index:4}
 .b1{left:100px;top:30px;width:146px;height:146px;font-size:31px;letter-spacing:-1.5px;
-  background:linear-gradient(145deg,rgba(132,217,203,.94),rgba(66,184,167,.88));
-  box-shadow:0 14px 30px rgba(55,175,158,.22),inset 0 2px 10px rgba(255,255,255,.28);z-index:2}
+  background:linear-gradient(145deg,rgba(198,229,215,.92),rgba(150,206,188,.88));
+  box-shadow:0 14px 30px rgba(90,160,138,.15),inset 0 2px 10px rgba(255,255,255,.28);z-index:2}
 .b2{left:212px;top:94px;width:88px;height:88px;font-size:17px;
   background:rgba(255,255,255,.76);border:1px solid rgba(255,255,255,.95);
-  box-shadow:0 10px 24px rgba(40,30,80,.08),inset 0 0 22px rgba(120,210,195,.16);
+  box-shadow:0 10px 24px rgba(24,34,28,.08),inset 0 0 22px rgba(150,205,185,.13);
   backdrop-filter:blur(3px);z-index:3}
 .b3{left:112px;top:8px;width:54px;height:54px;font-size:11px;
   background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.95);
-  box-shadow:0 8px 18px rgba(40,30,80,.07),inset 0 0 16px rgba(120,210,195,.18);
+  box-shadow:0 8px 18px rgba(24,34,28,.07),inset 0 0 16px rgba(186,178,222,.26);
   backdrop-filter:blur(3px);z-index:3}
 .tag{
   position:absolute;height:25px;padding:0 10px;border-radius:var(--r-pill);
-  background:#fff;border:1px solid #efedf6;box-shadow:var(--sh-sm);
-  display:inline-flex;align-items:center;gap:7px;font-size:9px;font-weight:700;color:#8b87a0;z-index:5;
+  background:#fff;border:1px solid #EAEEE8;box-shadow:var(--sh-sm);
+  display:inline-flex;align-items:center;gap:7px;font-size:9px;font-weight:700;color:#8B958C;z-index:5;
 }
-.tag b{font-size:11px;color:#6b6684;line-height:1}
+.tag b{font-size:11px;color:#6B756C;line-height:1}
 .tag:hover{color:var(--ink);transform:translateY(-1px)}
 .t1{left:6px;top:6px}.t2{left:266px;top:78px}.t3{left:10px;top:130px}
 .source-stats{
   display:grid;grid-template-columns:repeat(3,1fr);gap:0;
-  border-top:1px solid #f1f0f7;padding-top:13px;margin-top:10px;
+  border-top:1px solid #ECF0E9;padding-top:13px;margin-top:10px;
 }
 .source-stats>div{padding-left:2px}
-.source-stats>div+div{border-left:1px solid #ecebf3;padding-left:15px}
+.source-stats>div+div{border-left:1px solid #E7EBE4;padding-left:15px}
 .ss-val{font-size:14.5px;font-weight:800;letter-spacing:-.5px;white-space:nowrap}
-.ss-key{font-size:10.5px;font-weight:600;color:#a5a1b4;margin-top:3px}
+.ss-key{font-size:10.5px;font-weight:600;color:#A2ABA2;margin-top:3px}
 
 /* ============================================================
    TOAST
@@ -353,7 +356,7 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
 .toast{
   position:fixed;left:50%;bottom:28px;transform:translate(-50%,18px);
   background:var(--ink);color:#fff;font-size:12px;font-weight:600;
-  padding:11px 18px;border-radius:var(--r-pill);box-shadow:0 14px 34px rgba(36,28,72,.28);
+  padding:11px 18px;border-radius:var(--r-pill);box-shadow:0 14px 34px rgba(24,34,28,.28);
   opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:99;
 }
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -433,9 +436,9 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
   <header class="topbar">
     <div class="brand">
       <svg viewBox="0 0 28 28" aria-hidden="true">
-        <path d="M7 23V6.5c0-.8.6-1.5 1.5-1.5H21v4.6h-9.4v3.1h7.7v4.5h-7.7v5.8Z" fill="#2c2154"/>
-        <circle cx="7.6" cy="25" r="1.8" fill="#4ec4ae"/>
-        <path d="M21 5h2.6v4.6H21z" fill="#4ec4ae"/>
+        <path d="M7 23V6.5c0-.8.6-1.5 1.5-1.5H21v4.6h-9.4v3.1h7.7v4.5h-7.7v5.8Z" fill="#24332C"/>
+        <circle cx="7.6" cy="25" r="1.8" fill="#5CB69E"/>
+        <path d="M21 5h2.6v4.6H21z" fill="#5CB69E"/>
       </svg>
       <span>Finasia</span>
     </div>
@@ -459,15 +462,15 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
         <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
           <defs><clipPath id="avClip"><circle cx="20" cy="20" r="20"/></clipPath></defs>
           <g clip-path="url(#avClip)">
-            <rect width="40" height="40" fill="#f3ddcb"/>
-            <path d="M2 40c0-9.5 7.5-14.5 18-14.5S38 30.5 38 40Z" fill="#3a3358"/>
-            <path d="M13 25h14v8a7 7 0 0 1-14 0Z" fill="#efc5a4"/>
-            <ellipse cx="20" cy="17" rx="8.5" ry="9.5" fill="#f2cbab"/>
-            <path d="M11 16.5C10 8 14.5 4.5 20 4.5s10 3.5 9 12c-.8-4.6-2.5-6.8-4.6-7.6-3.8-1.4-8.8-.4-10.6 2.2-.9 1.3-1.6 3-1.8 5.4Z" fill="#3b2a26"/>
-            <path d="M11.5 15c-1.6 4-1.2 8.5.5 11-2.8-1.4-4-5-3.2-9.5.3-1.6.8-2.8 1.5-3.8Z" fill="#3b2a26"/>
-            <path d="M28.5 15c1.6 4 1.2 8.5-.5 11 2.8-1.4 4-5 3.2-9.5-.3-1.6-.8-2.8-1.5-3.8Z" fill="#3b2a26"/>
-            <circle cx="16.8" cy="17.5" r=".85" fill="#3b2a26"/><circle cx="23.2" cy="17.5" r=".85" fill="#3b2a26"/>
-            <path d="M18 21.2c1.2 1 2.8 1 4 0" stroke="#c98f74" stroke-width=".9" fill="none" stroke-linecap="round"/>
+            <rect width="40" height="40" fill="#F5E7D9"/>
+            <path d="M2 40c0-9.5 7.5-14.5 18-14.5S38 30.5 38 40Z" fill="#3D4A44"/>
+            <path d="M13 25h14v8a7 7 0 0 1-14 0Z" fill="#EFCAAE"/>
+            <ellipse cx="20" cy="17" rx="8.5" ry="9.5" fill="#F3D1B3"/>
+            <path d="M11 16.5C10 8 14.5 4.5 20 4.5s10 3.5 9 12c-.8-4.6-2.5-6.8-4.6-7.6-3.8-1.4-8.8-.4-10.6 2.2-.9 1.3-1.6 3-1.8 5.4Z" fill="#3A302C"/>
+            <path d="M11.5 15c-1.6 4-1.2 8.5.5 11-2.8-1.4-4-5-3.2-9.5.3-1.6.8-2.8 1.5-3.8Z" fill="#3A302C"/>
+            <path d="M28.5 15c1.6 4 1.2 8.5-.5 11 2.8-1.4 4-5 3.2-9.5-.3-1.6-.8-2.8-1.5-3.8Z" fill="#3A302C"/>
+            <circle cx="16.8" cy="17.5" r=".85" fill="#3A302C"/><circle cx="23.2" cy="17.5" r=".85" fill="#3A302C"/>
+            <path d="M18 21.2c1.2 1 2.8 1 4 0" stroke="#C9947C" stroke-width=".9" fill="none" stroke-linecap="round"/>
           </g>
         </svg>
       </div>
@@ -613,8 +616,8 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
             <div class="card-title">Money Flow</div>
             <div class="tools">
               <div class="legend">
-                <span data-series="income"><i style="background:#4ec4ae"></i>Income</span>
-                <span data-series="expense"><i style="background:#7ca8f2"></i>Expense</span>
+                <span data-series="income"><i style="background:#5CB69E"></i>Income</span>
+                <span data-series="expense"><i style="background:#A99FD2"></i>Expense</span>
               </div>
               <div class="dd">
                 <button class="dd-btn"><span class="dd-label">All Accounts</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
@@ -765,7 +768,7 @@ function renderFlow(){
   for(let v=MAX; v>=5000; v-=5000){
     const y = Y(v);
     grid += `<text class="axis-txt" x="0" y="${(y+3).toFixed(1)}">$${(v/1000).toFixed(0)},000</text>`;
-    grid += `<line x1="${L}" y1="${y.toFixed(1)}" x2="${W-R}" y2="${y.toFixed(1)}" stroke="#f4f3f9" stroke-width="1"/>`;
+    grid += `<line x1="${L}" y1="${y.toFixed(1)}" x2="${W-R}" y2="${y.toFixed(1)}" stroke="#F1F4EF" stroke-width="1"/>`;
   }
   MONTHS.forEach((m,i)=>{
     grid += `<text class="axis-txt" x="${X(i).toFixed(1)}" y="${(H-3).toFixed(1)}" text-anchor="middle">${m}</text>`;
@@ -777,30 +780,30 @@ function renderFlow(){
   svg.innerHTML = `
     <defs>
       <linearGradient id="gMint" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%"  stop-color="#7fd8c4" stop-opacity=".55"/>
-        <stop offset="55%" stop-color="#a9e9dc" stop-opacity=".30"/>
-        <stop offset="100%" stop-color="#d9f6ef" stop-opacity=".04"/>
+        <stop offset="0%"  stop-color="#9ED3BE" stop-opacity=".62"/>
+        <stop offset="55%" stop-color="#C9E7D9" stop-opacity=".34"/>
+        <stop offset="100%" stop-color="#EFF7F2" stop-opacity=".04"/>
       </linearGradient>
       <linearGradient id="gBlue" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%"  stop-color="#8fb6f5" stop-opacity=".40"/>
-        <stop offset="60%" stop-color="#bed5fa" stop-opacity=".26"/>
-        <stop offset="100%" stop-color="#e8f0fd" stop-opacity=".03"/>
+        <stop offset="0%"  stop-color="#C9C2E8" stop-opacity=".34"/>
+        <stop offset="60%" stop-color="#DDD8F0" stop-opacity=".22"/>
+        <stop offset="100%" stop-color="#F4F2FB" stop-opacity=".03"/>
       </linearGradient>
     </defs>
     ${grid}
     <!-- horizontal dotted guide -->
     <line x1="${L}" y1="${Y(25000).toFixed(1)}" x2="${W-R}" y2="${Y(25000).toFixed(1)}"
-          stroke="#cbc7db" stroke-width="1.2" stroke-dasharray="2 4"/>
+          stroke="#C7CFC5" stroke-width="1.2" stroke-dasharray="2 4"/>
     <g id="seriesIncome" style="display:${visible.income?'':'none'}">
       <path d="${iArea}" fill="url(#gMint)"/>
-      <path d="${iLine}" fill="none" stroke="#63c9b4" stroke-width="2" stroke-linecap="round"/>
+      <path d="${iLine}" fill="none" stroke="#54A98F" stroke-width="2.2" stroke-linecap="round"/>
     </g>
     <g id="seriesExpense" style="display:${visible.expense?'':'none'}">
       <path d="${eArea}" fill="url(#gBlue)"/>
-      <path d="${eLine}" fill="none" stroke="#7ca8f2" stroke-width="2" stroke-linecap="round"/>
+      <path d="${eLine}" fill="none" stroke="#A99FD2" stroke-width="2.2" stroke-linecap="round"/>
     </g>
     <line id="vGuide" x1="0" y1="${Y(30124).toFixed(1)}" x2="0" y2="${baseY.toFixed(1)}"
-          stroke="#b9b4cc" stroke-width="1.2" stroke-dasharray="2 4"/>
+          stroke="#BCC5BB" stroke-width="1.2" stroke-dasharray="2 4"/>
   `;
   window.__flowGeom = {W,H,L,R,T,B,X,Y,pw};
   setActivePoint(3);
