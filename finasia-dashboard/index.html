@@ -144,7 +144,7 @@ body{
   text-rendering:optimizeLegibility;
 }
 button{font-family:inherit;border:none;background:none;cursor:pointer;color:inherit}
-:where(button,[tabindex],.dd-menu div,.t-action .ic):focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+:where(button,[tabindex],.csel-opt,.csel-x,.csel-chip-x,.t-action .ic):focus-visible{outline:2px solid var(--ring);outline-offset:2px}
 .sprite{position:absolute;width:0;height:0;overflow:hidden}
 .ic{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
 
@@ -251,28 +251,7 @@ button{font-family:inherit;border:none;background:none;cursor:pointer;color:inhe
 .more{font-size:15px;letter-spacing:1.5px;color:var(--muted-foreground);line-height:1;cursor:pointer;padding:2px 4px}
 .more:hover{color:var(--ink)}
 
-/* dropdown pill */
-.dd{position:relative}
-.dd-btn{
-  background:var(--card);border:1px solid var(--border-soft);border-radius:var(--r-pill);
-  padding:5px 10px;font-size:10.5px;font-weight:700;color:var(--muted-foreground);
-  display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
-}
-.dd-btn .chev{width:9px;height:9px;stroke-width:2.4}
-.dd-menu{
-  position:absolute;right:0;top:calc(100% + 7px);z-index:20;min-width:120px;
-  background:var(--popover);border:1px solid var(--border);border-radius:var(--r-lg);padding:5px;
-  box-shadow:var(--sh-lg);
-  opacity:0;visibility:hidden;pointer-events:none;
-  transform:translateY(calc(var(--distance-micro) * -1)) scale(var(--scale-medium));
-  transition:opacity var(--duration-quick) var(--ease-smooth-out),transform var(--duration-quick) var(--ease-smooth-out),visibility 0s linear var(--duration-quick);
-}
-.dd.open .dd-menu{
-  opacity:1;visibility:visible;pointer-events:auto;transform:none;
-  transition-duration:var(--duration-fast);transition-delay:0s;
-}
-.dd-menu div{font-size:11px;font-weight:600;color:var(--ink-2);padding:8px 10px;border-radius:var(--r-sm);white-space:nowrap}
-.dd-menu div:hover{background:var(--surface-soft);color:var(--ink)}
+/* dashboard pills now use the unified .csel panel (see CUSTOM SELECT) */
 .tools{display:flex;align-items:center;gap:9px}
 
 /* ============================================================
@@ -544,12 +523,12 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
 @keyframes u-spin{to{transform:rotate(360deg)}}
 
 /* ============================================================
-   FIELDS — label / input / textarea / select / helper / error
+   FIELDS — label / input / textarea / helper / error
    ============================================================ */
 .field{display:flex;flex-direction:column;gap:6px;min-width:0}
 .label{font-size:10.5px;font-weight:700;color:var(--secondary-foreground);letter-spacing:.01em}
 .label .req{color:var(--red-ink);margin-left:2px}
-.input,.textarea,.select{
+.input,.textarea{
   width:100%;background:var(--card);border:1px solid var(--input);
   border-radius:var(--r-md);color:var(--foreground);font-family:inherit;
   font-size:12px;font-weight:600;padding:9px 12px;outline:none;
@@ -559,16 +538,10 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
 }
 .textarea{resize:vertical;min-height:76px;line-height:1.55}
 .input::placeholder,.textarea::placeholder{color:var(--faint);font-weight:500}
-.input:hover:not(:disabled),.textarea:hover:not(:disabled),.select:hover:not(:disabled){border-color:var(--faint)}
-.input:focus,.textarea:focus,.select:focus{
-  border-color:var(--ring);
-  box-shadow:0 0 0 3px var(--focus-halo);
-}
-.input:disabled,.textarea:disabled,.select:disabled{opacity:.55;cursor:not-allowed;background:var(--muted-surface)}
+.input:hover:not(:disabled),.textarea:hover:not(:disabled){border-color:var(--faint)}
+.input:focus,.textarea:focus{border-color:var(--ring);box-shadow:0 0 0 3px var(--focus-halo)}
+.input:disabled,.textarea:disabled{opacity:.55;cursor:not-allowed;background:var(--muted-surface)}
 .input[readonly]{background:var(--muted-surface);color:var(--muted-foreground)}
-.select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:30px}
-.select-wrap{position:relative;display:block}
-.select-wrap .chev{position:absolute;right:11px;top:50%;transform:translateY(-50%);width:12px;height:12px;color:var(--muted-foreground);pointer-events:none;stroke-width:2.2}
 .input-wrap{position:relative;display:flex;align-items:center}
 .input-wrap>.ic{position:absolute;left:11px;width:15px;height:15px;color:var(--muted-foreground);pointer-events:none}
 .input-wrap.has-icon .input{padding-left:34px}
@@ -584,8 +557,124 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
 .counter{margin-left:auto;font-size:10px;font-weight:600;color:var(--muted-foreground);font-variant-numeric:tabular-nums}
 .field.invalid .err{display:flex}
 .field.invalid .helper{display:none}
-.field.invalid .input,.field.invalid .textarea,.field.invalid .select{border-color:var(--red-ink)}
-.field.invalid .input:focus,.field.invalid .textarea:focus,.field.invalid .select:focus{box-shadow:0 0 0 3px var(--red-bg)}
+.field.invalid .input,.field.invalid .textarea,.field.invalid .csel-trigger{border-color:var(--red-ink)}
+.field.invalid .input:focus,.field.invalid .textarea:focus,.field.invalid .csel-trigger:focus-visible{box-shadow:0 0 0 3px var(--red-bg)}
+
+/* ============================================================
+   CUSTOM SELECT — one component powers every dropdown on the page.
+   No <select>, no appearance:*, no native popup. Panels are
+   appended to <body> with fixed coordinates, so they are never
+   clipped by scrollable views or modal bodies.
+   ============================================================ */
+.csel{position:relative;display:block;min-width:0}
+.csel-trigger{
+  width:100%;min-height:36px;background:var(--card);border:1px solid var(--input);
+  border-radius:var(--r-md);color:var(--foreground);font-family:inherit;
+  font-size:12px;font-weight:600;padding:8px 10px 8px 12px;outline:none;
+  display:flex;align-items:center;gap:8px;text-align:left;cursor:pointer;
+  transition:border-color var(--duration-quick) var(--ease-out),
+             box-shadow var(--duration-quick) var(--ease-out),
+             background-color var(--duration-quick) var(--ease-out);
+}
+.csel-trigger:hover{border-color:var(--faint)}
+.csel-trigger:focus-visible,.csel.is-open .csel-trigger{border-color:var(--ring);box-shadow:0 0 0 3px var(--focus-halo)}
+.csel-value{flex:1;min-width:0;display:flex;align-items:center;gap:5px;flex-wrap:wrap;overflow:hidden}
+.csel-ph{color:var(--faint);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.csel-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.csel-group-tag{font-size:9.5px;font-weight:700;color:var(--muted-foreground);background:var(--muted-surface);border:1px solid var(--border-soft);border-radius:var(--r-pill);padding:1px 7px;flex:0 0 auto}
+.csel-tools{display:flex;align-items:center;gap:3px;flex:0 0 auto;margin-left:auto}
+.csel-tools .ic{width:14px;height:14px;color:var(--muted-foreground);stroke-width:2.1}
+.csel-chev{transition:transform var(--duration-quick) var(--ease-smooth-out)}
+.csel.is-open .csel-chev{transform:rotate(180deg)}
+.csel-x{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;color:var(--muted-foreground);cursor:pointer;opacity:.6}
+.csel-x:hover{background:var(--accent);color:var(--foreground);opacity:1}
+.csel-x .ic{width:11px;height:11px}
+.csel-chip{
+  display:inline-flex;align-items:center;gap:4px;height:21px;padding:0 5px 0 8px;
+  border-radius:var(--r-pill);background:var(--mint-soft);border:1px solid var(--lav-line);
+  color:var(--mint-ink);font-size:10px;font-weight:700;white-space:nowrap;max-width:100%;
+}
+.csel-chip-x{display:grid;place-items:center;width:14px;height:14px;border-radius:50%;color:inherit;opacity:.65;cursor:pointer}
+.csel-chip-x:hover{opacity:1;background:var(--mint-2)}
+.csel-chip-x .ic{width:9px;height:9px}
+.csel-chip.csel-more{background:var(--muted-surface);border-color:var(--border);color:var(--secondary-foreground);padding:0 8px}
+
+/* pill variant — keeps the original dashboard dropdown pill look */
+.csel--pill{display:inline-flex}
+.csel--pill .csel-trigger{
+  width:auto;min-height:0;background:var(--card);border:1px solid var(--border-soft);
+  border-radius:var(--r-pill);padding:5px 9px;font-size:10.5px;font-weight:700;
+  color:var(--muted-foreground);gap:5px;
+}
+.csel--pill .csel-trigger:hover,.csel--pill.is-open .csel-trigger{color:var(--foreground)}
+.csel--pill .csel-tools .ic{width:9px;height:9px;stroke-width:2.4}
+.csel--pill .csel-ph{color:var(--muted-foreground);font-weight:700}
+.csel--pill .csel-text{font-weight:700}
+.csel--pill .csel-x{display:none}
+
+/* floating panel */
+.csel-panel{
+  position:fixed;left:0;top:0;z-index:220;
+  background:var(--popover);border:1px solid var(--border);border-radius:var(--r-lg);
+  box-shadow:var(--sh-lg);padding:6px;display:flex;flex-direction:column;gap:5px;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transform:translateY(calc(var(--distance-micro) * -1)) scale(var(--scale-medium));
+  transform-origin:top left;
+  transition:opacity var(--duration-quick) var(--ease-smooth-out),
+             transform var(--duration-quick) var(--ease-smooth-out),
+             visibility 0s linear var(--duration-quick);
+}
+.csel-panel.is-open{opacity:1;visibility:visible;pointer-events:auto;transform:none;transition-duration:var(--duration-fast);transition-delay:0s}
+.csel-search-wrap{display:flex;align-items:center;gap:7px;padding:0 8px;height:32px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--card)}
+.csel-search-wrap>.ic{width:13px;height:13px;color:var(--muted-foreground);flex:0 0 auto}
+.csel-search{flex:1;min-width:0;border:0;outline:none;background:transparent;font-family:inherit;font-size:11px;font-weight:600;color:var(--foreground)}
+.csel-search::placeholder{color:var(--faint);font-weight:500}
+.csel-search-x{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;color:var(--muted-foreground)}
+.csel-search-x:hover{background:var(--accent);color:var(--foreground)}
+.csel-search-x .ic{width:10px;height:10px}
+.csel-crumb{display:flex;align-items:center;gap:7px;padding:2px 4px 5px;border-bottom:1px solid var(--border-soft);font-size:10.5px;font-weight:700;color:var(--muted-foreground)}
+.csel-back{display:inline-flex;align-items:center;gap:3px;color:var(--secondary-foreground);font-size:10.5px;font-weight:700}
+.csel-back:hover{color:var(--mint-3)}
+.csel-back .ic{width:12px;height:12px}
+.csel-crumb-cur{color:var(--foreground)}
+.csel-crumb-cur::before{content:'›';margin-right:7px;color:var(--faint)}
+.csel-list{max-height:224px;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:2px}
+.csel-opt{
+  display:flex;align-items:center;gap:9px;width:100%;min-height:34px;padding:6px 9px;
+  border-radius:var(--r-sm);cursor:pointer;color:var(--foreground);
+  transition:background-color var(--duration-quick) var(--ease-out);
+}
+.csel-opt:hover,.csel-opt.is-active{background:var(--accent)}
+.csel-opt.is-selected{background:var(--mint-soft)}
+.csel-opt.is-selected:hover,.csel-opt.is-selected.is-active{background:var(--mint-1)}
+.csel-opt-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.csel-opt-copy b{font-size:11.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.csel-opt-copy small{font-size:9.5px;font-weight:600;color:var(--muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.csel-box{width:16px;height:16px;flex:0 0 auto;border:1px solid var(--input);border-radius:5px;background:var(--card);display:grid;place-items:center;transition:background-color var(--duration-quick) var(--ease-out),border-color var(--duration-quick) var(--ease-out)}
+.csel-box .ic{width:11px;height:11px;color:var(--primary-foreground);opacity:0;stroke-width:2.6}
+.csel-opt.is-selected .csel-box{background:var(--primary);border-color:var(--primary)}
+.csel-opt.is-selected .csel-box .ic{opacity:1}
+.csel-tick{width:14px;height:14px;color:var(--mint-3);flex:0 0 auto;stroke-width:2.6}
+.csel-next{width:13px;height:13px;color:var(--muted-foreground);flex:0 0 auto}
+.csel-badge{height:18px;min-width:18px;padding:0 5px;border-radius:var(--r-pill);background:var(--mint-soft);color:var(--mint-ink);font-size:9.5px;font-weight:800;display:grid;place-items:center;flex:0 0 auto}
+.csel-empty{padding:20px 10px;text-align:center;font-size:11px;font-weight:600;color:var(--muted-foreground)}
+.csel-foot{display:flex;align-items:center;gap:7px;padding:5px 4px 1px;border-top:1px solid var(--border-soft)}
+.csel-count{font-size:10px;font-weight:700;color:var(--muted-foreground);font-variant-numeric:tabular-nums}
+.csel-spacer{flex:1}
+.csel-clearall,.csel-done{
+  height:26px;padding:0 10px;border-radius:var(--r-pill);font-family:inherit;
+  font-size:10px;font-weight:700;white-space:nowrap;
+  transition:background-color var(--duration-quick) var(--ease-out),color var(--duration-quick) var(--ease-out);
+}
+.csel-clearall{color:var(--secondary-foreground);border:1px solid var(--border)}
+.csel-clearall:hover:not(:disabled){background:var(--accent);color:var(--foreground)}
+.csel-clearall:disabled{opacity:.4;cursor:not-allowed}
+.csel-done{background:var(--primary);color:var(--primary-foreground)}
+.csel-done:hover{background:var(--primary-hover)}
+@media(max-width:560px){
+  .csel-panel{max-width:calc(100vw - 24px)}
+  .csel-list{max-height:200px}
+}
 
 /* ---- checkbox / radio / segmented ---- */
 .check{
@@ -652,10 +741,10 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
 .overlay{
   position:fixed;inset:0;z-index:100;background:var(--overlay);
   display:flex;align-items:center;justify-content:center;padding:20px;
-  opacity:0;visibility:hidden;
+  opacity:0;visibility:hidden;pointer-events:none;
   transition:opacity var(--duration-fast) var(--ease-out),visibility 0s linear var(--duration-fast);
 }
-.overlay.open{opacity:1;visibility:visible;transition-delay:0s}
+.overlay.open{opacity:1;visibility:visible;pointer-events:auto;transition-delay:0s}
 .modal{
   width:min(540px,100%);max-height:min(90vh,820px);
   background:var(--card);border:1px solid var(--border);border-radius:var(--r-xl);
@@ -671,7 +760,7 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
 #ovTx .form-grid{gap:10px}
 #ovTx .field{gap:5px}
 #ovTx .field-foot{min-height:12px}
-#ovTx .input,#ovTx .textarea,#ovTx .select{padding:8px 12px}
+#ovTx .input,#ovTx .textarea,#ovTx .csel-trigger{padding:8px 12px}
 #ovTx .textarea{min-height:62px}
 #ovTx .dropzone{padding:13px}
 #ovTx .form-section{gap:6px}
@@ -739,7 +828,9 @@ button:active{opacity:.88;transition-duration:var(--duration-micro)}
 .k-sub{font-size:10px;font-weight:600;color:var(--muted-foreground);margin-top:4px}
 .toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:14px 0 12px}
 .toolbar .grow{flex:1;min-width:190px}
-.toolbar .select{min-width:132px;width:auto;height:36px}
+.toolbar .csel{min-width:160px;max-width:260px}
+.toolbar .csel-value{flex-wrap:nowrap}
+.toolbar .csel-trigger{height:36px}
 .toolbar .input{height:36px}
 .bulkbar{
   display:none;align-items:center;gap:10px;padding:9px 12px;margin-bottom:10px;
@@ -999,10 +1090,7 @@ a.btn{text-decoration:none}
             <div class="stat-top">
               <span class="stat-ico"><svg class="ic"><use href="#i-wallet"/></svg></span>
               <div class="stat-tools">
-                <div class="dd" data-dd="period">
-                  <button class="dd-btn"><span class="dd-label">Monthly</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
-                  <div class="dd-menu"><div>Today</div><div>Weekly</div><div>Monthly</div><div>Yearly</div></div>
-                </div>
+                <div class="csel" id="ddStat1"></div>
                 <span class="more">••</span>
               </div>
             </div>
@@ -1019,10 +1107,7 @@ a.btn{text-decoration:none}
             <div class="stat-top">
               <span class="stat-ico"><svg class="ic"><use href="#i-card"/></svg></span>
               <div class="stat-tools">
-                <div class="dd" data-dd="period">
-                  <button class="dd-btn"><span class="dd-label">Monthly</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
-                  <div class="dd-menu"><div>Today</div><div>Weekly</div><div>Monthly</div><div>Yearly</div></div>
-                </div>
+                <div class="csel" id="ddStat2"></div>
                 <span class="more">••</span>
               </div>
             </div>
@@ -1041,10 +1126,7 @@ a.btn{text-decoration:none}
           <div class="card-head">
             <div class="card-title">Transactions List</div>
             <div class="tools">
-              <div class="dd" data-dd="range">
-                <button class="dd-btn"><span class="dd-label">Recent</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
-                <div class="dd-menu"><div>Recent</div><div>Weekly</div><div>Monthly</div><div>All time</div></div>
-              </div>
+              <div class="csel" id="ddRange"></div>
               <span class="more">••</span>
             </div>
           </div>
@@ -1065,14 +1147,8 @@ a.btn{text-decoration:none}
                 <span data-series="income"><i style="background:var(--chart-1)"></i>Income</span>
                 <span data-series="expense"><i style="background:var(--chart-2)"></i>Expense</span>
               </div>
-              <div class="dd" data-dd="account">
-                <button class="dd-btn"><span class="dd-label">All Accounts</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
-                <div class="dd-menu"><div>All Accounts</div><div>Main Account</div><div>Savings</div><div>Credit Card</div></div>
-              </div>
-              <div class="dd" data-dd="period">
-                <button class="dd-btn"><span class="dd-label">Yearly</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
-                <div class="dd-menu"><div>Weekly</div><div>Monthly</div><div>Yearly</div></div>
-              </div>
+              <div class="csel" id="ddAccount"></div>
+              <div class="csel" id="ddFlowPeriod"></div>
               <span class="more">••</span>
             </div>
           </div>
@@ -1087,10 +1163,7 @@ a.btn{text-decoration:none}
           <div class="card-head">
             <div class="card-title">Income Source</div>
             <div class="tools">
-              <div class="dd" data-dd="period">
-                <button class="dd-btn"><span class="dd-label">Weekly</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
-                <div class="dd-menu"><div>Today</div><div>Weekly</div><div>Monthly</div><div>Yearly</div></div>
-              </div>
+              <div class="csel" id="ddSourcePeriod"></div>
               <span class="more">••</span>
             </div>
           </div>
@@ -1142,23 +1215,9 @@ a.btn{text-decoration:none}
               <input class="input" id="txSearch" type="text" placeholder="Search description, category or account" autocomplete="off" aria-label="Search transactions"/>
               <button class="input-clear" id="txSearchClear" aria-label="Clear search" hidden><svg class="ic"><use href="#i-x"/></svg></button>
             </div>
-            <div class="select-wrap">
-              <select class="select" id="fStatus" aria-label="Filter by status">
-                <option value="all">All statuses</option>
-                <option value="completed">Completed</option>
-                <option value="pending">Pending</option>
-                <option value="failed">Failed</option>
-              </select>
-              <svg class="ic chev"><use href="#i-chev"/></svg>
-            </div>
-            <div class="select-wrap">
-              <select class="select" id="fCategory" aria-label="Filter by category"><option value="all">All categories</option></select>
-              <svg class="ic chev"><use href="#i-chev"/></svg>
-            </div>
-            <div class="select-wrap">
-              <select class="select" id="fAccount" aria-label="Filter by account"><option value="all">All accounts</option></select>
-              <svg class="ic chev"><use href="#i-chev"/></svg>
-            </div>
+            <div class="csel" id="fStatus"></div>
+            <div class="csel" id="fCategory"></div>
+            <div class="csel" id="fAccount"></div>
             <button class="btn btn-ghost sm" id="fClear"><svg class="ic"><use href="#i-x"/></svg> Clear</button>
             <button class="btn btn-secondary sm" id="btnExport"><svg class="ic"><use href="#i-download"/></svg> Export</button>
             <button class="btn btn-mint sm" id="btnNew"><svg class="ic"><use href="#i-plus"/></svg> New transaction</button>
@@ -1234,21 +1293,21 @@ a.btn{text-decoration:none}
               <div class="panel-body form-row">
                 <div class="field">
                   <label class="label" for="setAccount">Default account</label>
-                  <div class="select-wrap"><select class="select" id="setAccount"></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+                  <div class="csel" id="setAccount"></div>
                 </div>
                 <div class="field">
                   <label class="label" for="setCurrency">Currency</label>
-                  <div class="select-wrap"><select class="select" id="setCurrency"><option value="USD">USD — $</option><option value="EUR">EUR — €</option><option value="GBP">GBP — £</option><option value="CNY">CNY — ¥</option></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+                  <div class="csel" id="setCurrency"></div>
                 </div>
               </div>
               <div class="panel-body form-row">
                 <div class="field">
                   <label class="label" for="setDateFmt">Date format</label>
-                  <div class="select-wrap"><select class="select" id="setDateFmt"><option value="short">Nov 19, 2026</option><option value="numeric">19/11/2026</option><option value="iso">2026-11-19</option></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+                  <div class="csel" id="setDateFmt"></div>
                 </div>
                 <div class="field">
                   <label class="label" for="setPageSize">Rows per page</label>
-                  <div class="select-wrap"><select class="select" id="setPageSize"><option value="6">6 rows</option><option value="10">10 rows</option><option value="20">20 rows</option></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+                  <div class="csel" id="setPageSize"></div>
                 </div>
               </div>
               <div class="actions-row">
@@ -1368,17 +1427,17 @@ a.btn{text-decoration:none}
           </div>
           <div class="field" id="fldCategory">
             <label class="label" for="txCategory">Category<span class="req">*</span></label>
-            <div class="select-wrap"><select class="select" id="txCategory"></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+            <div class="csel" id="txCategory"></div>
             <div class="field-foot"><span class="err"><svg class="ic"><use href="#i-alert"/></svg><em></em></span></div>
           </div>
           <div class="field" id="fldAccount">
             <label class="label" for="txAccount">Account<span class="req">*</span></label>
-            <div class="select-wrap"><select class="select" id="txAccount"></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+            <div class="csel" id="txAccount"></div>
             <div class="field-foot"><span class="err"><svg class="ic"><use href="#i-alert"/></svg><em></em></span></div>
           </div>
           <div class="field" id="fldStatus">
             <label class="label" for="txStatus">Status</label>
-            <div class="select-wrap"><select class="select" id="txStatus"><option value="completed">Completed</option><option value="pending">Pending</option><option value="failed">Failed</option></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+            <div class="csel" id="txStatus"></div>
           </div>
           <div class="field" id="fldNote">
             <label class="label" for="txNote">Note</label>
@@ -1446,7 +1505,7 @@ a.btn{text-decoration:none}
       <div class="modal-body">
         <div class="field">
           <label class="label" for="expRange">Period<span class="req">*</span></label>
-          <div class="select-wrap"><select class="select" id="expRange"><option value="all">All time</option><option value="30">Last 30 days</option><option value="month">This month</option><option value="year">This year</option></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+          <div class="csel" id="expRange"></div>
         </div>
         <div class="field">
           <span class="label">Format<span class="req">*</span></span>
@@ -1488,6 +1547,317 @@ a.btn{text-decoration:none}
 /* ============================================================
    Interactions
    ============================================================ */
+/* ============================================================
+   CUSTOM SELECT — one unified dropdown component.
+   No <select>, no native popup, no appearance overrides.
+   Capabilities: single / multiple, cascading groups, keyword search,
+   selection echo (text + removable chips), deselect, clear-all,
+   expand/collapse, keyboard, outside-click, and body-mounted fixed
+   panels so nothing is ever clipped by a scroll container or modal.
+   ============================================================ */
+const SEL = Object.create(null);
+let SEL_OPEN = null;
+let SEL_SEQ = 0;
+
+class CSelect{
+  constructor(id, cfg){
+    this.id=id;
+    this.host=document.getElementById(id);
+    this.cfg=Object.assign({
+      options:[], multiple:false, searchable:true, clearable:true,
+      placeholder:'Select…', emptyText:'No matching options',
+      ariaLabel:'', pill:false, minWidth:0, groupName:'All',
+      maxChips:2, done:true, onChange:null
+    }, cfg||{});
+    this.options=this.cfg.options;
+    const initial=this.cfg.value;
+    this.sel=new Set(initial==null||initial===''?[]:(Array.isArray(initial)?initial:[initial]).map(String));
+    this.level=null;
+    this.query='';
+    this.active=0;
+    this.build();
+    SEL[id]=this;
+  }
+  isTree(){ return this.options.some(o=>o.children&&o.children.length); }
+  leaves(){
+    const out=[];
+    this.options.forEach(o=>{
+      if(o.children&&o.children.length) o.children.forEach(c=>out.push({item:c,parent:o}));
+      else out.push({item:o,parent:null});
+    });
+    return out;
+  }
+  labelOf(v){
+    for(const o of this.options){
+      if(String(o.value)===String(v)) return o.label;
+      if(o.children) for(const c of o.children) if(String(c.value)===String(v)) return c.label;
+    }
+    return v==null?'':String(v);
+  }
+  parentOf(v){
+    for(const o of this.options) if(o.children&&o.children.some(c=>String(c.value)===String(v))) return o;
+    return null;
+  }
+  build(){
+    const c=this.cfg, uid='csel_'+(++SEL_SEQ);
+    this.uid=uid;
+    this.host.className='csel'+(c.pill?' csel--pill':'')+(this.isTree()?' csel--tree':'');
+    this.host.dataset.csel=this.id;
+    this.host.innerHTML=
+      '<button type="button" class="csel-trigger" id="'+uid+'-t" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="'+uid+'-p"'+(c.ariaLabel?' aria-label="'+esc(c.ariaLabel)+'"':'')+'>'+
+        '<span class="csel-value"></span>'+
+        '<span class="csel-tools"><span class="csel-x" role="button" tabindex="0" aria-label="Clear selection" hidden><svg class="ic"><use href="#i-x"/></svg></span><svg class="ic csel-chev"><use href="#i-chev"/></svg></span>'+
+      '</button>';
+    const lab=document.querySelector('label[for="'+this.id+'"]');
+    if(lab) lab.setAttribute('for', uid+'-t');
+    this.trigger=this.host.querySelector('.csel-trigger');
+    this.valueEl=this.host.querySelector('.csel-value');
+    this.clearBtn=this.host.querySelector('.csel-x');
+
+    const p=document.createElement('div');
+    p.className='csel-panel'; p.id=uid+'-p';
+    p.setAttribute('role','listbox');
+    if(c.multiple) p.setAttribute('aria-multiselectable','true');
+    p.innerHTML=
+      (c.searchable?'<div class="csel-search-wrap"><svg class="ic"><use href="#i-search"/></svg><input class="csel-search" type="text" autocomplete="off" placeholder="Search…" aria-label="Search options"/><button type="button" class="csel-search-x" aria-label="Clear search" hidden><svg class="ic"><use href="#i-x"/></svg></button></div>':'')+
+      (this.isTree()?'<div class="csel-crumb" hidden><button type="button" class="csel-back"><svg class="ic"><use href="#i-chev-left"/></svg><span class="csel-crumb-all"></span></button><span class="csel-crumb-cur"></span></div>':'')+
+      '<div class="csel-list"></div>'+
+      '<div class="csel-foot"><span class="csel-count"></span><span class="csel-spacer"></span><button type="button" class="csel-clearall">Clear all</button>'+(c.multiple&&c.done?'<button type="button" class="csel-done">Done</button>':'')+'</div>';
+    document.body.appendChild(p);
+    this.panel=p;
+    this.listEl=p.querySelector('.csel-list');
+    this.countEl=p.querySelector('.csel-count');
+    this.crumb=p.querySelector('.csel-crumb');
+    if(c.searchable){
+      this.searchEl=p.querySelector('.csel-search');
+      this.searchX=p.querySelector('.csel-search-x');
+    }
+    this.bind();
+    this.renderValue();
+  }
+  bind(){
+    const c=this.cfg;
+    this.trigger.addEventListener('click',e=>{ e.stopPropagation(); this.toggle(); });
+    this.trigger.addEventListener('keydown',e=>{
+      if(e.key==='ArrowDown'||e.key==='Enter'||e.key===' '){ e.preventDefault(); this.open(); }
+    });
+    this.clearBtn.addEventListener('click',e=>{ e.stopPropagation(); this.clear(true); });
+    this.clearBtn.addEventListener('keydown',e=>{
+      if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); this.clear(true); }
+    });
+    this.valueEl.addEventListener('click',e=>{
+      const x=e.target.closest('[data-remove]');
+      if(!x) return;
+      e.stopPropagation(); this.remove(x.getAttribute('data-remove'),true);
+    });
+    this.valueEl.addEventListener('keydown',e=>{
+      const x=e.target.closest('[data-remove]');
+      if(!x) return;
+      if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); this.remove(x.getAttribute('data-remove'),true); }
+    });
+    this.panel.addEventListener('mousedown',e=>e.stopPropagation());
+    this.panel.addEventListener('click',e=>e.stopPropagation());
+    if(c.searchable){
+      this.searchEl.addEventListener('input',()=>{ this.query=this.searchEl.value; this.searchX.hidden=!this.query; this.active=0; this.renderList(); });
+      this.searchEl.addEventListener('keydown',e=>this.onKey(e));
+      this.searchX.addEventListener('click',()=>{ this.query=''; this.searchEl.value=''; this.searchX.hidden=true; this.active=0; this.renderList(); this.searchEl.focus(); });
+    }
+    const back=this.panel.querySelector('.csel-back');
+    if(back) back.addEventListener('click',()=>{
+      this.level=null; this.query='';
+      if(c.searchable){ this.searchEl.value=''; this.searchX.hidden=true; }
+      this.active=0; this.renderPanel(); this.focusSearch();
+    });
+    this.panel.querySelector('.csel-clearall').addEventListener('click',()=>this.clear(true));
+    const done=this.panel.querySelector('.csel-done');
+    if(done) done.addEventListener('click',()=>this.close(true));
+    this.listEl.addEventListener('click',e=>{
+      const opt=e.target.closest('.csel-opt'); if(!opt) return;
+      if(opt.dataset.parent!==undefined){
+        this.level=opt.dataset.parent; this.query='';
+        if(c.searchable){ this.searchEl.value=''; this.searchX.hidden=true; }
+        this.active=0; this.renderPanel(); this.focusSearch(); return;
+      }
+      this.pick(opt.dataset.value);
+    });
+    this.listEl.addEventListener('mouseover',e=>{
+      const opt=e.target.closest('.csel-opt'); if(!opt) return;
+      const items=[...this.listEl.querySelectorAll('.csel-opt')];
+      const i=items.indexOf(opt);
+      if(i>=0&&i!==this.active){ this.active=i; this.markActive(false); }
+    });
+  }
+  onKey(e){
+    const items=[...this.listEl.querySelectorAll('.csel-opt')];
+    if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); this.close(true); return; }
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      e.preventDefault(); if(!items.length) return;
+      this.active=(this.active+(e.key==='ArrowDown'?1:-1)+items.length)%items.length;
+      this.markActive(true); return;
+    }
+    if(e.key==='Enter'){
+      e.preventDefault();
+      const opt=items[this.active]; if(!opt) return;
+      if(opt.dataset.parent!==undefined){
+        this.level=opt.dataset.parent; this.query='';
+        this.searchEl.value=''; this.searchX.hidden=true;
+        this.active=0; this.renderPanel(); this.focusSearch();
+      } else this.pick(opt.dataset.value);
+      return;
+    }
+    if(e.key==='Backspace'&&!this.searchEl.value&&this.cfg.multiple&&this.sel.size){
+      const arr=[...this.sel]; this.remove(arr[arr.length-1],true);
+    }
+  }
+  markActive(scroll){
+    const items=[...this.listEl.querySelectorAll('.csel-opt')];
+    items.forEach((el,i)=>el.classList.toggle('is-active',i===this.active));
+    if(scroll&&items[this.active]) items[this.active].scrollIntoView({block:'nearest'});
+  }
+  focusSearch(){ if(this.cfg.searchable) setTimeout(()=>this.searchEl.focus({preventScroll:true}),0); }
+  getValue(){ const a=[...this.sel]; return this.cfg.multiple?a:(a[0]||''); }
+  getValues(){ return [...this.sel]; }
+  setValue(v){ this.sel=new Set(v==null||v===''?[]:[String(v)]); this.renderValue(); this.renderPanel(); }
+  setValues(a){ this.sel=new Set((Array.isArray(a)?a:[]).filter(x=>x!=null&&x!=='').map(String)); this.renderValue(); this.renderPanel(); }
+  setOptions(o){
+    this.options=o; this.level=null; this.query='';
+    if(this.cfg.searchable){ this.searchEl.value=''; this.searchX.hidden=true; }
+    const valid=new Set(this.leaves().map(x=>String(x.item.value)));
+    [...this.sel].forEach(v=>{ if(!valid.has(v)) this.sel.delete(v); });
+    this.active=0; this.renderValue(); this.renderPanel();
+  }
+  setLevel(v){ this.level=v; }
+  clear(notify){ this.sel.clear(); this.renderValue(); this.renderPanel(); if(notify) this.changed(); }
+  remove(v,notify){ this.sel.delete(String(v)); this.renderValue(); this.renderPanel(); if(notify) this.changed(); }
+  pick(v){
+    v=String(v);
+    if(this.cfg.multiple){ if(this.sel.has(v)) this.sel.delete(v); else this.sel.add(v); }
+    else this.sel=new Set([v]);
+    this.renderValue(); this.renderPanel(); this.changed();
+    if(!this.cfg.multiple) this.close(true);
+  }
+  changed(){
+    this.host.dispatchEvent(new Event('change',{bubbles:true}));
+    if(this.cfg.onChange) this.cfg.onChange(this.getValue(),this);
+  }
+  focus(){ this.trigger.focus({preventScroll:true}); }
+  open(){
+    if(SEL_OPEN&&SEL_OPEN!==this) SEL_OPEN.close(false);
+    SEL_OPEN=this;
+    this.host.classList.add('is-open');
+    this.trigger.setAttribute('aria-expanded','true');
+    this.panel.classList.add('is-open');
+    this.active=0; this.query='';
+    if(this.cfg.searchable){ this.searchEl.value=''; this.searchX.hidden=true; }
+    this.renderPanel(); this.position(); this.focusSearch();
+  }
+  close(restoreFocus){
+    this.host.classList.remove('is-open');
+    this.trigger.setAttribute('aria-expanded','false');
+    this.panel.classList.remove('is-open');
+    if(SEL_OPEN===this) SEL_OPEN=null;
+    if(restoreFocus) this.focus();
+  }
+  toggle(){ this.host.classList.contains('is-open')?this.close(false):this.open(); }
+  position(){
+    if(!this.host.classList.contains('is-open')) return;
+    const r=this.trigger.getBoundingClientRect();
+    if(r.width===0&&r.height===0){ this.close(false); return; }
+    if(r.bottom<0||r.top>window.innerHeight){ this.close(false); return; }
+    const pw=Math.min(Math.max(r.width,this.cfg.minWidth||220),window.innerWidth-24);
+    let left=this.cfg.pill?r.right-pw:r.left;
+    left=Math.max(12,Math.min(left,window.innerWidth-12-pw));
+    const ph=this.panel.offsetHeight||260;
+    let top=r.bottom+7;
+    if(top+ph>window.innerHeight-12){
+      const up=r.top-ph-7;
+      top=up>12?up:Math.max(12,window.innerHeight-12-ph);
+    }
+    this.panel.style.left=left+'px';
+    this.panel.style.top=top+'px';
+    this.panel.style.width=pw+'px';
+  }
+  renderValue(){
+    const vals=[...this.sel];
+    this.clearBtn.hidden=vals.length===0||!this.cfg.clearable;
+    if(!vals.length){ this.valueEl.innerHTML='<span class="csel-ph">'+esc(this.cfg.placeholder)+'</span>'; return; }
+    if(!this.cfg.multiple){
+      const p=this.parentOf(vals[0]);
+      this.valueEl.innerHTML='<span class="csel-text">'+esc(this.labelOf(vals[0]))+'</span>'+(p?'<span class="csel-group-tag">'+esc(p.label)+'</span>':'');
+      return;
+    }
+    const max=this.cfg.maxChips;
+    let h=vals.slice(0,max).map(v=>'<span class="csel-chip" data-v="'+esc(v)+'">'+esc(this.labelOf(v))+'<span class="csel-chip-x" role="button" tabindex="0" data-remove="'+esc(v)+'" aria-label="Remove '+esc(this.labelOf(v))+'"><svg class="ic"><use href="#i-x"/></svg></span></span>').join('');
+    if(vals.length>max) h+='<span class="csel-chip csel-more">+'+(vals.length-max)+'</span>';
+    this.valueEl.innerHTML=h;
+  }
+  renderPanel(){
+    if(!this.panel) return;
+    this.renderList();
+    const n=this.sel.size;
+    this.countEl.textContent=this.cfg.multiple?(n?n+' selected':'Nothing selected'):(n?'1 selected':'No selection');
+    const ca=this.panel.querySelector('.csel-clearall');
+    ca.disabled=!n; ca.hidden=!this.cfg.clearable;
+    if(this.crumb){
+      const inLevel=this.isTree()&&!this.query&&this.level!=null;
+      this.crumb.hidden=!inLevel;
+      if(inLevel){
+        this.crumb.querySelector('.csel-crumb-all').textContent=this.cfg.groupName;
+        const p=this.options.find(o=>String(o.value)===String(this.level));
+        this.crumb.querySelector('.csel-crumb-cur').textContent=p?p.label:'';
+      }
+    }
+  }
+  renderList(){
+    const q=this.query.trim().toLowerCase();
+    const row=(o,meta)=>{
+      const v=String(o.value), on=this.sel.has(v);
+      const box=this.cfg.multiple?'<span class="csel-box"><svg class="ic"><use href="#i-check"/></svg></span>':'';
+      const tick=(!this.cfg.multiple&&on)?'<svg class="ic csel-tick"><use href="#i-check"/></svg>':'';
+      return '<div class="csel-opt'+(on?' is-selected':'')+'" role="option" aria-selected="'+on+'" data-value="'+esc(v)+'">'+box+
+        '<span class="csel-opt-copy"><b>'+esc(o.label)+'</b>'+(meta?'<small>'+esc(meta)+'</small>':'')+'</span>'+tick+'</div>';
+    };
+    let html='';
+    if(q){
+      const m=this.leaves().filter(x=>(x.item.label+' '+(x.parent?x.parent.label:'')).toLowerCase().includes(q));
+      html=m.length?m.map(x=>row(x.item,x.parent?x.parent.label:'')).join(''):'<div class="csel-empty">'+esc(this.cfg.emptyText)+'</div>';
+    } else if(this.isTree()&&this.level==null){
+      html=this.options.map(o=>{
+        const kids=o.children||[];
+        const on=kids.filter(c=>this.sel.has(String(c.value))).length;
+        return '<div class="csel-opt csel-opt--group" role="option" data-parent="'+esc(o.value)+'">'+
+          '<span class="csel-opt-copy"><b>'+esc(o.label)+'</b><small>'+kids.length+' options'+(on?' · '+on+' selected':'')+'</small></span>'+
+          (on?'<span class="csel-badge">'+on+'</span>':'')+
+          '<svg class="ic csel-next"><use href="#i-chev-right"/></svg></div>';
+      }).join('');
+    } else {
+      const items=this.isTree()?((this.options.find(o=>String(o.value)===String(this.level))||{}).children||[]):this.options;
+      html=items.length?items.map(o=>row(o,null)).join(''):'<div class="csel-empty">'+esc(this.cfg.emptyText)+'</div>';
+    }
+    this.listEl.innerHTML=html;
+    this.active=Math.min(this.active,Math.max(0,this.listEl.querySelectorAll('.csel-opt').length-1));
+    this.markActive(false);
+  }
+}
+
+/* ---- global coordination: outside click, Escape priority, reposition ---- */
+document.addEventListener('mousedown',e=>{
+  if(SEL_OPEN&&!e.target.closest('.csel')&&!e.target.closest('.csel-panel')) SEL_OPEN.close(false);
+},true);
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&SEL_OPEN){ e.preventDefault(); e.stopPropagation(); SEL_OPEN.close(true); }
+},true);
+window.addEventListener('scroll',()=>{ if(SEL_OPEN) SEL_OPEN.position(); },true);
+window.addEventListener('resize',()=>{ if(SEL_OPEN) SEL_OPEN.position(); });
+document.getElementById('ctxNote').addEventListener('click',e=>{
+  const chip=e.target.closest('[data-k]'); if(!chip) return;
+  const k=chip.dataset.k, v=chip.dataset.v;
+  if(!FILTER[k]) return;
+  FILTER[k]=FILTER[k].filter(x=>x!==v);
+  SEL[k==='statuses'?'fStatus':k==='categories'?'fCategory':'fAccount'].setValues(FILTER[k]);
+  PAGE=1; renderTable(); syncFilterUI();
+});
+
 const toastEl = document.getElementById('toast');
 const toastMsgEl = document.getElementById('toastMsg');
 const toastUse = document.getElementById('toastIcon');
@@ -1515,30 +1885,6 @@ function bindActive(selector){
 }
 bindActive('.nav-item');
 bindActive('.side-item');
-
-/* dropdowns */
-document.querySelectorAll('.dd-btn').forEach(btn=>{
-  btn.addEventListener('click', e=>{
-    e.stopPropagation();
-    const dd = btn.closest('.dd');
-    document.querySelectorAll('.dd.open').forEach(x=>{ if(x!==dd) x.classList.remove('open'); });
-    dd.classList.toggle('open');
-  });
-});
-document.querySelectorAll('.dd-menu div').forEach(opt=>{
-  opt.addEventListener('click', e=>{
-    e.stopPropagation();
-    const dd = opt.closest('.dd');
-    const label = opt.textContent.trim();
-    dd.querySelector('.dd-label').textContent = label;
-    dd.classList.remove('open');
-    const scope = dd.dataset.dd;
-    if(scope === 'range'){ OV.range = label; renderOverview(); toast('Overview: ' + label, 'info'); }
-    else if(scope === 'account'){ OV.account = label; renderOverview(); toast('Account: ' + label, 'info'); }
-    else toast('View: ' + label, 'info');
-  });
-});
-document.addEventListener('click', ()=>document.querySelectorAll('.dd.open').forEach(x=>x.classList.remove('open')));
 
 /* ============================================================
    Gradient Area Chart — smooth Catmull-Rom → cubic Bezier
@@ -1773,7 +2119,7 @@ function loadPref(){
 
 let TX = loadTx();
 let PREF = loadPref();
-let FILTER = {q:'', status:'all', category:'all', account:'all'};
+let FILTER = {q:'', statuses:[], categories:[], accounts:[]};
 let SORT = {key:'date', dir:'desc'};
 let PAGE = 1;
 let SELECTED = new Set();
@@ -1819,11 +2165,12 @@ function openModal(id){
   ov.classList.add('open');
   document.body.style.overflow='hidden';
   setTimeout(()=>{
-    const f=ov.querySelector('input:not([type=hidden]):not([type=file]),select,textarea,button.btn-primary');
+    const f=ov.querySelector('input:not([type=hidden]):not([type=file]),textarea,.csel-trigger,button.btn-primary');
     if(f) f.focus({preventScroll:true});
   },80);
 }
 function closeModal(id){
+  if(SEL_OPEN) SEL_OPEN.close(false);
   const ov=document.getElementById(id);
   if(!ov) return;
   ov.classList.remove('open');
@@ -1842,21 +2189,91 @@ document.addEventListener('keydown', e=>{
   }
 });
 
-function fillSelect(id, items, placeholder, emptyVal, noPlaceholder){
-  const el=document.getElementById(id);
-  if(!el) return;
-  let html='';
-  if(!noPlaceholder && placeholder) html+='<option value="'+esc(emptyVal==null?'':emptyVal)+'">'+esc(placeholder)+'</option>';
-  items.forEach(v=>{ html+='<option value="'+esc(v)+'">'+esc(v)+'</option>'; });
-  el.innerHTML=html;
+const STATUS_OPTS=[
+  {value:'completed',label:'Completed'},{value:'pending',label:'Pending'},{value:'failed',label:'Failed'}
+];
+const CURRENCY_OPTS=[
+  {value:'USD',label:'USD — $'},{value:'EUR',label:'EUR — €'},
+  {value:'GBP',label:'GBP — £'},{value:'CNY',label:'CNY — ¥'}
+];
+const DATEFMT_OPTS=[
+  {value:'short',label:'Nov 19, 2026'},{value:'numeric',label:'19/11/2026'},{value:'iso',label:'2026-11-19'}
+];
+const PAGESIZE_OPTS=[{value:'6',label:'6 rows'},{value:'10',label:'10 rows'},{value:'20',label:'20 rows'}];
+const EXP_OPTS=[
+  {value:'all',label:'All time'},{value:'30',label:'Last 30 days'},
+  {value:'month',label:'This month'},{value:'year',label:'This year'}
+];
+const PERIOD_FULL=['Today','Weekly','Monthly','Yearly'].map(v=>({value:v,label:v}));
+const RANGE_OPTS=['Recent','Weekly','Monthly','All time'].map(v=>({value:v,label:v}));
+const ACCOUNT_OPTS=ACCOUNTS.map(v=>({value:v,label:v}));
+function categoryTree(){
+  return [
+    {value:'expense',label:'Expense',children:CATEGORIES.expense.map(v=>({value:v,label:v}))},
+    {value:'income', label:'Income', children:CATEGORIES.income.map(v=>({value:v,label:v}))}
+  ];
 }
-function fillSelectOptions(){
-  const allCats=[...new Set([...CATEGORIES.expense,...CATEGORIES.income])];
-  fillSelect('fCategory', allCats, 'All categories', 'all');
-  fillSelect('fAccount', ACCOUNTS, 'All accounts', 'all');
-  fillSelect('setAccount', ACCOUNTS, '', '', true);
-  fillSelect('txCategory', CATEGORIES.expense, 'Select a category', '');
-  fillSelect('txAccount', ACCOUNTS, 'Select an account', '');
+
+/* ---- one factory wires every dropdown, with real onChange behaviour ---- */
+function initSelects(){
+  const pill=(id,opts,value,onChange,searchable)=>new CSelect(id,{
+    options:opts, value:value, pill:true, searchable:!!searchable,
+    clearable:false, placeholder:'', minWidth:170, done:false, onChange:onChange
+  });
+  pill('ddStat1', PERIOD_FULL, 'Monthly', v=>toast('View: '+v,'info'));
+  pill('ddStat2', PERIOD_FULL, 'Monthly', v=>toast('View: '+v,'info'));
+  pill('ddRange', RANGE_OPTS, OV.range, v=>{ OV.range=v; renderOverview(); toast('Overview: '+v,'info'); });
+  pill('ddAccount', [{value:'All Accounts',label:'All Accounts'},...ACCOUNT_OPTS], OV.account,
+       v=>{ OV.account=v; renderOverview(); toast('Account: '+v,'info'); }, true);
+  pill('ddFlowPeriod', ['Weekly','Monthly','Yearly'].map(v=>({value:v,label:v})), 'Yearly',
+       v=>toast('View: '+v,'info'));
+  pill('ddSourcePeriod', PERIOD_FULL, 'Weekly', v=>toast('View: '+v,'info'));
+
+  /* multi-select toolbar filters */
+  new CSelect('fStatus',{
+    options:STATUS_OPTS, multiple:true, searchable:true, placeholder:'All statuses',
+    ariaLabel:'Filter by status', minWidth:190,
+    onChange:v=>{ FILTER.statuses=v; PAGE=1; renderTable(); syncFilterUI(); }
+  });
+  new CSelect('fCategory',{
+    options:categoryTree(), multiple:true, searchable:true, placeholder:'All categories',
+    ariaLabel:'Filter by category', groupName:'All types', minWidth:240,
+    onChange:v=>{ FILTER.categories=v; PAGE=1; renderTable(); syncFilterUI(); }
+  });
+  new CSelect('fAccount',{
+    options:ACCOUNT_OPTS, multiple:true, searchable:true, placeholder:'All accounts',
+    ariaLabel:'Filter by account', minWidth:210,
+    onChange:v=>{ FILTER.accounts=v; PAGE=1; renderTable(); syncFilterUI(); }
+  });
+
+  /* settings */
+  new CSelect('setAccount',{options:ACCOUNT_OPTS,value:PREF.account,ariaLabel:'Default account',placeholder:'Select an account',minWidth:210,searchable:true,done:false});
+  new CSelect('setCurrency',{options:CURRENCY_OPTS,value:PREF.currency,ariaLabel:'Currency',placeholder:'Select a currency',searchable:false,done:false});
+  new CSelect('setDateFmt',{options:DATEFMT_OPTS,value:PREF.dateFmt,ariaLabel:'Date format',placeholder:'Select a format',searchable:false,done:false});
+  new CSelect('setPageSize',{options:PAGESIZE_OPTS,value:String(PREF.pageSize),ariaLabel:'Rows per page',placeholder:'Select rows',searchable:false,done:false});
+
+  /* transaction form — cascading category drives the income/expense toggle */
+  new CSelect('txCategory',{
+    options:categoryTree(), value:'', ariaLabel:'Category', placeholder:'Select a category',
+    searchable:true, groupName:'All types', minWidth:280, done:false,
+    onChange:v=>{
+      const p=v?(CATEGORIES.expense.includes(v)?'expense':'income'):null;
+      if(p&&p!==currentType()) setType(p,true);
+      setFieldErr('fldCategory','');
+    }
+  });
+  new CSelect('txAccount',{
+    options:ACCOUNT_OPTS, value:'', ariaLabel:'Account', placeholder:'Select an account',
+    searchable:true, done:false, onChange:()=>setFieldErr('fldAccount','')
+  });
+  new CSelect('txStatus',{options:STATUS_OPTS,value:'completed',ariaLabel:'Status',placeholder:'Select a status',searchable:false,done:false});
+
+  /* export */
+  new CSelect('expRange',{
+    options:EXP_OPTS, value:'all', ariaLabel:'Period', placeholder:'Select a period',
+    searchable:false, done:false,
+    onChange:()=>{ showExpErr(''); updateExpInfo(); }
+  });
 }
 
 /* ============================================================
@@ -1889,9 +2306,9 @@ function filtered(){
   const q=FILTER.q.trim().toLowerCase();
   return TX.filter(t=>{
     if(q && !(t.description+' '+t.category+' '+t.account+' '+(t.note||'')).toLowerCase().includes(q)) return false;
-    if(FILTER.status!=='all' && t.status!==FILTER.status) return false;
-    if(FILTER.category!=='all' && t.category!==FILTER.category) return false;
-    if(FILTER.account!=='all' && t.account!==FILTER.account) return false;
+    if(FILTER.statuses.length && !FILTER.statuses.includes(t.status)) return false;
+    if(FILTER.categories.length && !FILTER.categories.includes(t.category)) return false;
+    if(FILTER.accounts.length && !FILTER.accounts.includes(t.account)) return false;
     return true;
   }).sort((a,b)=>{
     let c = SORT.key==='amount' ? Number(a.amount)-Number(b.amount) : (a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
@@ -1932,7 +2349,7 @@ function renderTable(){
   const none=list.length===0;
   table.hidden=none; empty.hidden=!none; pager.hidden=none;
   if(none){
-    const hasFilter=!!(FILTER.q||FILTER.status!=='all'||FILTER.category!=='all'||FILTER.account!=='all');
+    const hasFilter=!!(FILTER.q||FILTER.statuses.length||FILTER.categories.length||FILTER.accounts.length);
     document.getElementById('emptyTitle').textContent = hasFilter?'No matching transactions':'No transactions yet';
     document.getElementById('emptyText').textContent = hasFilter
       ? 'Try a different search term or clear the active filters.'
@@ -1968,15 +2385,16 @@ function renderBulk(){
   document.getElementById('bulkCount').textContent=n+' selected';
 }
 function syncFilterUI(){
-  document.getElementById('fStatus').value=FILTER.status;
-  document.getElementById('fCategory').value=FILTER.category;
-  document.getElementById('fAccount').value=FILTER.account;
+  SEL.fStatus.setValues(FILTER.statuses);
+  SEL.fCategory.setValues(FILTER.categories);
+  SEL.fAccount.setValues(FILTER.accounts);
   document.getElementById('txSearch').value=FILTER.q;
   document.getElementById('txSearchClear').hidden=!FILTER.q;
   const active=[];
-  if(FILTER.status!=='all') active.push('<span class="chip">'+cap(FILTER.status)+'</span>');
-  if(FILTER.category!=='all') active.push('<span class="chip">'+esc(FILTER.category)+'</span>');
-  if(FILTER.account!=='all') active.push('<span class="chip">'+esc(FILTER.account)+'</span>');
+  const push=(k,v,label)=>active.push('<span class="chip" data-k="'+k+'" data-v="'+esc(v)+'">'+esc(label)+'<svg class="ic x"><use href="#i-x"/></svg></span>');
+  FILTER.statuses.forEach(v=>push('statuses',v,cap(v)));
+  FILTER.categories.forEach(v=>push('categories',v,v));
+  FILTER.accounts.forEach(v=>push('accounts',v,v));
   if(FILTER.q) active.push('<span class="chip">“'+esc(FILTER.q)+'”</span>');
   document.getElementById('ctxNote').innerHTML=active.join('');
   document.getElementById('tableSub').textContent = active.length
@@ -1994,14 +2412,8 @@ document.getElementById('txSearchClear').addEventListener('click',()=>{
   FILTER.q=''; document.getElementById('txSearch').value=''; PAGE=1;
   renderTable(); syncFilterUI(); document.getElementById('txSearch').focus();
 });
-['fStatus','fCategory','fAccount'].forEach(id=>{
-  document.getElementById(id).addEventListener('change',e=>{
-    FILTER[id==='fStatus'?'status':id==='fCategory'?'category':'account']=e.target.value;
-    PAGE=1; renderTable(); syncFilterUI();
-  });
-});
 document.getElementById('fClear').addEventListener('click',()=>{
-  FILTER={q:'',status:'all',category:'all',account:'all'}; PAGE=1;
+  FILTER={q:'',statuses:[],categories:[],accounts:[]}; PAGE=1;
   syncFilterUI(); renderTable(); toast('Filters cleared','info');
 });
 document.getElementById('txTable').querySelectorAll('th.sortable').forEach(th=>{
@@ -2051,7 +2463,7 @@ function renderOverview(){
   if(!body) return;
   let list=[...TX].sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
   if(OV.account!=='All Accounts' && ACCOUNTS.includes(OV.account)) list=list.filter(t=>t.account===OV.account);
-  const span={'Weekly':7,'Monthly':31}[OV.range];
+  const span={'Today':1,'Weekly':7,'Monthly':31}[OV.range];
   if(span){
     const cut=new Date(); cut.setDate(cut.getDate()-(span-1));
     const c=isoOf(cut);
@@ -2095,9 +2507,15 @@ function clearFormErrors(){
   document.getElementById('fileErr').classList.remove('invalid');
   document.getElementById('fileErr').querySelector('em').textContent='';
 }
-function setType(type){
+function currentType(){
+  const b=document.querySelector('#txType button.on');
+  return b?b.dataset.type:'expense';
+}
+function setType(type, keepCategory){
   document.querySelectorAll('#txType button').forEach(b=>b.classList.toggle('on',b.dataset.type===type));
-  fillSelect('txCategory', CATEGORIES[type], 'Select a category', '');
+  SEL.txCategory.setLevel(type);
+  const cur=SEL.txCategory.getValue();
+  if(!keepCategory && cur && !CATEGORIES[type].includes(cur)) SEL.txCategory.setValue('');
   document.getElementById('txPrefix').textContent=CURRENCY[PREF.currency];
 }
 function setSwitch(id,on){ document.getElementById(id).setAttribute('aria-checked',on?'true':'false'); }
@@ -2121,9 +2539,9 @@ function openTx(id, preset){
   const dateEl=document.getElementById('txDate');
   dateEl.max=todayISO();
   dateEl.value=t?t.date:todayISO();
-  document.getElementById('txCategory').value=t?t.category:'';
-  document.getElementById('txAccount').value=t?t.account:PREF.account;
-  document.getElementById('txStatus').value=t?t.status:'completed';
+  SEL.txCategory.setValue(t?t.category:'');
+  SEL.txAccount.setValue(t?t.account:PREF.account);
+  SEL.txStatus.setValue(t?t.status:'completed');
   setSwitch('txRecurring',t?!!t.recurring:false);
   setSwitch('txNotify',!!PREF.saveNotify);
   document.getElementById('txDescCount').textContent=(t?t.description.length:0)+'/60';
@@ -2153,10 +2571,10 @@ function validateTx(){
   if(desc.length<2||desc.length>60) mark('fldDesc','Use 2–60 characters.');
   else mark('fldDesc','');
 
-  if(!document.getElementById('txCategory').value) mark('fldCategory','Choose a category.'); else mark('fldCategory','');
-  if(!document.getElementById('txAccount').value) mark('fldAccount','Choose an account.'); else mark('fldAccount','');
+  if(!SEL.txCategory.getValue()) mark('fldCategory','Choose a category.'); else mark('fldCategory','');
+  if(!SEL.txAccount.getValue()) mark('fldAccount','Choose an account.'); else mark('fldAccount','');
 
-  if(first){ const f=first.querySelector('input,select,textarea'); if(f) f.focus(); }
+  if(first){ const f=first.querySelector('input,textarea,.csel-trigger'); if(f) f.focus(); }
   return ok;
 }
 function saveTxForm(e){
@@ -2171,9 +2589,9 @@ function saveTxForm(e){
       amount:Number(document.getElementById('txAmount').value.trim().replace(/,/g,'')),
       description:document.getElementById('txDesc').value.trim(),
       date:document.getElementById('txDate').value,
-      category:document.getElementById('txCategory').value,
-      account:document.getElementById('txAccount').value,
-      status:document.getElementById('txStatus').value,
+      category:SEL.txCategory.getValue(),
+      account:SEL.txAccount.getValue(),
+      status:SEL.txStatus.getValue(),
       note:document.getElementById('txNote').value.trim(),
       recurring:getSwitch('txRecurring'),
       attachments:DRAFT_FILES.map(a=>({name:a.name,size:a.size,type:a.type,dataUrl:a.dataUrl||null}))
@@ -2206,7 +2624,7 @@ function validateFieldDesc(){
   const v=document.getElementById('txDesc').value.trim();
   setFieldErr('fldDesc',(v.length<2||v.length>60)?'Use 2–60 characters.':'');
 }
-['txAmount','txDate','txCategory','txAccount'].forEach(id=>{
+['txAmount','txDate'].forEach(id=>{
   document.getElementById(id).addEventListener('change',()=>validateTx());
 });
 ['txRecurring','txNotify'].forEach(id=>{
@@ -2345,6 +2763,7 @@ function rangeFilter(list,range){
   if(range==='30'){ cut=new Date(now); cut.setDate(cut.getDate()-30); }
   else if(range==='month') cut=new Date(now.getFullYear(),now.getMonth(),1);
   else if(range==='year') cut=new Date(now.getFullYear(),0,1);
+  if(!cut) return list;
   const c=isoOf(cut);
   return list.filter(t=>t.date>=c);
 }
@@ -2368,7 +2787,7 @@ function download(name,content,mime){
   setTimeout(()=>URL.revokeObjectURL(url),1200);
 }
 function updateExpInfo(){
-  const n=rangeFilter(TX,document.getElementById('expRange').value).length;
+  const n=rangeFilter(TX,SEL.expRange.getValue()).length;
   document.getElementById('expInfo').textContent=n+' record'+(n===1?'':'s')+' match this period · '+PREF.currency;
 }
 function showExpErr(msg){
@@ -2383,7 +2802,7 @@ function openExport(){
 }
 function doExport(e){
   e.preventDefault();
-  const range=document.getElementById('expRange').value;
+  const range=SEL.expRange.getValue();
   const list=rangeFilter(TX,range).sort((a,b)=>b.date.localeCompare(a.date));
   if(!list.length){ showExpErr('No records in this period. Choose a wider range.'); toast('Nothing to export for this period','error'); return; }
   const fmt=document.querySelector('input[name="expFmt"]:checked').value;
@@ -2397,7 +2816,6 @@ function doExport(e){
   toast(rows.length+' records exported as '+fmt.toUpperCase(),'success');
 }
 document.getElementById('expForm').addEventListener('submit',doExport);
-document.getElementById('expRange').addEventListener('change',()=>{ showExpErr(''); updateExpInfo(); });
 document.getElementById('btnExport').addEventListener('click',openExport);
 document.getElementById('actReport').addEventListener('click',openExport);
 
@@ -2411,10 +2829,10 @@ function syncThemeSwitch(){
 function fillSettingsForm(){
   document.getElementById('setName').value=PREF.name;
   document.getElementById('setEmail').value=PREF.email;
-  document.getElementById('setAccount').value=PREF.account;
-  document.getElementById('setCurrency').value=PREF.currency;
-  document.getElementById('setDateFmt').value=PREF.dateFmt;
-  document.getElementById('setPageSize').value=String(PREF.pageSize);
+  SEL.setAccount.setValue(PREF.account);
+  SEL.setCurrency.setValue(PREF.currency);
+  SEL.setDateFmt.setValue(PREF.dateFmt);
+  SEL.setPageSize.setValue(String(PREF.pageSize));
   document.querySelectorAll('.switch[data-pref]').forEach(s=>{
     if(s.dataset.pref==='darkMode') return;
     s.setAttribute('aria-checked',!!PREF[s.dataset.pref]?'true':'false');
@@ -2449,10 +2867,10 @@ function saveSettings(e){
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ setFieldErr('fldSetEmail','Enter a valid email address.'); ok=false; } else setFieldErr('fldSetEmail','');
   if(!ok){ toast('Please fix the highlighted fields.','error'); return; }
   PREF.name=name; PREF.email=email;
-  PREF.account=document.getElementById('setAccount').value;
-  PREF.currency=document.getElementById('setCurrency').value;
-  PREF.dateFmt=document.getElementById('setDateFmt').value;
-  PREF.pageSize=Number(document.getElementById('setPageSize').value)||6;
+  PREF.account=SEL.setAccount.getValue();
+  PREF.currency=SEL.setCurrency.getValue();
+  PREF.dateFmt=SEL.setDateFmt.getValue();
+  PREF.pageSize=Number(SEL.setPageSize.getValue())||6;
   savePref(); applyPrefs(); PAGE=1; renderTable(); renderKPIs(); renderOverview();
   updateHead(currentNav,{view: currentView});
   toast('Preferences saved','success');
@@ -2539,9 +2957,9 @@ function activateNav(name){
   document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.textContent.trim()===name));
   showView(cfg.view);
   if(cfg.view==='transactions'){
-    FILTER={q:'',status:'all',category:'all',account:'all'};
-    if(cfg.account) FILTER.account=cfg.account;
-    if(cfg.category) FILTER.category=cfg.category;
+    FILTER={q:'',statuses:[],categories:[],accounts:[]};
+    if(cfg.account) FILTER.accounts=[cfg.account];
+    if(cfg.category) FILTER.categories=[cfg.category];
     PAGE=1; syncFilterUI(); renderTable();
     if(cfg.focus) setTimeout(()=>document.getElementById('txSearch').focus({preventScroll:true}),110);
     if(cfg.export) setTimeout(openExport,110);
@@ -2569,7 +2987,7 @@ document.getElementById('actSearch').addEventListener('click',()=>{
 });
 document.getElementById('actFilter').addEventListener('click',()=>{
   activateNav('Transactions');
-  setTimeout(()=>document.getElementById('fStatus').focus({preventScroll:true}),110);
+  setTimeout(()=>SEL.fStatus.open(),110);
 });
 document.getElementById('actNew').addEventListener('click',()=>{
   const onDashboard=document.getElementById('viewDashboard').classList.contains('active');
@@ -2592,7 +3010,7 @@ document.getElementById('btnAI').addEventListener('click',()=>activateNav('AI As
 /* ============================================================
    INIT
    ============================================================ */
-fillSelectOptions();
+initSelects();
 fillSettingsForm();
 applyPrefs();
 syncThemeSwitch();
